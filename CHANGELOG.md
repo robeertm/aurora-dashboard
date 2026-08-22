@@ -1,0 +1,20 @@
+# Changelog
+
+## 0.9.0
+
+Initial version.
+
+- Aurora theme (Catppuccin Mocha, glass cards, static aurora gradient background)
+- 7 views: Overview, Lights, Climate, Energy, Network, System, Sensor Explorer
+- `aurora-effects.js`: dependency-free helper for glass blur, the scan glow-spot
+  on charts, and legend cleanup — no card-mod required
+- Animated constellation background (inline SVG, drift + twinkle,
+  `prefers-reduced-motion` aware)
+- Mission-control chart tiles: monospace header, glowing live value, neon
+  step-lines with native ApexCharts drop-shadow glow and a travelling scan pulse
+- Animated button-card templates: breathing lights with pulsing halo, switches,
+  scenes, persons, windows, batteries, metric tiles, counter chips
+- Auto-discovery throughout (auto-entities): lights, switches, scenes, climate,
+  windows, batteries, RSSI, trackers, updates, and an Explorer covering every
+  sensor by device class
+- Zero backend Jinja card templates by design (performance-safe)

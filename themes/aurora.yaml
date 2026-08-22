@@ -1,0 +1,103 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Aurora — a dark mission-control theme for Home Assistant
+#  Palette: Catppuccin Mocha · glass cards · aurora backdrop
+#  Requires: card-mod (for the glass/blur layer — theme works without it too)
+# ═══════════════════════════════════════════════════════════════════════════
+Aurora:
+  # ── core palette ─────────────────────────────────────────────────────────
+  primary-color: "#89b4fa"
+  accent-color: "#cba6f7"
+  light-primary-color: "#b4befe"
+  dark-primary-color: "#74c7ec"
+
+  # ── background: layered static aurora over near-black ────────────────────
+  primary-background-color: "#11111b"
+  secondary-background-color: "#181825"
+  lovelace-background: >-
+    radial-gradient(38% 44% at 20% 22%, rgba(203,166,247,.14), transparent 60%),
+    radial-gradient(34% 40% at 82% 18%, rgba(137,180,250,.12), transparent 60%),
+    radial-gradient(46% 48% at 70% 88%, rgba(148,226,213,.09), transparent 62%),
+    radial-gradient(40% 44% at 12% 82%, rgba(245,194,231,.08), transparent 60%),
+    #11111b
+
+  # ── text ─────────────────────────────────────────────────────────────────
+  primary-text-color: "#cdd6f4"
+  secondary-text-color: "#a6adc8"
+  text-primary-color: "#cdd6f4"
+  disabled-text-color: "#585b70"
+  divider-color: "rgba(180,190,254,0.08)"
+
+  # ── cards: translucent glass ─────────────────────────────────────────────
+  card-background-color: "rgba(37,38,56,0.55)"
+  ha-card-background: "rgba(37,38,56,0.55)"
+  ha-card-border-radius: "18px"
+  ha-card-border-width: "1px"
+  ha-card-border-color: "rgba(180,190,254,0.10)"
+  ha-card-box-shadow: "0 10px 40px -12px rgba(0,0,0,0.65)"
+
+  # ── header / sidebar ─────────────────────────────────────────────────────
+  app-header-background-color: "rgba(17,17,27,0.72)"
+  app-header-text-color: "#cdd6f4"
+  app-header-edit-background-color: "#181825"
+  sidebar-background-color: "#141420"
+  sidebar-icon-color: "#6c7086"
+  sidebar-text-color: "#a6adc8"
+  sidebar-selected-background-color: "rgba(137,180,250,0.10)"
+  sidebar-selected-icon-color: "#89b4fa"
+  sidebar-selected-text-color: "#cdd6f4"
+
+  # ── interactive elements ─────────────────────────────────────────────────
+  state-icon-color: "#7f849c"
+  state-icon-active-color: "#f9e2af"
+  paper-item-icon-color: "#7f849c"
+  paper-item-icon-active-color: "#f9e2af"
+  switch-checked-color: "#a6e3a1"
+  switch-checked-button-color: "#a6e3a1"
+  switch-checked-track-color: "rgba(166,227,161,0.4)"
+  switch-unchecked-button-color: "#585b70"
+  switch-unchecked-track-color: "#313244"
+  slider-color: "#89b4fa"
+  slider-secondary-color: "#b4befe"
+  slider-track-color: "#313244"
+  input-fill-color: "rgba(49,50,68,0.4)"
+  input-ink-color: "#cdd6f4"
+  input-label-ink-color: "#a6adc8"
+  input-idle-line-color: "#45475a"
+  input-hover-line-color: "#89b4fa"
+  input-dropdown-icon-color: "#a6adc8"
+  mdc-checkbox-unchecked-color: "#585b70"
+
+  # ── semantic colors ──────────────────────────────────────────────────────
+  error-color: "#f38ba8"
+  warning-color: "#f9e2af"
+  success-color: "#a6e3a1"
+  info-color: "#89dceb"
+
+  # ── entity state colors ──────────────────────────────────────────────────
+  state-light-active-color: "#f9e2af"
+  state-switch-active-color: "#a6e3a1"
+  state-fan-active-color: "#94e2d5"
+  state-binary_sensor-active-color: "#fab387"
+  state-cover-active-color: "#b4befe"
+  state-lock-locked-color: "#a6e3a1"
+  state-lock-unlocked-color: "#f38ba8"
+  state-climate-heat-color: "#fab387"
+  state-climate-cool-color: "#89dceb"
+  state-climate-auto-color: "#a6e3a1"
+  state-person-home-color: "#a6e3a1"
+  state-person-not_home-color: "#7f849c"
+  state-media_player-playing-color: "#cba6f7"
+  state-update-on-color: "#89b4fa"
+  state-alarm-armed-color: "#a6e3a1"
+  state-alarm-triggered-color: "#f38ba8"
+
+  # ── misc surfaces ────────────────────────────────────────────────────────
+  table-row-background-color: "rgba(24,24,37,0.5)"
+  table-row-alternative-background-color: "rgba(17,17,27,0.5)"
+  code-editor-background-color: "#181825"
+  scrollbar-thumb-color: "#45475a"
+  dialog-background-color: "rgba(24,24,37,0.92)"
+  more-info-header-background: "rgba(17,17,27,0.6)"
+
+  # ── effect gate: aurora-effects.js injects glass blur only where this is set
+  aurora-fx: "1"

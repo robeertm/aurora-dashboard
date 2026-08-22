@@ -1,0 +1,6 @@
+.DS_Store
+*.log
+# private local instance (Robert) — never publish
+dashboard/aurora-robert.de.yaml
+docs/screenshots/*
+!docs/screenshots/home.png
