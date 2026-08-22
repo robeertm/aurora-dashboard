@@ -466,6 +466,87 @@ button_card_templates:
         - white-space: normal
         - line-height: 1.1
 
+  # Room header: icon + room name (mono uppercase) left, big glowing temperature
+  # right, plus a pulsing "window open" line fed by a second entity (variables.window).
+  aurora_room:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    show_state: true
+    size: 22px
+    triggers_update: all
+    tap_action:
+      action: more-info
+    variables:
+      accent: "#cba6f7"
+      accent_bg: "rgba(203,166,247,0.10)"
+      window: ""
+    state_display: |
+      [[[
+        const v = parseFloat(entity ? entity.state : NaN);
+        return isNaN(v) ? '' : v.toFixed(1) + ' °C';
+      ]]]
+    custom_fields:
+      win: |
+        [[[
+          if (!variables.window) return '';
+          const w = states[variables.window];
+          return (w && w.state === 'on') ? '● WINDOW OPEN' : '';
+        ]]]
+    styles:
+      grid:
+        - grid-template-areas: "'i n s' 'i win s'"
+        - grid-template-columns: 46px 1fr auto
+        - grid-template-rows: min-content min-content
+      card:
+        - padding: 14px 16px 6px 16px
+        - background: none
+        - border: none
+        - box-shadow: none
+        - border-radius: 0
+      img_cell:
+        - grid-area: i
+        - width: 38px
+        - height: 38px
+        - border-radius: 12px
+        - background: "[[[ return variables.accent_bg; ]]]"
+        - align-self: center
+      icon:
+        - color: "[[[ return variables.accent; ]]]"
+      name:
+        - grid-area: n
+        - justify-self: start
+        - align-self: center
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - font-size: "clamp(11px, 3vw, 14px)"
+        - font-weight: 700
+        - letter-spacing: .14em
+        - text-transform: uppercase
+        - color: "#cdd6f4"
+        - white-space: nowrap
+        - overflow: hidden
+        - text-overflow: ellipsis
+        - min-width: 0
+      state:
+        - grid-area: s
+        - justify-self: end
+        - align-self: center
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - font-size: "clamp(16px, 5vw, 24px)"
+        - font-weight: 800
+        - color: "[[[ return variables.accent; ]]]"
+        - text-shadow: "[[[ return '0 0 14px ' + variables.accent + '80'; ]]]"
+      custom_fields:
+        win:
+          - grid-area: win
+          - justify-self: start
+          - margin-top: 2px
+          - font-size: 9.5px
+          - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+          - letter-spacing: .12em
+          - color: "#fab387"
+          - animation: aurora-pulse 1.6s ease-in-out infinite
+
 views:
 
   # ═════════════════════════ 1 · ÜBERSICHT ═════════════════════════
@@ -964,6 +1045,374 @@ views:
                   accent_bg: "rgba(137,220,235,0.10)"
 
   # ═════════════════════════ 2 · LICHT & SCHALTEN ═════════════════════════
+  # ═════════════════════════ 2 · SMART HOME (rooms + controls) ═════════════════════════
+  # One glass card per room: aurora_room header (live temp + window-open pulse),
+  # the native HA thermostat dial as the heating control, a grid of animated
+  # light/switch tiles, and an optional media player row.
+  # Adapt the entities to your rooms — the pattern is copy/paste per room.
+  - title: Smart Home
+    path: smarthome
+    icon: mdi:home-automation
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 4
+            square: false
+            cards:
+              - type: custom:button-card
+                template: aurora_chip
+                icon: mdi:thermometer
+                label: Avg room temp
+                name: |
+                  [[[
+                    const ids = ['living_room','kitchen','office','bedroom','bathroom','kids_room_1'];
+                    const vs = ids.map(r => parseFloat((hass.states['sensor.room_temp_'+r]||{}).state)).filter(v => !isNaN(v));
+                    if (!vs.length) return '—';
+                    return (vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(1) + ' °C';
+                  ]]]
+                styles:
+                  icon:
+                    - color: "#94e2d5"
+              - type: custom:button-card
+                template: aurora_chip
+                icon: mdi:radiator
+                label: Heating active
+                name: |
+                  [[[
+                    return String(Object.values(hass.states).filter(s =>
+                      s.entity_id.startsWith('climate.') && s.state === 'heat').length);
+                  ]]]
+                styles:
+                  icon:
+                    - color: |
+                        [[[
+                          const n = Object.values(hass.states).filter(s =>
+                            s.entity_id.startsWith('climate.') && s.state === 'heat').length;
+                          return n > 0 ? '#fab387' : '#585b70';
+                        ]]]
+              - type: custom:button-card
+                template: aurora_chip
+                icon: mdi:window-open-variant
+                label: Windows open
+                name: |
+                  [[[
+                    return String(Object.values(hass.states).filter(s =>
+                      s.entity_id.startsWith('binary_sensor.') &&
+                      ['door','window','opening'].includes(s.attributes.device_class) &&
+                      s.state === 'on').length);
+                  ]]]
+                styles:
+                  icon:
+                    - color: |
+                        [[[
+                          const n = Object.values(hass.states).filter(s =>
+                            s.entity_id.startsWith('binary_sensor.') &&
+                            ['door','window','opening'].includes(s.attributes.device_class) &&
+                            s.state === 'on').length;
+                          return n > 0 ? '#fab387' : '#585b70';
+                        ]]]
+              - type: custom:button-card
+                template: aurora_chip
+                icon: mdi:lightbulb-group
+                label: Lights on
+                name: |
+                  [[[
+                    return String(Object.values(hass.states).filter(s =>
+                      s.entity_id.startsWith('light.') && s.state === 'on').length);
+                  ]]]
+                tap_action:
+                  action: navigate
+                  navigation_path: /aurora-home/licht
+                styles:
+                  icon:
+                    - color: |
+                        [[[
+                          const n = Object.values(hass.states).filter(s =>
+                            s.entity_id.startsWith('light.') && s.state === 'on').length;
+                          return n > 0 ? '#f9e2af' : '#585b70';
+                        ]]]
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Rooms
+            heading_style: title
+            icon: mdi:floor-plan
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 3
+            square: false
+            cards:
+
+              # ── column A ──
+              - type: vertical-stack
+                cards:
+                  - type: custom:stack-in-card
+                    mode: vertical
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_room
+                        entity: sensor.room_temp_living_room
+                        name: Living Room
+                        icon: mdi:sofa
+                        variables:
+                          accent: "#cba6f7"
+                          accent_bg: "rgba(203,166,247,0.10)"
+                          window: binary_sensor.window_living_room
+                      - type: thermostat
+                        entity: climate.trv_living_room
+                        show_current_as_primary: true
+                        features:
+                          - type: climate-hvac-modes
+                            style: icons
+                            hvac_modes:
+                              - heat
+                              - "off"
+                      - type: grid
+                        columns: 3
+                        square: false
+                        cards:
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.living_room_main
+                            name: Main light
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.living_room_couch
+                            name: Couch
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.living_room_shelf
+                            name: Shelf
+                      - type: custom:mushroom-media-player-card
+                        entity: media_player.living_room_tv
+                        name: TV
+                        use_media_info: true
+                        fill_container: true
+                        collapsible_controls: true
+                        media_controls:
+                          - play_pause_stop
+                        volume_controls:
+                          - volume_set
+                  - type: custom:stack-in-card
+                    mode: vertical
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_room
+                        entity: sensor.room_temp_bathroom
+                        name: Bathroom
+                        icon: mdi:shower
+                        variables:
+                          accent: "#94e2d5"
+                          accent_bg: "rgba(148,226,213,0.10)"
+                          window: binary_sensor.window_bathroom
+                      - type: thermostat
+                        entity: climate.trv_bathroom
+                        show_current_as_primary: true
+                        features:
+                          - type: climate-hvac-modes
+                            style: icons
+                            hvac_modes:
+                              - heat
+                              - "off"
+
+              # ── column B ──
+              - type: vertical-stack
+                cards:
+                  - type: custom:stack-in-card
+                    mode: vertical
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_room
+                        entity: sensor.room_temp_kitchen
+                        name: Kitchen
+                        icon: mdi:silverware-fork-knife
+                        variables:
+                          accent: "#fab387"
+                          accent_bg: "rgba(250,179,135,0.10)"
+                          window: binary_sensor.window_kitchen
+                      - type: thermostat
+                        entity: climate.trv_kitchen
+                        show_current_as_primary: true
+                        features:
+                          - type: climate-hvac-modes
+                            style: icons
+                            hvac_modes:
+                              - heat
+                              - "off"
+                      - type: grid
+                        columns: 3
+                        square: false
+                        cards:
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.kitchen_main
+                            name: Main light
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.kitchen_counter
+                            name: Counter
+                          - type: custom:button-card
+                            template: aurora_switch
+                            entity: switch.kitchen_coffee_machine
+                            name: Coffee
+                            icon: mdi:coffee
+                  - type: custom:stack-in-card
+                    mode: vertical
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_room
+                        entity: sensor.room_temp_bedroom
+                        name: Bedroom
+                        icon: mdi:bed-king
+                        variables:
+                          accent: "#b4befe"
+                          accent_bg: "rgba(180,190,254,0.10)"
+                          window: binary_sensor.window_bedroom
+                      - type: thermostat
+                        entity: climate.trv_bedroom
+                        show_current_as_primary: true
+                        features:
+                          - type: climate-hvac-modes
+                            style: icons
+                            hvac_modes:
+                              - heat
+                              - "off"
+                      - type: grid
+                        columns: 3
+                        square: false
+                        cards:
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.bedroom_left
+                            name: Left
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.bedroom_right
+                            name: Right
+                      - type: custom:mushroom-media-player-card
+                        entity: media_player.bedroom_speaker
+                        name: Speaker
+                        use_media_info: true
+                        fill_container: true
+                        collapsible_controls: true
+                        media_controls:
+                          - play_pause_stop
+                        volume_controls:
+                          - volume_set
+
+              # ── column C ──
+              - type: vertical-stack
+                cards:
+                  - type: custom:stack-in-card
+                    mode: vertical
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_room
+                        entity: sensor.room_temp_office
+                        name: Office
+                        icon: mdi:desk-lamp
+                        variables:
+                          accent: "#89b4fa"
+                          accent_bg: "rgba(137,180,250,0.10)"
+                          window: binary_sensor.window_office
+                      - type: thermostat
+                        entity: climate.trv_office
+                        show_current_as_primary: true
+                        features:
+                          - type: climate-hvac-modes
+                            style: icons
+                            hvac_modes:
+                              - heat
+                              - "off"
+                      - type: grid
+                        columns: 3
+                        square: false
+                        cards:
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.office_main
+                            name: Main light
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.office_desk
+                            name: Desk
+                  - type: custom:stack-in-card
+                    mode: vertical
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_room
+                        entity: sensor.room_temp_kids_room_1
+                        name: Kids Room
+                        icon: mdi:rocket-launch
+                        variables:
+                          accent: "#a6e3a1"
+                          accent_bg: "rgba(166,227,161,0.10)"
+                          window: binary_sensor.window_kids_room_1
+                      - type: thermostat
+                        entity: climate.trv_kids_room_1
+                        show_current_as_primary: true
+                        features:
+                          - type: climate-hvac-modes
+                            style: icons
+                            hvac_modes:
+                              - heat
+                              - "off"
+                      - type: grid
+                        columns: 3
+                        square: false
+                        cards:
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.kids_room_main
+                            name: Main light
+                      - type: custom:mushroom-media-player-card
+                        entity: media_player.kids_room_speaker
+                        name: Speaker
+                        use_media_info: true
+                        fill_container: true
+                        collapsible_controls: true
+                        media_controls:
+                          - play_pause_stop
+                        volume_controls:
+                          - volume_set
+                  - type: custom:stack-in-card
+                    mode: vertical
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_room
+                        name: Hallway
+                        icon: mdi:coat-rack
+                        variables:
+                          accent: "#f9e2af"
+                          accent_bg: "rgba(249,226,175,0.10)"
+                      - type: grid
+                        columns: 3
+                        square: false
+                        cards:
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.hallway_main
+                            name: Main light
+                          - type: custom:button-card
+                            template: aurora_light
+                            entity: light.hallway_spot
+                            name: Spot
+
   - title: Lights
     path: licht
     icon: mdi:lightbulb-group
