@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.12.0
+
+- **Smart Home view rebuilt**: one section per room with three columns —
+  climate (thermostat, setpoint slider, valve, batteries, window), light +
+  scenes, switches + media + automations. Lights, scenes, switches and
+  automations are discovered **by area**; room group entities are excluded so
+  a room is not counted twice
+- New **Automations** view: every automation as a toggle tile, plus scripts,
+  toggle helpers and number helpers
+- New templates: `aurora_automation` (wobbling robot), `aurora_valve` (icon
+  spins faster the wider the valve is open), `aurora_action` (script runner),
+  `aurora_group_header`
+- **Every icon animates** — shared keyframe library shipped by
+  `aurora-effects.js` (v1.5.0) into every card shadow root, so child templates
+  can use the animations even though their `extra_styles` replaces the parent's
+- `aurora_metric` now rounds raw values (4.57999992370605 kWh → 4.58 kWh) and
+  lets Home Assistant translate enum states
+- **Responsive rewrite**: grid columns are now derived from the measured width
+  instead of viewport breakpoints, so a grid inside a narrow inner column gets
+  the same treatment as one on a phone
+
 ## 0.11.0
 
 - New **Radio** view: BLE scanner cards with a rotating radar sweep

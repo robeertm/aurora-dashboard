@@ -5,7 +5,7 @@ Glass cards over an animated constellation sky, neon-glow charts with a travelli
 scan pulse, animated buttons — and an *Explorer* view that surfaces **every single
 sensor** in your installation, grouped by device class, with zero configuration.
 
-> Catppuccin-Mocha palette · 9 views · auto-discovering · no expensive backend templates
+> Catppuccin-Mocha palette · 10 views · auto-discovering · no expensive backend templates
 
 ![Overview](docs/screenshots/home.png)
 
@@ -17,10 +17,18 @@ sensor** in your installation, grouped by device class, with zero configuration.
   step-line with gradient fill, and an animated **scan pulse** running along the curve.
 - 🔘 **Animated buttons** — lights breathe amber when on, switches glow green,
   open windows pulse orange, low batteries pulse red.
-- 🏠 **Smart Home room cards** — one glass card per room: a monospace room
-  header with live temperature and a pulsing *window open* badge, the native
-  Home Assistant **thermostat dial** as the heating control, a grid of animated
-  light/switch tiles, and an optional media player row.
+- 🏠 **Complete rooms** — one section per room, three columns wide: climate
+  (thermostat dial, setpoint slider, valve position, battery tiles, window
+  state), light + scenes, and switches + media + automations. Lights, scenes,
+  switches and automations are discovered **by area**, so assigning entities to
+  areas in Home Assistant is all the setup there is.
+- 🤖 **Automations everywhere** — every automation appears as a toggle tile
+  (green robot wobbling when active, grey when off), both inside its room and
+  on a dedicated Automations view together with scripts and helpers.
+- ✨ **Every icon animates** — lights breathe and flicker, scenes shimmer with
+  staggered delays, valves spin faster the wider they open, robots wobble,
+  batteries blink when low, radar sweeps rotate. All from one shared keyframe
+  library, all silenced by `prefers-reduced-motion`.
 - 📡 **Radio view** — BLE scanner cards with a **rotating radar sweep**, every
   `signal_strength` sensor auto-discovered as a traffic-light dBm tile
   (pulses red when weak), and RSSI history charts.
@@ -99,12 +107,17 @@ the two remaining UI steps.
    | `sensor.room_temp_*` | one temperature sensor per room |
    | `climate.trv_*` | one thermostat (TRV) per room — Smart Home view |
    | `binary_sensor.window_*` | window contact per room — Smart Home view |
-   | `light.<room>_*` / `media_player.*` | per-room tiles in the Smart Home view |
+   | `sensor.trv_*_valve` / `sensor.trv_*_battery` | valve position + battery per room (optional) |
+   | `input_number.room_setpoint_*` | optional room-setpoint helper shown as a slider |
+   | `media_player.*` | one media row per room (optional) |
    | `sensor.ble_scanner_*` | optional BLE scanner metrics (adverts / unique devices / avg RSSI) — Radio view; the signal-tile grid works without them |
 
-   The **Smart Home** view is a copy/paste pattern: duplicate one room card
-   (header → thermostat → light grid → media row), swap the entities, pick an
-   accent color — done.
+   The **Smart Home** view is a copy/paste pattern: duplicate one room section,
+   swap the climate entities, set the area name and accent color — the light,
+   scene, switch and automation columns fill themselves from that area.
+   Room *group* entities (e.g. a Hue room `light.living_room`) are excluded on
+   purpose: they would light up in parallel with every single lamp and make the
+   room look twice as busy as it is.
 
    Everything else (lights, switches, scenes, climate, windows, batteries, RSSI,
    trackers, updates, the whole Explorer) finds your entities by itself.
