@@ -7,7 +7,7 @@
  *  2. The scan-pulse animation on every apexcharts-card series named "scan"
  *     (a short bright dash travelling along the curve, mission-control style).
  *
- * No card-mod required. MIT licensed.
+ * No card-mod required. © 2026 Robert Manuwald — use only, see LICENSE.
  */
 (() => {
   const GLASS = `

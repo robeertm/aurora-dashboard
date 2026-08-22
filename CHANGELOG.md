@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.2
+
+- One-click install: HACS support for the effects helper (`hacs.json`,
+  helper moved to `dist/`) and an `install.sh` that sets up theme, helper,
+  and dashboard YAML in one command
+- License changed from MIT to a source-available "use only" license
+
 ## 0.9.1
 
 - Responsive layout on phones/tablets: `aurora-effects.js` now reduces fixed
