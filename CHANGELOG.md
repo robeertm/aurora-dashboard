@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0
+
+- New **Smart Home** view: one glass card per room with a monospace room
+  header (live temperature, pulsing *window open* badge via the new
+  `aurora_room` button-card template), the native Home Assistant thermostat
+  dial as the heating control, animated light/switch tile grids, and optional
+  media player rows
+- Summary chips on top: average room temperature, heating active, windows
+  open, lights on (all computed client-side)
+- Rooms are laid out as three masonry-style columns that collapse to a single
+  column on phones (handled by `aurora-effects.js`)
+
 ## 0.9.2
 
 - One-click install: HACS support for the effects helper (`hacs.json`,

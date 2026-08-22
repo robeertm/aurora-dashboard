@@ -5,7 +5,7 @@ Glass cards over an animated constellation sky, neon-glow charts with a travelli
 scan pulse, animated buttons — and an *Explorer* view that surfaces **every single
 sensor** in your installation, grouped by device class, with zero configuration.
 
-> Catppuccin-Mocha palette · 7 views · auto-discovering · no expensive backend templates
+> Catppuccin-Mocha palette · 8 views · auto-discovering · no expensive backend templates
 
 ![Overview](docs/screenshots/home.png)
 
@@ -17,6 +17,10 @@ sensor** in your installation, grouped by device class, with zero configuration.
   step-line with gradient fill, and an animated **scan pulse** running along the curve.
 - 🔘 **Animated buttons** — lights breathe amber when on, switches glow green,
   open windows pulse orange, low batteries pulse red.
+- 🏠 **Smart Home room cards** — one glass card per room: a monospace room
+  header with live temperature and a pulsing *window open* badge, the native
+  Home Assistant **thermostat dial** as the heating control, a grid of animated
+  light/switch tiles, and an optional media player row.
 - 🔭 **Sensor Explorer** — *every* sensor and binary sensor in your install,
   grouped by device class, sorted, auto-discovered. Nothing falls through.
 - ⚡ **Live counter chips** — lights on, windows open, updates pending, people
@@ -88,6 +92,13 @@ the two remaining UI steps.
    | `sensor.wan_download_rate` / `sensor.wan_upload_rate` | live WAN throughput |
    | `sensor.wan_download_today` … | WAN volume counters (MB) |
    | `sensor.room_temp_*` | one temperature sensor per room |
+   | `climate.trv_*` | one thermostat (TRV) per room — Smart Home view |
+   | `binary_sensor.window_*` | window contact per room — Smart Home view |
+   | `light.<room>_*` / `media_player.*` | per-room tiles in the Smart Home view |
+
+   The **Smart Home** view is a copy/paste pattern: duplicate one room card
+   (header → thermostat → light grid → media row), swap the entities, pick an
+   accent color — done.
 
    Everything else (lights, switches, scenes, climate, windows, batteries, RSSI,
    trackers, updates, the whole Explorer) finds your entities by itself.
