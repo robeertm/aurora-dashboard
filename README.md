@@ -5,7 +5,7 @@ Glass cards over an animated constellation sky, neon-glow charts with a travelli
 scan pulse, animated buttons — and an *Explorer* view that surfaces **every single
 sensor** in your installation, grouped by device class, with zero configuration.
 
-> Catppuccin-Mocha palette · 8 views · auto-discovering · no expensive backend templates
+> Catppuccin-Mocha palette · 9 views · auto-discovering · no expensive backend templates
 
 ![Overview](docs/screenshots/home.png)
 
@@ -21,6 +21,11 @@ sensor** in your installation, grouped by device class, with zero configuration.
   header with live temperature and a pulsing *window open* badge, the native
   Home Assistant **thermostat dial** as the heating control, a grid of animated
   light/switch tiles, and an optional media player row.
+- 📡 **Radio view** — BLE scanner cards with a **rotating radar sweep**, every
+  `signal_strength` sensor auto-discovered as a traffic-light dBm tile
+  (pulses red when weak), and RSSI history charts.
+- 🧊 **Real glass** — cards get a strong backdrop blur plus a diagonal light
+  sheen and top-edge highlight, injected by the effects helper.
 - 🔭 **Sensor Explorer** — *every* sensor and binary sensor in your install,
   grouped by device class, sorted, auto-discovered. Nothing falls through.
 - ⚡ **Live counter chips** — lights on, windows open, updates pending, people
@@ -95,6 +100,7 @@ the two remaining UI steps.
    | `climate.trv_*` | one thermostat (TRV) per room — Smart Home view |
    | `binary_sensor.window_*` | window contact per room — Smart Home view |
    | `light.<room>_*` / `media_player.*` | per-room tiles in the Smart Home view |
+   | `sensor.ble_scanner_*` | optional BLE scanner metrics (adverts / unique devices / avg RSSI) — Radio view; the signal-tile grid works without them |
 
    The **Smart Home** view is a copy/paste pattern: duplicate one room card
    (header → thermostat → light grid → media row), swap the entities, pick an

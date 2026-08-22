@@ -10,14 +10,36 @@
  * No card-mod required. © 2026 Robert Manuwald — use only, see LICENSE.
  */
 (() => {
+  // Full glass treatment for top-level cards: strong blur, a diagonal light
+  // sheen plus a faint top-edge highlight (::before overlay).
   const GLASS = `
+    ha-card {
+      position: relative;
+      backdrop-filter: blur(18px) saturate(1.45);
+      -webkit-backdrop-filter: blur(18px) saturate(1.45);
+      transition: border-color .3s ease, box-shadow .3s ease;
+    }
+    ha-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background:
+        linear-gradient(125deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.02) 30%, transparent 55%),
+        radial-gradient(130% 70% at 85% -15%, rgba(180,190,254,0.10), transparent 60%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    ha-card:hover {
+      border-color: rgba(180,190,254,.25);
+    }
+  `;
+  // Cards nested inside stack-in-card share their parent's glass surface —
+  // blur only, no per-segment sheen.
+  const GLASS_INNER = `
     ha-card {
       backdrop-filter: blur(14px) saturate(1.2);
       -webkit-backdrop-filter: blur(14px) saturate(1.2);
-      transition: border-color .3s ease, box-shadow .3s ease;
-    }
-    ha-card:hover {
-      border-color: rgba(180,190,254,.22);
     }
   `;
   const APEX = `
@@ -53,6 +75,17 @@
         if (WIDE.includes(c.tagName)) return true;
         if (deepHas(c, depth - 1)) return true;
       }
+    }
+    return false;
+  };
+
+  // Is this card element rendered inside a stack-in-card (composed tree)?
+  const insideStack = (el) => {
+    let n = el;
+    for (let i = 0; i < 15 && n; i++) {
+      n = n.parentNode;
+      if (n && n.nodeType === 11) n = n.host; // hop out of shadow roots
+      if (n && n.tagName === "STACK-IN-CARD") return true;
     }
     return false;
   };
@@ -104,7 +137,7 @@
     // Theme var may arrive late — keep re-checking until injected.
     if (!glassDone.has(sr) && sr.querySelector("ha-card") && auroraActive(el)) {
       glassDone.add(sr);
-      inject(sr, GLASS);
+      inject(sr, insideStack(el) ? GLASS_INNER : GLASS);
     }
   };
 
