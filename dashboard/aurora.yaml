@@ -1,0 +1,2152 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Aurora Dashboard — generic English template
+#  All logic runs CLIENT-side (button-card JS / auto-entities patterns).
+#  Deliberately NO Jinja card templates (render_template) — see README.
+#  Layout rule: max_columns 3, sections column_span 3 (full width),
+#  columns come from inner grid cards -> deterministic on any desktop.
+#  Search for "sensor." placeholders and adapt them to your install (see README).
+# ═══════════════════════════════════════════════════════════════════════════
+title: Aurora
+
+# Wiederverwendbare Plot-Bausteine (Cockpit-Look: Neon-Glow, Scan-Puls, Animationen)
+aurora_defs:
+  apex_anim: &apex_anim
+    enabled: true
+    easing: easeinout
+    speed: 900
+    dynamicAnimation:
+      enabled: true
+      speed: 600
+  apex_grid: &apex_grid
+    borderColor: "rgba(180,190,254,0.07)"
+    strokeDashArray: 3
+  apex_fill2: &apex_fill2
+    type: ["gradient", "solid"]
+    opacity: [1, 1]
+    gradient:
+      opacityFrom: 0.4
+      opacityTo: 0.03
+  apex_fill3: &apex_fill3
+    type: ["gradient", "gradient", "solid"]
+    opacity: [1, 1, 1]
+    gradient:
+      opacityFrom: 0.4
+      opacityTo: 0.03
+
+button_card_templates:
+
+  aurora_base:
+    show_state: false
+    show_label: false
+    tap_action:
+      action: none
+    styles:
+      card:
+        - padding: 12px
+      name:
+        - font-weight: 600
+    extra_styles: |
+      @keyframes aurora-breathe {
+        0%,100% { filter: drop-shadow(0 0 3px var(--aurora-glow,#89b4fa)); }
+        50%     { filter: drop-shadow(0 0 13px var(--aurora-glow,#89b4fa)); }
+      }
+      @keyframes aurora-pulse {
+        0%,100% { transform: scale(1); opacity: 1; }
+        50%     { transform: scale(1.22); opacity: .6; }
+      }
+      @keyframes aurora-spin { to { transform: rotate(360deg); } }
+      @keyframes aurora-halo {
+        0%       { box-shadow: 0 0 0 0 color-mix(in srgb, var(--aurora-glow,#f9e2af) 45%, transparent); }
+        70%,100% { box-shadow: 0 0 0 12px transparent; }
+      }
+
+  aurora_chip:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    show_label: true
+    triggers_update: all
+    size: 22px
+    styles:
+      grid:
+        - grid-template-areas: "'i n' 'i l'"
+        - grid-template-columns: 48px 1fr
+        - grid-template-rows: min-content min-content
+      card:
+        - padding: 10px 12px
+        - height: 66px
+      img_cell:
+        - grid-area: i
+        - width: 40px
+        - height: 40px
+        - border-radius: 12px
+        - background: "rgba(137,180,250,0.08)"
+        - align-self: center
+      name:
+        - grid-area: n
+        - justify-self: start
+        - align-self: end
+        - font-size: 19px
+        - font-weight: 700
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - line-height: 1.1
+      label:
+        - grid-area: l
+        - justify-self: start
+        - align-self: start
+        - font-size: 10.5px
+        - letter-spacing: .08em
+        - text-transform: uppercase
+        - color: "#a6adc8"
+        - margin-top: 2px
+
+  aurora_metric:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    show_state: true
+    size: 20px
+    tap_action:
+      action: more-info
+    variables:
+      accent: "#89b4fa"
+      accent_bg: "rgba(137,180,250,0.10)"
+    styles:
+      grid:
+        - grid-template-areas: "'i s' 'i n'"
+        - grid-template-columns: 48px 1fr
+        - grid-template-rows: min-content min-content
+      card:
+        - padding: 10px 12px
+        - height: 66px
+      img_cell:
+        - grid-area: i
+        - width: 40px
+        - height: 40px
+        - border-radius: 12px
+        - background: "[[[ return variables.accent_bg; ]]]"
+        - align-self: center
+      icon:
+        - color: "[[[ return variables.accent; ]]]"
+      state:
+        - grid-area: s
+        - justify-self: start
+        - align-self: end
+        - font-size: 18px
+        - font-weight: 700
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - line-height: 1.1
+      name:
+        - grid-area: n
+        - justify-self: start
+        - align-self: start
+        - font-size: 10.5px
+        - letter-spacing: .08em
+        - text-transform: uppercase
+        - color: "#a6adc8"
+        - margin-top: 2px
+        - white-space: nowrap
+        - overflow: hidden
+        - text-overflow: ellipsis
+        - max-width: 100%
+
+  aurora_plot_header:
+    template: aurora_base
+    show_icon: false
+    show_name: true
+    show_state: true
+    tap_action:
+      action: more-info
+    variables:
+      accent: "#89b4fa"
+    styles:
+      grid:
+        - grid-template-areas: "'n s'"
+        - grid-template-columns: 1fr auto
+      card:
+        - padding: 14px 18px 0 18px
+        - background: none
+        - border: none
+        - box-shadow: none
+        - border-radius: 0
+      name:
+        - justify-self: start
+        - align-self: center
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - font-size: 12px
+        - font-weight: 600
+        - letter-spacing: .14em
+        - text-transform: uppercase
+        - color: "#a6adc8"
+      state:
+        - justify-self: end
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - font-size: 24px
+        - font-weight: 800
+        - color: "[[[ return variables.accent; ]]]"
+        - text-shadow: "[[[ return '0 0 14px ' + variables.accent + '80'; ]]]"
+
+  aurora_sky:
+    show_icon: false
+    show_name: false
+    show_state: false
+    tap_action:
+      action: none
+    styles:
+      card:
+        - position: fixed
+        - inset: "0"
+        - z-index: "0"
+        - pointer-events: none
+        - border: none
+        - border-radius: "0"
+        - box-shadow: none
+        - background: none
+        - backdrop-filter: none
+    extra_styles: |
+      ha-card {
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='700'><g fill='none' stroke='rgba(180,190,254,0.12)' stroke-width='0.7'><path d='M60,80 L140,58 L204,122 L298,96 L344,150'/><path d='M420,178 L502,140 L558,210 L622,188'/><path d='M118,418 L182,378 L262,430 L252,520 L176,548'/><path d='M478,478 L542,430 L612,470 L590,560 L518,584'/><path d='M320,260 L362,300 L330,360 L320,260'/><path d='M560,60 L610,96 L664,72'/></g><g fill='%23b4befe'><circle cx='60' cy='80' r='1.4' opacity='.8'/><circle cx='140' cy='58' r='1.1' opacity='.7'/><circle cx='204' cy='122' r='1.5' opacity='.9'/><circle cx='298' cy='96' r='1' opacity='.6'/><circle cx='344' cy='150' r='1.2' opacity='.7'/><circle cx='420' cy='178' r='1.3' opacity='.8'/><circle cx='502' cy='140' r='1' opacity='.6'/><circle cx='558' cy='210' r='1.5' opacity='.9'/><circle cx='622' cy='188' r='1.1' opacity='.7'/><circle cx='118' cy='418' r='1.2' opacity='.7'/><circle cx='182' cy='378' r='1.4' opacity='.85'/><circle cx='262' cy='430' r='1' opacity='.6'/><circle cx='252' cy='520' r='1.3' opacity='.8'/><circle cx='176' cy='548' r='1' opacity='.6'/><circle cx='478' cy='478' r='1.4' opacity='.8'/><circle cx='542' cy='430' r='1.1' opacity='.65'/><circle cx='612' cy='470' r='1.5' opacity='.9'/><circle cx='590' cy='560' r='1' opacity='.6'/><circle cx='518' cy='584' r='1.2' opacity='.7'/><circle cx='320' cy='260' r='1.3' opacity='.75'/><circle cx='362' cy='300' r='1' opacity='.6'/><circle cx='330' cy='360' r='1.2' opacity='.7'/><circle cx='560' cy='60' r='1.2' opacity='.7'/><circle cx='610' cy='96' r='1.4' opacity='.85'/><circle cx='664' cy='72' r='1' opacity='.6'/></g><g fill='%23cdd6f4'><circle cx='40' cy='240' r='0.8' opacity='.35'/><circle cx='96' cy='300' r='0.7' opacity='.3'/><circle cx='230' cy='210' r='0.9' opacity='.4'/><circle cx='390' cy='60' r='0.7' opacity='.3'/><circle cx='470' cy='300' r='0.8' opacity='.35'/><circle cx='540' cy='330' r='0.7' opacity='.3'/><circle cx='640' cy='320' r='0.9' opacity='.4'/><circle cx='60' cy='620' r='0.8' opacity='.35'/><circle cx='340' cy='560' r='0.7' opacity='.3'/><circle cx='400' cy='640' r='0.9' opacity='.4'/><circle cx='660' cy='620' r='0.8' opacity='.35'/><circle cx='300' cy='400' r='0.7' opacity='.3'/></g></svg>") !important;
+        background-size: 700px 700px !important;
+        background-color: transparent !important;
+        opacity: .75;
+        animation: aurora-skydrift 360s linear infinite alternate;
+      }
+      ha-card::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><g fill='%23cdd6f4'><circle cx='30' cy='50' r='1' opacity='.55'/><circle cx='120' cy='24' r='0.8' opacity='.45'/><circle cx='210' cy='90' r='1.1' opacity='.6'/><circle cx='330' cy='40' r='0.8' opacity='.45'/><circle cx='390' cy='140' r='1' opacity='.55'/><circle cx='70' cy='180' r='0.9' opacity='.5'/><circle cx='170' cy='230' r='0.7' opacity='.4'/><circle cx='280' cy='190' r='1' opacity='.55'/><circle cx='350' cy='280' r='0.8' opacity='.45'/><circle cx='40' cy='330' r='1.1' opacity='.6'/><circle cx='150' cy='370' r='0.8' opacity='.45'/><circle cx='250' cy='330' r='0.9' opacity='.5'/><circle cx='330' cy='390' r='1' opacity='.55'/><circle cx='390' cy='350' r='0.7' opacity='.4'/></g></svg>");
+        background-size: 420px 420px;
+        animation: aurora-twinkle 7s ease-in-out infinite alternate, aurora-skydrift 240s linear infinite;
+      }
+      @keyframes aurora-skydrift {
+        from { background-position: 0 0; }
+        to   { background-position: 700px 260px; }
+      }
+      @keyframes aurora-twinkle {
+        from { opacity: .2; }
+        to   { opacity: .75; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        ha-card, ha-card::after { animation: none; }
+      }
+
+  aurora_light:
+    template: aurora_base
+    show_state: true
+    show_name: true
+    size: 28px
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    state_display: |
+      [[[
+        if (entity && entity.state === 'on') {
+          const b = entity.attributes.brightness;
+          return b ? Math.round(b / 2.55) + ' %' : 'ON';
+        }
+        return entity && entity.state === 'unavailable' ? '—' : 'OFF';
+      ]]]
+    styles:
+      grid:
+        - grid-template-areas: "'i' 'n' 's'"
+        - grid-template-rows: 1fr min-content min-content
+      card:
+        - height: 118px
+        - padding: 12px 8px
+        - transition: all .25s ease
+      img_cell:
+        - width: 46px
+        - height: 46px
+        - margin: 0 auto
+        - border-radius: 50%
+        - background: "rgba(88,91,112,0.18)"
+        - transition: background .3s ease
+      icon:
+        - color: "#585b70"
+        - transition: color .3s ease
+      name:
+        - font-size: 12px
+        - margin-top: 6px
+        - white-space: normal
+        - line-height: 1.15
+      state:
+        - font-size: 10.5px
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - color: "#a6adc8"
+        - letter-spacing: .06em
+    state:
+      - value: "on"
+        styles:
+          card:
+            - "--aurora-glow": "#f9e2af"
+            - border: 1px solid rgba(249,226,175,0.35)
+            - box-shadow: "0 0 30px -8px rgba(249,226,175,0.45), 0 10px 40px -12px rgba(0,0,0,0.65)"
+          img_cell:
+            - background: "rgba(249,226,175,0.12)"
+            - animation: aurora-halo 2.4s ease-out infinite
+          icon:
+            - color: "#f9e2af"
+            - animation: aurora-breathe 2.8s ease-in-out infinite
+
+  aurora_switch:
+    template: aurora_light
+    state:
+      - value: "on"
+        styles:
+          card:
+            - "--aurora-glow": "#a6e3a1"
+            - border: 1px solid rgba(166,227,161,0.35)
+            - box-shadow: "0 0 30px -8px rgba(166,227,161,0.4), 0 10px 40px -12px rgba(0,0,0,0.65)"
+          img_cell:
+            - background: "rgba(166,227,161,0.12)"
+            - animation: aurora-halo 2.4s ease-out infinite
+          icon:
+            - color: "#a6e3a1"
+            - animation: aurora-breathe 2.8s ease-in-out infinite
+
+  aurora_scene:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    icon: mdi:palette
+    size: 20px
+    tap_action:
+      action: toggle
+    styles:
+      grid:
+        - grid-template-areas: "'i n'"
+        - grid-template-columns: 32px 1fr
+      card:
+        - min-height: 54px
+        - padding: 8px 12px
+      icon:
+        - color: "#cba6f7"
+      name:
+        - justify-self: start
+        - text-align: left
+        - font-size: 11.5px
+        - white-space: normal
+        - line-height: 1.2
+
+  aurora_person:
+    template: aurora_base
+    show_entity_picture: true
+    show_name: true
+    show_state: true
+    tap_action:
+      action: more-info
+    state_display: |
+      [[[
+        if (entity.state === 'home') return 'Home';
+        if (entity.state === 'not_home') return 'Away';
+        return entity.state;
+      ]]]
+    styles:
+      grid:
+        - grid-template-areas: "'i' 'n' 's'"
+        - grid-template-rows: 1fr min-content min-content
+      card:
+        - height: 132px
+        - padding: 14px 8px
+      entity_picture:
+        - width: 58px
+        - height: 58px
+        - border-radius: 50%
+        - border: "2px solid #585b70"
+        - transition: all .3s ease
+      name:
+        - font-size: 13px
+        - margin-top: 8px
+      state:
+        - font-size: 10.5px
+        - color: "#a6adc8"
+        - letter-spacing: .06em
+        - text-transform: uppercase
+    state:
+      - value: home
+        styles:
+          entity_picture:
+            - border: "2px solid #a6e3a1"
+            - box-shadow: 0 0 18px -2px rgba(166,227,161,0.55)
+          state:
+            - color: "#a6e3a1"
+      - value: not_home
+        styles:
+          entity_picture:
+            - filter: grayscale(60%)
+
+  aurora_window:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    show_state: true
+    size: 24px
+    tap_action:
+      action: more-info
+    state_display: |
+      [[[ return entity.state === 'on' ? 'OPEN' : 'CLOSED'; ]]]
+    styles:
+      grid:
+        - grid-template-areas: "'i n' 'i s'"
+        - grid-template-columns: 44px 1fr
+      card:
+        - height: 62px
+        - padding: 8px 12px
+      icon:
+        - color: "#a6e3a1"
+      name:
+        - justify-self: start
+        - align-self: end
+        - text-align: left
+        - font-size: 12px
+        - white-space: normal
+        - line-height: 1.1
+      state:
+        - justify-self: start
+        - align-self: start
+        - font-size: 10px
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - color: "#a6adc8"
+        - letter-spacing: .1em
+    state:
+      - value: "on"
+        styles:
+          card:
+            - border: 1px solid rgba(250,179,135,0.4)
+          icon:
+            - color: "#fab387"
+            - animation: aurora-pulse 1.6s ease-in-out infinite
+          state:
+            - color: "#fab387"
+
+  aurora_battery:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    show_state: true
+    size: 24px
+    tap_action:
+      action: more-info
+    styles:
+      grid:
+        - grid-template-areas: "'i s' 'i n'"
+        - grid-template-columns: 44px 1fr
+      card:
+        - height: 62px
+        - padding: 8px 12px
+      icon:
+        - color: |
+            [[[
+              const v = parseFloat(entity.state);
+              if (isNaN(v)) return '#585b70';
+              return v <= 20 ? '#f38ba8' : v <= 40 ? '#f9e2af' : '#a6e3a1';
+            ]]]
+        - animation: |
+            [[[
+              return parseFloat(entity.state) <= 20 ? 'aurora-pulse 1.2s ease-in-out infinite' : 'none';
+            ]]]
+      state:
+        - justify-self: start
+        - align-self: end
+        - font-size: 16px
+        - font-weight: 700
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+      name:
+        - justify-self: start
+        - align-self: start
+        - text-align: left
+        - font-size: 10.5px
+        - color: "#a6adc8"
+        - white-space: normal
+        - line-height: 1.1
+
+views:
+
+  # ═════════════════════════ 1 · ÜBERSICHT ═════════════════════════
+  - title: Overview
+    path: home
+    icon: mdi:view-dashboard-variant
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 3
+            square: false
+            cards:
+              - type: custom:clock-weather-card
+                entity: weather.forecast_home
+                sun_entity: sun.sun
+                locale: de
+                time_format: 24
+                forecast_rows: 4
+              - type: grid
+                columns: 2
+                square: false
+                cards:
+                  - type: custom:button-card
+                    template: aurora_chip
+                    icon: mdi:lightbulb-group
+                    label: Lights on
+                    name: |
+                      [[[
+                        return String(Object.values(hass.states).filter(s =>
+                          s.entity_id.startsWith('light.') && s.state === 'on').length);
+                      ]]]
+                    tap_action:
+                      action: navigate
+                      navigation_path: /aurora-home/licht
+                    styles:
+                      icon:
+                        - color: |
+                            [[[
+                              const n = Object.values(hass.states).filter(s =>
+                                s.entity_id.startsWith('light.') && s.state === 'on').length;
+                              return n > 0 ? '#f9e2af' : '#585b70';
+                            ]]]
+                  - type: custom:button-card
+                    template: aurora_chip
+                    icon: mdi:window-open-variant
+                    label: Windows open
+                    name: |
+                      [[[
+                        return String(Object.values(hass.states).filter(s =>
+                          s.entity_id.startsWith('binary_sensor.') &&
+                          ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
+                          s.state === 'on').length);
+                      ]]]
+                    tap_action:
+                      action: navigate
+                      navigation_path: /aurora-home/klima
+                    styles:
+                      icon:
+                        - color: |
+                            [[[
+                              const n = Object.values(hass.states).filter(s =>
+                                s.entity_id.startsWith('binary_sensor.') &&
+                                ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
+                                s.state === 'on').length;
+                              return n > 0 ? '#fab387' : '#585b70';
+                            ]]]
+                        - animation: |
+                            [[[
+                              const n = Object.values(hass.states).filter(s =>
+                                s.entity_id.startsWith('binary_sensor.') &&
+                                ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
+                                s.state === 'on').length;
+                              return n > 0 ? 'aurora-pulse 1.8s ease-in-out infinite' : 'none';
+                            ]]]
+                  - type: custom:button-card
+                    template: aurora_chip
+                    icon: mdi:account-group
+                    label: At home
+                    name: |
+                      [[[
+                        return String(Object.values(hass.states).filter(s =>
+                          s.entity_id.startsWith('person.') && s.state === 'home').length);
+                      ]]]
+                    styles:
+                      icon:
+                        - color: "#a6e3a1"
+                  - type: custom:button-card
+                    template: aurora_chip
+                    icon: mdi:battery-alert-variant-outline
+                    label: Batteries ≤ 20 %
+                    name: |
+                      [[[
+                        return String(Object.values(hass.states).filter(s =>
+                          s.entity_id.startsWith('sensor.') &&
+                          s.attributes.device_class === 'battery' &&
+                          parseFloat(s.state) <= 20).length);
+                      ]]]
+                    tap_action:
+                      action: navigate
+                      navigation_path: /aurora-home/system
+                    styles:
+                      icon:
+                        - color: |
+                            [[[
+                              const n = Object.values(hass.states).filter(s =>
+                                s.entity_id.startsWith('sensor.') &&
+                                s.attributes.device_class === 'battery' &&
+                                parseFloat(s.state) <= 20).length;
+                              return n > 0 ? '#f38ba8' : '#585b70';
+                            ]]]
+                        - animation: |
+                            [[[
+                              const n = Object.values(hass.states).filter(s =>
+                                s.entity_id.startsWith('sensor.') &&
+                                s.attributes.device_class === 'battery' &&
+                                parseFloat(s.state) <= 20).length;
+                              return n > 0 ? 'aurora-pulse 1.2s ease-in-out infinite' : 'none';
+                            ]]]
+                  - type: custom:button-card
+                    template: aurora_chip
+                    icon: mdi:package-up
+                    label: Updates
+                    name: |
+                      [[[
+                        return String(Object.values(hass.states).filter(s =>
+                          s.entity_id.startsWith('update.') && s.state === 'on').length);
+                      ]]]
+                    tap_action:
+                      action: navigate
+                      navigation_path: /aurora-home/system
+                    styles:
+                      icon:
+                        - color: |
+                            [[[
+                              const n = Object.values(hass.states).filter(s =>
+                                s.entity_id.startsWith('update.') && s.state === 'on').length;
+                              return n > 0 ? '#89b4fa' : '#585b70';
+                            ]]]
+                  - type: custom:button-card
+                    template: aurora_chip
+                    icon: mdi:music
+                    label: Media playing
+                    name: |
+                      [[[
+                        return String(Object.values(hass.states).filter(s =>
+                          s.entity_id.startsWith('media_player.') && s.state === 'playing').length);
+                      ]]]
+                    styles:
+                      icon:
+                        - color: |
+                            [[[
+                              const n = Object.values(hass.states).filter(s =>
+                                s.entity_id.startsWith('media_player.') && s.state === 'playing').length;
+                              return n > 0 ? '#cba6f7' : '#585b70';
+                            ]]]
+                  - type: custom:button-card
+                    template: aurora_chip
+                    icon: mdi:toggle-switch
+                    label: Switches on
+                    name: |
+                      [[[
+                        return String(Object.values(hass.states).filter(s =>
+                          s.entity_id.startsWith('switch.') && s.state === 'on').length);
+                      ]]]
+                    styles:
+                      icon:
+                        - color: "#a6e3a1"
+                  - type: custom:button-card
+                    template: aurora_chip
+                    icon: mdi:home-thermometer
+                    label: Ø indoor
+                    name: |
+                      [[[
+                        const vals = Object.values(hass.states)
+                          .filter(s => s.entity_id.startsWith('sensor.room_temp_'))
+                          .map(s => parseFloat(s.state)).filter(v => !isNaN(v));
+                        if (!vals.length) return '–';
+                        return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) + ' °C';
+                      ]]]
+                    tap_action:
+                      action: navigate
+                      navigation_path: /aurora-home/klima
+                    styles:
+                      icon:
+                        - color: "#94e2d5"
+              - type: vertical-stack
+                cards:
+                  - type: custom:auto-entities
+                    card:
+                      type: grid
+                      columns: 3
+                      square: false
+                    card_param: cards
+                    filter:
+                      include:
+                        - domain: person
+                          options:
+                            type: custom:button-card
+                            template: aurora_person
+                  - type: custom:auto-entities
+                    show_empty: false
+                    card:
+                      type: vertical-stack
+                    card_param: cards
+                    filter:
+                      include:
+                        - domain: media_player
+                          state: playing
+                          options:
+                            type: custom:mushroom-media-player-card
+                            use_media_info: true
+                            media_controls:
+                              - play_pause_stop
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Now
+            heading_style: title
+            icon: mdi:pulse
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 6
+            square: false
+            cards:
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.total_power
+                name: Power
+                icon: mdi:flash
+                variables:
+                  accent: "#fab387"
+                  accent_bg: "rgba(250,179,135,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.total_energy_today
+                name: Energy today
+                icon: mdi:lightning-bolt-circle
+                variables:
+                  accent: "#94e2d5"
+                  accent_bg: "rgba(148,226,213,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.total_cost_today
+                name: Cost today
+                icon: mdi:currency-eur
+                variables:
+                  accent: "#f9e2af"
+                  accent_bg: "rgba(249,226,175,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.outdoor_temperature
+                name: Outdoor
+                icon: mdi:thermometer
+                variables:
+                  accent: "#89dceb"
+                  accent_bg: "rgba(137,220,235,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.wan_download_rate
+                name: WAN ↓
+                icon: mdi:download
+                variables:
+                  accent: "#89b4fa"
+                  accent_bg: "rgba(137,180,250,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.wan_upload_rate
+                name: WAN ↑
+                icon: mdi:upload
+                variables:
+                  accent: "#f5c2e7"
+                  accent_bg: "rgba(245,194,231,0.10)"
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.total_power
+                    name: Power · 12 h
+                    state_display: |
+                      [[[ return Math.round(parseFloat(entity.state)) + ' W'; ]]]
+                    variables:
+                      accent: "#fab387"
+                  - type: custom:apexcharts-card
+                    graph_span: 12h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      grid: *apex_grid
+                      fill: *apex_fill2
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      curve: stepline
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 5min
+                    series:
+                      - entity: sensor.total_power
+                        name: Power
+                        color: "#fab387"
+                        show:
+                          legend_value: false
+                      - entity: sensor.total_power
+                        name: scan
+                        type: line
+                        color: "#fab387"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.wan_download_rate
+                    name: WAN ↓ ↑ · 6 h
+                    state_display: |
+                      [[[ return parseFloat(entity.state).toFixed(1) + ' Mbit/s'; ]]]
+                    variables:
+                      accent: "#89b4fa"
+                  - type: custom:apexcharts-card
+                    graph_span: 6h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#89b4fa"
+                      grid: *apex_grid
+                      fill: *apex_fill3
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      curve: stepline
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 5min
+                    series:
+                      - entity: sensor.wan_download_rate
+                        name: Download
+                        color: "#89b4fa"
+                        show:
+                          legend_value: false
+                      - entity: sensor.wan_upload_rate
+                        name: Upload
+                        color: "#f5c2e7"
+                        show:
+                          legend_value: false
+                      - entity: sensor.wan_download_rate
+                        name: scan
+                        type: line
+                        color: "#89b4fa"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Rooms
+            heading_style: title
+            icon: mdi:floor-plan
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 5
+            square: false
+            cards:
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_living_room
+                name: Living room
+                icon: mdi:sofa
+                variables:
+                  accent: "#cba6f7"
+                  accent_bg: "rgba(203,166,247,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_kitchen
+                name: Kitchen
+                icon: mdi:silverware-fork-knife
+                variables:
+                  accent: "#fab387"
+                  accent_bg: "rgba(250,179,135,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_office
+                name: Office
+                icon: mdi:desk
+                variables:
+                  accent: "#89b4fa"
+                  accent_bg: "rgba(137,180,250,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_bedroom
+                name: Bedroom
+                icon: mdi:bed-king
+                variables:
+                  accent: "#b4befe"
+                  accent_bg: "rgba(180,190,254,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_bathroom
+                name: Bathroom
+                icon: mdi:shower
+                variables:
+                  accent: "#94e2d5"
+                  accent_bg: "rgba(148,226,213,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_kids_room_1
+                name: Kids room 1
+                icon: mdi:gamepad-variant
+                variables:
+                  accent: "#a6e3a1"
+                  accent_bg: "rgba(166,227,161,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_kids_room_2
+                name: Kids room 2
+                icon: mdi:flower
+                variables:
+                  accent: "#f5c2e7"
+                  accent_bg: "rgba(245,194,231,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                name: Hallway
+                icon: mdi:coat-rack
+                show_state: false
+                variables:
+                  accent: "#f9e2af"
+                  accent_bg: "rgba(249,226,175,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                name: Hifi
+                icon: mdi:speaker
+                show_state: false
+                variables:
+                  accent: "#cba6f7"
+                  accent_bg: "rgba(203,166,247,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.outdoor_temperature
+                name: Outdoor
+                icon: mdi:tree
+                variables:
+                  accent: "#89dceb"
+                  accent_bg: "rgba(137,220,235,0.10)"
+
+  # ═════════════════════════ 2 · LICHT & SCHALTEN ═════════════════════════
+  - title: Lights
+    path: licht
+    icon: mdi:lightbulb-group
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: heading
+            heading: Lights
+            heading_style: title
+            icon: mdi:lightbulb-group
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            card:
+              type: grid
+              columns: 7
+              square: false
+            card_param: cards
+            sort:
+              method: friendly_name
+            filter:
+              include:
+                - domain: light
+                  options:
+                    type: custom:button-card
+                    template: aurora_light
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Switches & Outlets
+            heading_style: title
+            icon: mdi:power-socket-eu
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            card:
+              type: grid
+              columns: 7
+              square: false
+            card_param: cards
+            sort:
+              method: friendly_name
+            filter:
+              include:
+                - domain: switch
+                  options:
+                    type: custom:button-card
+                    template: aurora_switch
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Scenes
+            heading_style: title
+            icon: mdi:palette
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            card:
+              type: grid
+              columns: 5
+              square: false
+            card_param: cards
+            sort:
+              method: friendly_name
+            filter:
+              include:
+                - domain: scene
+                  options:
+                    type: custom:button-card
+                    template: aurora_scene
+
+  # ═════════════════════════ 3 · KLIMA ═════════════════════════
+  - title: Climate
+    path: klima
+    icon: mdi:thermostat
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: heading
+            heading: Room temperatures · 24 h
+            heading_style: title
+            icon: mdi:chart-bell-curve-cumulative
+          - type: custom:apexcharts-card
+            grid_options:
+              columns: full
+            graph_span: 24h
+            header:
+              show: true
+              show_states: true
+              colorize_states: true
+            apex_config:
+              chart:
+                height: 340
+                animations: *apex_anim
+                dropShadow:
+                  enabled: true
+                  top: 0
+                  left: 0
+                  blur: 6
+                  opacity: 0.7
+                  color: "#89dceb"
+              grid: *apex_grid
+              legend:
+                show: true
+            all_series_config:
+              stroke_width: 2
+              curve: smooth
+              group_by:
+                func: avg
+                duration: 15min
+            series:
+              - entity: sensor.outdoor_temperature
+                name: Outdoor
+                color: "#89dceb"
+                stroke_width: 3
+              - entity: sensor.outdoor_temperature
+                name: scan
+                type: line
+                color: "#89dceb"
+                stroke_width: 3
+                show:
+                  in_legend: false
+                  in_header: false
+                  legend_value: false
+              - entity: sensor.room_temp_living_room
+                name: Living room
+                color: "#cba6f7"
+              - entity: sensor.room_temp_kitchen
+                name: Kitchen
+                color: "#fab387"
+              - entity: sensor.room_temp_office
+                name: Office
+                color: "#89b4fa"
+              - entity: sensor.room_temp_bedroom
+                name: Bedroom
+                color: "#b4befe"
+              - entity: sensor.room_temp_bathroom
+                name: Bathroom
+                color: "#94e2d5"
+              - entity: sensor.room_temp_kids_room_2
+                name: Kids room 2
+                color: "#f5c2e7"
+              - entity: sensor.room_temp_kids_room_1
+                name: Kids room 1
+                color: "#a6e3a1"
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Thermostats
+            heading_style: title
+            icon: mdi:radiator
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            card:
+              type: grid
+              columns: 4
+              square: false
+            card_param: cards
+            sort:
+              method: friendly_name
+            filter:
+              include:
+                - domain: climate
+                  options:
+                    type: custom:mushroom-climate-card
+                    show_temperature_control: true
+                    hvac_modes:
+                      - heat
+                      - "off"
+                    collapsible_controls: true
+      - type: grid
+        column_span: 3
+        cards:
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 3
+            square: false
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Windows & Doors
+                    heading_style: title
+                    icon: mdi:window-closed-variant
+                  - type: custom:auto-entities
+                    card:
+                      type: grid
+                      columns: 2
+                      square: false
+                    card_param: cards
+                    sort:
+                      method: state
+                      reverse: true
+                    filter:
+                      include:
+                        - domain: binary_sensor
+                          attributes:
+                            device_class: window
+                          options:
+                            type: custom:button-card
+                            template: aurora_window
+                            icon: mdi:window-closed-variant
+                        - domain: binary_sensor
+                          attributes:
+                            device_class: door
+                          options:
+                            type: custom:button-card
+                            template: aurora_window
+                            icon: mdi:door
+                        - domain: binary_sensor
+                          attributes:
+                            device_class: opening
+                          options:
+                            type: custom:button-card
+                            template: aurora_window
+                            icon: mdi:door-open
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Humidity · 24 h
+                    heading_style: title
+                    icon: mdi:water-percent
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 200
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#89dceb"
+                      grid: *apex_grid
+                      fill: *apex_fill3
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      stroke_width: 2
+                      curve: stepline
+                      group_by:
+                        func: avg
+                        duration: 30min
+                    series:
+                      - entity: sensor.living_room_humidity
+                        name: Living room
+                        color: "#89dceb"
+                        show:
+                          legend_value: false
+                      - entity: sensor.kitchen_humidity
+                        name: Kitchen
+                        color: "#94e2d5"
+                        show:
+                          legend_value: false
+                      - entity: sensor.living_room_humidity
+                        name: scan
+                        type: line
+                        color: "#89dceb"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: All temperature sensors
+                    heading_style: title
+                    icon: mdi:thermometer-lines
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: state
+                      numeric: true
+                      reverse: true
+                    filter:
+                      include:
+                        - domain: sensor
+                          attributes:
+                            device_class: temperature
+                      exclude:
+                        - state: unavailable
+                        - state: unknown
+
+  # ═════════════════════════ 4 · ENERGIE ═════════════════════════
+  - title: Energy
+    path: energie
+    icon: mdi:lightning-bolt
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: heading
+            heading: History
+            heading_style: title
+            icon: mdi:chart-areaspline
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.total_power
+                    name: Total power · 24 h
+                    state_display: |
+                      [[[ return Math.round(parseFloat(entity.state)) + ' W'; ]]]
+                    variables:
+                      accent: "#fab387"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    span:
+                      end: minute
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 230
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      grid: *apex_grid
+                      fill: *apex_fill2
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      curve: stepline
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 5min
+                    series:
+                      - entity: sensor.total_power
+                        name: Total power
+                        color: "#fab387"
+                        show:
+                          extremas: true
+                          legend_value: false
+                      - entity: sensor.total_power
+                        name: scan
+                        type: line
+                        color: "#fab387"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.total_energy_today
+                    name: kWh per day · 14 days
+                    state_display: |
+                      [[[ return parseFloat(entity.state).toFixed(2) + ' kWh'; ]]]
+                    variables:
+                      accent: "#94e2d5"
+                  - type: custom:apexcharts-card
+                    graph_span: 14d
+                    span:
+                      end: day
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 230
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#94e2d5"
+                      grid: *apex_grid
+                      plotOptions:
+                        bar:
+                          borderRadius: 4
+                          columnWidth: "55%"
+                    series:
+                      - entity: sensor.total_energy_today
+                        name: kWh / day
+                        type: column
+                        color: "#94e2d5"
+                        group_by:
+                          func: max
+                          duration: 1d
+                      - entity: sensor.total_energy_today
+                        name: scan
+                        type: line
+                        color: "#94e2d5"
+                        stroke_width: 3
+                        group_by:
+                          func: max
+                          duration: 1d
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+      - type: grid
+        column_span: 3
+        cards:
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 3
+            square: false
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Consumers now
+                    heading_style: title
+                    icon: mdi:power-plug
+                  - type: grid
+                    columns: 2
+                    square: false
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_metric
+                        entity: sensor.circuit_house_power
+                        name: House
+                        icon: mdi:home-lightning-bolt
+                        variables:
+                          accent: "#fab387"
+                          accent_bg: "rgba(250,179,135,0.10)"
+                      - type: custom:button-card
+                        template: aurora_metric
+                        entity: sensor.circuit_wallbox_power
+                        name: Wallbox
+                        icon: mdi:ev-station
+                        variables:
+                          accent: "#89b4fa"
+                          accent_bg: "rgba(137,180,250,0.10)"
+                      - type: custom:button-card
+                        template: aurora_metric
+                        entity: sensor.circuit_boiler_power
+                        name: Boiler
+                        icon: mdi:water-boiler
+                        variables:
+                          accent: "#89dceb"
+                          accent_bg: "rgba(137,220,235,0.10)"
+                      - type: custom:button-card
+                        template: aurora_metric
+                        entity: sensor.circuit_lights_power
+                        name: Xmas lights
+                        icon: mdi:string-lights
+                        variables:
+                          accent: "#f9e2af"
+                          accent_bg: "rgba(249,226,175,0.10)"
+                      - type: custom:button-card
+                        template: aurora_metric
+                        entity: sensor.other_power
+                        name: Other
+                        icon: mdi:home-minus
+                        variables:
+                          accent: "#a6e3a1"
+                          accent_bg: "rgba(166,227,161,0.10)"
+                      - type: custom:button-card
+                        template: aurora_metric
+                        entity: sensor.total_power
+                        name: Total
+                        icon: mdi:sigma
+                        variables:
+                          accent: "#cba6f7"
+                          accent_bg: "rgba(203,166,247,0.10)"
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Energy today · Breakdown
+                    heading_style: title
+                    icon: mdi:chart-donut
+                  - type: custom:apexcharts-card
+                    chart_type: donut
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 250
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      legend:
+                        show: true
+                        position: bottom
+                      plotOptions:
+                        pie:
+                          donut:
+                            size: "68%"
+                    series:
+                      - entity: sensor.other_energy_today
+                        name: Other
+                        color: "#fab387"
+                        show:
+                          legend_value: true
+                      - entity: sensor.circuit_wallbox_energy_today
+                        name: Wallbox
+                        color: "#89b4fa"
+                        show:
+                          legend_value: true
+                      - entity: sensor.circuit_boiler_energy_today
+                        name: Boiler
+                        color: "#89dceb"
+                        show:
+                          legend_value: true
+                      - entity: sensor.circuit_lights_energy_today
+                        name: Xmas lights
+                        color: "#f9e2af"
+                        show:
+                          legend_value: true
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Costs
+                    heading_style: title
+                    icon: mdi:currency-eur
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: state
+                      numeric: true
+                      reverse: true
+                    filter:
+                      include:
+                        - domain: sensor
+                          attributes:
+                            device_class: monetary
+      - type: grid
+        column_span: 3
+        cards:
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: All energy sensors
+                    heading_style: title
+                    icon: mdi:counter
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: state
+                      numeric: true
+                      reverse: true
+                    filter:
+                      include:
+                        - domain: sensor
+                          attributes:
+                            device_class: energy
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: All power sensors
+                    heading_style: title
+                    icon: mdi:flash-outline
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: state
+                      numeric: true
+                      reverse: true
+                    filter:
+                      include:
+                        - domain: sensor
+                          attributes:
+                            device_class: power
+                      exclude:
+                        - state: unavailable
+
+  # ═════════════════════════ 5 · NETZWERK ═════════════════════════
+  - title: Network
+    path: netz
+    icon: mdi:lan
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: heading
+            heading: WAN
+            heading_style: title
+            icon: mdi:wan
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.wan_download_rate
+                    name: WAN throughput · 12 h
+                    state_display: |
+                      [[[ return parseFloat(entity.state).toFixed(1) + ' Mbit/s'; ]]]
+                    variables:
+                      accent: "#89b4fa"
+                  - type: custom:apexcharts-card
+                    graph_span: 12h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 230
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#89b4fa"
+                      grid: *apex_grid
+                      fill: *apex_fill3
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      stroke_width: 2
+                      curve: stepline
+                      group_by:
+                        func: avg
+                        duration: 5min
+                    series:
+                      - entity: sensor.wan_download_rate
+                        name: Download
+                        color: "#89b4fa"
+                        show:
+                          legend_value: false
+                      - entity: sensor.wan_upload_rate
+                        name: Upload
+                        color: "#f5c2e7"
+                        show:
+                          legend_value: false
+                      - entity: sensor.wan_download_rate
+                        name: scan
+                        type: line
+                        color: "#89b4fa"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: grid
+                columns: 2
+                square: false
+                cards:
+                  - type: custom:button-card
+                    template: aurora_metric
+                    entity: sensor.wan_download_today
+                    name: Today ↓
+                    icon: mdi:download
+                    state_display: |
+                      [[[ return (parseFloat(entity.state) / 1024).toFixed(1) + ' GB'; ]]]
+                    variables:
+                      accent: "#89b4fa"
+                      accent_bg: "rgba(137,180,250,0.10)"
+                  - type: custom:button-card
+                    template: aurora_metric
+                    entity: sensor.wan_upload_today
+                    name: Today ↑
+                    icon: mdi:upload
+                    state_display: |
+                      [[[ return (parseFloat(entity.state) / 1024).toFixed(1) + ' GB'; ]]]
+                    variables:
+                      accent: "#f5c2e7"
+                      accent_bg: "rgba(245,194,231,0.10)"
+                  - type: custom:button-card
+                    template: aurora_metric
+                    entity: sensor.wan_download_week
+                    name: Week ↓
+                    icon: mdi:calendar-week
+                    state_display: |
+                      [[[ return (parseFloat(entity.state) / 1024).toFixed(0) + ' GB'; ]]]
+                    variables:
+                      accent: "#74c7ec"
+                      accent_bg: "rgba(116,199,236,0.10)"
+                  - type: custom:button-card
+                    template: aurora_metric
+                    entity: sensor.wan_upload_week
+                    name: Week ↑
+                    icon: mdi:calendar-week
+                    state_display: |
+                      [[[ return (parseFloat(entity.state) / 1024).toFixed(0) + ' GB'; ]]]
+                    variables:
+                      accent: "#cba6f7"
+                      accent_bg: "rgba(203,166,247,0.10)"
+                  - type: custom:button-card
+                    template: aurora_metric
+                    entity: sensor.wan_download_month
+                    name: Month ↓
+                    icon: mdi:calendar-month
+                    state_display: |
+                      [[[ return (parseFloat(entity.state) / 1024).toFixed(0) + ' GB'; ]]]
+                    variables:
+                      accent: "#89dceb"
+                      accent_bg: "rgba(137,220,235,0.10)"
+                  - type: custom:button-card
+                    template: aurora_metric
+                    entity: sensor.wan_upload_month
+                    name: Month ↑
+                    icon: mdi:calendar-month
+                    state_display: |
+                      [[[ return (parseFloat(entity.state) / 1024).toFixed(0) + ' GB'; ]]]
+                    variables:
+                      accent: "#b4befe"
+                      accent_bg: "rgba(180,190,254,0.10)"
+      - type: grid
+        column_span: 3
+        cards:
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Top devices today
+                    heading_style: title
+                    icon: mdi:podium-gold
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: state
+                      numeric: true
+                      reverse: true
+                    filter:
+                      include:
+                        - entity_id: sensor.devtraffic_*
+                      exclude:
+                        - entity_id: "sensor.devtraffic_*_v4*"
+                        - entity_id: "sensor.devtraffic_*_v6*"
+                        - state: "0.0"
+                        - state: unavailable
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Radio signal (RSSI)
+                    heading_style: title
+                    icon: mdi:signal
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: state
+                      numeric: true
+                    filter:
+                      include:
+                        - domain: sensor
+                          attributes:
+                            device_class: signal_strength
+                      exclude:
+                        - state: unavailable
+      - type: grid
+        column_span: 3
+        cards:
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: PoE power
+                    heading_style: title
+                    icon: mdi:ethernet
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: state
+                      numeric: true
+                      reverse: true
+                    filter:
+                      include:
+                        - entity_id: "sensor.*_poe_power"
+                        - entity_id: sensor.your_router_poe_power
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Router
+                    heading_style: title
+                    icon: mdi:router-network
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: friendly_name
+                    filter:
+                      include:
+                        - entity_id: sensor.your_router_*
+                      exclude:
+                        - entity_id: "sensor.your_router_*poe*"
+                        - state: unavailable
+
+  # ═════════════════════════ 6 · SYSTEM ═════════════════════════
+  - title: System
+    path: system
+    icon: mdi:heart-pulse
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: heading
+            heading: Batteries
+            heading_style: title
+            icon: mdi:battery-heart-variant
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            card:
+              type: grid
+              columns: 6
+              square: false
+            card_param: cards
+            sort:
+              method: state
+              numeric: true
+            filter:
+              include:
+                - domain: sensor
+                  attributes:
+                    device_class: battery
+                  options:
+                    type: custom:button-card
+                    template: aurora_battery
+              exclude:
+                - state: unavailable
+                - state: unknown
+      - type: grid
+        column_span: 3
+        cards:
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 4
+            square: false
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Updates & Automations
+                    heading_style: title
+                    icon: mdi:package-up
+                  - type: custom:auto-entities
+                    show_empty: false
+                    card:
+                      type: entities
+                      title: Pending updates
+                    sort:
+                      method: friendly_name
+                    filter:
+                      include:
+                        - domain: update
+                          state: "on"
+                  - type: custom:auto-entities
+                    show_empty: false
+                    card:
+                      type: entities
+                      title: Paused automations
+                    filter:
+                      include:
+                        - domain: automation
+                          state: "off"
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Server / Pi
+                    heading_style: title
+                    icon: mdi:raspberry-pi
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: friendly_name
+                    filter:
+                      include:
+                        - entity_id: sensor.your_server*
+                      exclude:
+                        - state: unavailable
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Device trackers
+                    heading_style: title
+                    icon: mdi:radar
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: state
+                    filter:
+                      include:
+                        - domain: device_tracker
+                      exclude:
+                        - state: unavailable
+              - type: vertical-stack
+                cards:
+                  - type: heading
+                    heading: Uptimes & timestamps
+                    heading_style: title
+                    icon: mdi:timer-outline
+                  - type: custom:auto-entities
+                    card:
+                      type: entities
+                    sort:
+                      method: friendly_name
+                    filter:
+                      include:
+                        - domain: sensor
+                          attributes:
+                            device_class: uptime
+                        - domain: sensor
+                          attributes:
+                            device_class: duration
+                        - domain: sensor
+                          attributes:
+                            device_class: timestamp
+                      exclude:
+                        - state: unavailable
+                        - state: unknown
+
+  # ═════════════════════════ 7 · EXPLORER ═════════════════════════
+  - title: Explorer
+    path: explorer
+    icon: mdi:telescope
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    dense_section_placement: true
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: heading
+            heading: Sensor explorer — every single entity, grouped by class
+            heading_style: title
+            icon: mdi:telescope
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Temperature
+            sort: {method: state, numeric: true, reverse: true}
+            filter:
+              include: [{domain: sensor, attributes: {device_class: temperature}}]
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Humidity & Pressure
+            sort: {method: state, numeric: true, reverse: true}
+            filter:
+              include:
+                - {domain: sensor, attributes: {device_class: humidity}}
+                - {domain: sensor, attributes: {device_class: pressure}}
+                - {domain: sensor, attributes: {device_class: illuminance}}
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Power
+            sort: {method: state, numeric: true, reverse: true}
+            filter:
+              include: [{domain: sensor, attributes: {device_class: power}}]
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Energy & Kosten
+            sort: {method: state, numeric: true, reverse: true}
+            filter:
+              include:
+                - {domain: sensor, attributes: {device_class: energy}}
+                - {domain: sensor, attributes: {device_class: monetary}}
+                - {domain: sensor, attributes: {device_class: water}}
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Voltage · Current · Frequency
+            sort: {method: friendly_name}
+            filter:
+              include:
+                - {domain: sensor, attributes: {device_class: voltage}}
+                - {domain: sensor, attributes: {device_class: current}}
+                - {domain: sensor, attributes: {device_class: frequency}}
+                - {domain: sensor, attributes: {device_class: power_factor}}
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Battery
+            sort: {method: state, numeric: true}
+            filter:
+              include: [{domain: sensor, attributes: {device_class: battery}}]
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Radio (RSSI)
+            sort: {method: state, numeric: true}
+            filter:
+              include: [{domain: sensor, attributes: {device_class: signal_strength}}]
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Data rate
+            sort: {method: state, numeric: true, reverse: true}
+            filter:
+              include: [{domain: sensor, attributes: {device_class: data_rate}}]
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Data volume
+            sort: {method: state, numeric: true, reverse: true}
+            filter:
+              include: [{domain: sensor, attributes: {device_class: data_size}}]
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Times & uptimes
+            sort: {method: friendly_name}
+            filter:
+              include:
+                - {domain: sensor, attributes: {device_class: timestamp}}
+                - {domain: sensor, attributes: {device_class: duration}}
+                - {domain: sensor, attributes: {device_class: uptime}}
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Status (enum)
+            sort: {method: friendly_name}
+            filter:
+              include: [{domain: sensor, attributes: {device_class: enum}}]
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: No device class
+            sort: {method: friendly_name}
+            filter:
+              include: [{domain: sensor}]
+              exclude:
+                - attributes: {device_class: "*"}
+      - type: grid
+        cards:
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            show_empty: false
+            card:
+              type: entities
+              title: Binary sensors
+            sort: {method: state, reverse: true}
+            filter:
+              include: [{domain: binary_sensor}]
