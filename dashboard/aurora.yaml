@@ -173,15 +173,19 @@ button_card_templates:
         - justify-self: start
         - align-self: center
         - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
-        - font-size: 12px
+        - font-size: "clamp(9px, 3vw, 12px)"
         - font-weight: 600
         - letter-spacing: .14em
         - text-transform: uppercase
         - color: "#a6adc8"
+        - white-space: nowrap
+        - overflow: hidden
+        - text-overflow: ellipsis
+        - min-width: 0
       state:
         - justify-self: end
         - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
-        - font-size: 24px
+        - font-size: "clamp(15px, 5.5vw, 24px)"
         - font-weight: 800
         - color: "[[[ return variables.accent; ]]]"
         - text-shadow: "[[[ return '0 0 14px ' + variables.accent + '80'; ]]]"
