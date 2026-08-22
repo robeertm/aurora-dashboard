@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.13.0
+
+Performance release — measured, not guessed (Chrome `Performance.getMetrics`,
+15 s idle, 1450-entity installation).
+
+- **One view per room** instead of a single view holding all of them:
+  **~73 % → 9–29 % CPU while idle**. The Smart Home tab is now a light overview
+  (key figures + one tile per room) that links into each room's own view
+- `triggers_update: all` removed from the room and automation templates and
+  replaced with explicit entity lists on the counter chips — this alone took
+  the dashboard from 120 style recalculations per second down to HA's own
+  baseline
+- Animations reworked to stay on the compositor: the halo ring is now a scaled
+  pseudo element instead of an animated `box-shadow`, scene shimmer uses
+  `opacity`/`transform` instead of `filter`, and animated icons get their own
+  layer. Animating paint properties inside a `backdrop-filter` card forces the
+  blur to be recomputed every frame — one permanently pulsing badge cost 9 % CPU
+- The window badge only pulses when a window is actually open
+- Cards scrolled out of view have their animations paused (IntersectionObserver)
+- Grid columns are now driven by a `ResizeObserver` instead of a one-off
+  measurement, so a grid that gets its real width late is corrected
+
 ## 0.12.0
 
 - **Smart Home view rebuilt**: one section per room with three columns —

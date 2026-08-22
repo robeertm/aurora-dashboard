@@ -24,9 +24,31 @@
       50%     { transform: scale(1.22); opacity: .6; }
     }
     @keyframes aurora-spin { to { transform: rotate(360deg); } }
+    /* The halo ring used to animate box-shadow. Painting a shadow inside a card
+       that also has backdrop-filter forces the blur behind it to be recomputed
+       on EVERY frame — measured at ~28% CPU for a single room. Now it is a
+       static ring on a pseudo element, scaled and faded on the compositor. */
     @keyframes aurora-halo {
-      0%       { box-shadow: 0 0 0 0 color-mix(in srgb, var(--aurora-glow,#f9e2af) 45%, transparent); }
-      70%,100% { box-shadow: 0 0 0 12px transparent; }
+      0%       { transform: scale(.88); opacity: .55; }
+      70%,100% { transform: scale(1.75); opacity: 0; }
+    }
+    /* Animated icons get their own compositor layer. Without this, every frame
+       of an icon animation invalidates the backdrop-filter of the whole card
+       behind it, which is what actually costs the CPU. */
+    ha-icon, ha-state-icon, ha-svg-icon, #img-cell::after {
+      will-change: transform, opacity;
+    }
+    /* Ring element; templates switch it on via --aurora-halo-anim. */
+    #img-cell { position: relative; }
+    #img-cell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: 0 0 0 2px var(--aurora-glow, #f9e2af);
+      opacity: 0;
+      animation: var(--aurora-halo-anim, none);
     }
     /* gentle idle motion for small icons */
     @keyframes aurora-float {
@@ -42,9 +64,11 @@
       25%     { transform: rotate(4deg) scale(1.05); }
       75%     { transform: rotate(-4deg) scale(1.05); }
     }
+    /* opacity/transform only — animating filter() forces a style recalc and a
+       repaint on every frame, and scene grids can hold dozens of these. */
     @keyframes aurora-shimmer {
-      0%,100% { opacity: .55; filter: saturate(1); }
-      50%     { opacity: 1; filter: saturate(1.6) drop-shadow(0 0 8px var(--aurora-glow,#cba6f7)); }
+      0%,100% { opacity: .6; transform: scale(1); }
+      50%     { opacity: 1; transform: scale(1.06); }
     }
     @keyframes aurora-blink {
       0%,45%,100% { opacity: 1; }
@@ -92,13 +116,11 @@
       border-color: rgba(180,190,254,.25);
     }
   `;
-  // Cards nested inside stack-in-card share their parent's glass surface —
-  // blur only, no per-segment sheen.
+  // Cards nested inside stack-in-card sit ON their parent's glass surface, so
+  // they need no blur of their own — and a second backdrop-filter per segment
+  // is one of the most expensive things a browser can be asked to composite.
   const GLASS_INNER = `
-    ha-card {
-      backdrop-filter: blur(14px) saturate(1.2);
-      -webkit-backdrop-filter: blur(14px) saturate(1.2);
-    }
+    ha-card { background: transparent; }
   `;
   const APEX = `
     .apexcharts-series[seriesName="scan"] path {
@@ -118,6 +140,35 @@
       }
     }
   `;
+
+  // Animations outside the viewport still cost paint/composite every frame.
+  // Pause them per card and let an IntersectionObserver switch them back on.
+  const IDLE = `
+    ha-card.aurora-offscreen *,
+    ha-card.aurora-offscreen::before,
+    ha-card.aurora-offscreen::after { animation-play-state: paused !important; }
+  `;
+  const seen = new WeakSet();
+  const io = ("IntersectionObserver" in window)
+    ? new IntersectionObserver((entries) => {
+        for (const e of entries) e.target.classList.toggle("aurora-offscreen", !e.isIntersecting);
+      }, { rootMargin: "250px 0px" })
+    : null;
+
+  const applyCols = (root, w) => {
+    const info = baseCols.get(root);
+    if (!info || !w) return;
+    const cols = Math.max(1, Math.min(info.cols, Math.floor(w / info.min)));
+    if (root.dataset.auroraCols !== String(cols)) {
+      root.dataset.auroraCols = String(cols);
+      root.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
+    }
+  };
+  const ro = ("ResizeObserver" in window)
+    ? new ResizeObserver((entries) => {
+        for (const e of entries) applyCols(e.target, e.contentRect.width);
+      })
+    : null;
 
   const apexDone = new WeakSet();
   const glassDone = new WeakSet();
@@ -177,29 +228,28 @@
     // Responsive: Spaltenzahl aus der TATSAECHLICHEN Breite ableiten statt aus
     // Breakpoints — ein Grid in einer schmalen Innenspalte ist genauso eng wie
     // eines auf dem Handy, und feste Media Queries sehen den Unterschied nicht.
+    // Die Breite liefert ein ResizeObserver (kein erzwungenes Layout, und er
+    // meldet sich auch, wenn die Karte erst spaeter ihre echte Breite bekommt).
     if (el.tagName === "HUI-GRID-CARD") {
       const root = sr.querySelector("#root");
-      if (root && root.children.length) {
-        if (!baseCols.has(root)) {
-          baseCols.set(root, getComputedStyle(root).gridTemplateColumns.split(" ").length);
-        }
-        const base = baseCols.get(root);
-        const w = root.getBoundingClientRect().width;
-        if (w > 0) {
-          // Breite Inhalte (Charts, Thermostate, Stacks) brauchen deutlich mehr Platz.
-          const min = deepHas(root, 4) ? 300 : 132;
-          const cols = Math.max(1, Math.min(base, Math.floor(w / min)));
-          if (root.dataset.auroraCols !== String(cols)) {
-            root.dataset.auroraCols = String(cols);
-            root.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
-          }
-        }
+      if (root && root.children.length && !baseCols.has(root)) {
+        baseCols.set(root, {
+          cols: getComputedStyle(root).gridTemplateColumns.split(" ").length,
+          min: deepHas(root, 4) ? 300 : 132,
+        });
+        if (ro) ro.observe(root);
+        else applyCols(root, root.getBoundingClientRect().width);
       }
     }
     // Theme var may arrive late — keep re-checking until injected.
-    if (!glassDone.has(sr) && sr.querySelector("ha-card") && auroraActive(el)) {
+    const card = sr.querySelector("ha-card");
+    if (card && !glassDone.has(sr) && auroraActive(el)) {
       glassDone.add(sr);
-      inject(sr, KEYFRAMES + (insideStack(el) ? GLASS_INNER : GLASS));
+      inject(sr, KEYFRAMES + IDLE + (insideStack(el) ? GLASS_INNER : GLASS));
+    }
+    if (io && card && !seen.has(card)) {
+      seen.add(card);
+      io.observe(card);
     }
   };
 
@@ -220,7 +270,7 @@
   };
 
   sweep();
-  setInterval(sweep, 1500);
+  setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
   console.info("%c AURORA-EFFECTS %c ready ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();

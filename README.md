@@ -5,7 +5,7 @@ Glass cards over an animated constellation sky, neon-glow charts with a travelli
 scan pulse, animated buttons — and an *Explorer* view that surfaces **every single
 sensor** in your installation, grouped by device class, with zero configuration.
 
-> Catppuccin-Mocha palette · 10 views · auto-discovering · no expensive backend templates
+> Catppuccin-Mocha palette · one view per room · auto-discovering · no expensive backend templates
 
 ![Overview](docs/screenshots/home.png)
 
@@ -17,11 +17,12 @@ sensor** in your installation, grouped by device class, with zero configuration.
   step-line with gradient fill, and an animated **scan pulse** running along the curve.
 - 🔘 **Animated buttons** — lights breathe amber when on, switches glow green,
   open windows pulse orange, low batteries pulse red.
-- 🏠 **Complete rooms** — one section per room, three columns wide: climate
-  (thermostat dial, setpoint slider, valve position, battery tiles, window
-  state), light + scenes, and switches + media + automations. Lights, scenes,
-  switches and automations are discovered **by area**, so assigning entities to
-  areas in Home Assistant is all the setup there is.
+- 🏠 **One view per room** — each room gets its own tab with three columns:
+  climate (thermostat dial, setpoint slider, valve position, battery tiles,
+  window state), light + scenes, and switches + media + automations. Lights,
+  scenes, switches and automations are discovered **by area**, so assigning
+  entities to areas in Home Assistant is all the setup there is. A light
+  overview tab shows the key figures and links into each room.
 - 🤖 **Automations everywhere** — every automation appears as a toggle tile
   (green robot wobbling when active, grey when off), both inside its room and
   on a dedicated Automations view together with scripts and helpers.
@@ -145,6 +146,25 @@ shipped YAML for the pattern.
 
 ## Performance notes
 
+Everything below was measured with Chrome's `Performance.getMetrics` over 15 s
+of idle time on a real installation (1450 entities), not guessed.
+
+- **Keep views small.** One view holding every room measured **~73 % CPU while
+  idle**; the same content split into one view per room runs at **9–29 %**. A
+  browser pays for every card that exists, not just the visible ones — so
+  splitting is by far the biggest lever.
+- **`triggers_update: all` is expensive.** A card with it re-renders on *every*
+  state change anywhere in Home Assistant. 66 such cards produced 120 style
+  recalculations per second. Bind cards to the entities they actually read.
+- **Animation inside a glass card repaints the glass.** Animating `box-shadow`
+  or `filter` in a card that has `backdrop-filter` forces the blur behind it to
+  be recomputed every frame — a *single* permanently pulsing badge cost 9 % CPU
+  on its own. Fixes used here: animate `transform`/`opacity` only, give animated
+  elements their own layer with `will-change`, and only animate when the state
+  actually says something (a window badge pulses when the window is open, not
+  always).
+- Animations on cards scrolled out of view are paused automatically
+  (IntersectionObserver in the effects helper).
 - Counter chips and button animations run entirely in the browser.
 - `auto-entities` filters use include/exclude patterns only — **never** its
   `template:` filter (that would subscribe a backend template).
