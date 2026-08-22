@@ -10,6 +10,64 @@
  * No card-mod required. © 2026 Robert Manuwald — use only, see LICENSE.
  */
 (() => {
+  // Shared keyframe library. Injected into every card shadow root so any
+  // button-card template can reference these by name — a child template's
+  // own `extra_styles` REPLACES its parent's, so keyframes defined in a
+  // parent template would otherwise be lost.
+  const KEYFRAMES = `
+    @keyframes aurora-breathe {
+      0%,100% { filter: drop-shadow(0 0 3px var(--aurora-glow,#89b4fa)); }
+      50%     { filter: drop-shadow(0 0 13px var(--aurora-glow,#89b4fa)); }
+    }
+    @keyframes aurora-pulse {
+      0%,100% { transform: scale(1); opacity: 1; }
+      50%     { transform: scale(1.22); opacity: .6; }
+    }
+    @keyframes aurora-spin { to { transform: rotate(360deg); } }
+    @keyframes aurora-halo {
+      0%       { box-shadow: 0 0 0 0 color-mix(in srgb, var(--aurora-glow,#f9e2af) 45%, transparent); }
+      70%,100% { box-shadow: 0 0 0 12px transparent; }
+    }
+    /* gentle idle motion for small icons */
+    @keyframes aurora-float {
+      0%,100% { transform: translateY(0); }
+      50%     { transform: translateY(-2.5px); }
+    }
+    @keyframes aurora-swing {
+      0%,100% { transform: rotate(-7deg); }
+      50%     { transform: rotate(7deg); }
+    }
+    @keyframes aurora-wobble {
+      0%,100% { transform: rotate(0deg) scale(1); }
+      25%     { transform: rotate(4deg) scale(1.05); }
+      75%     { transform: rotate(-4deg) scale(1.05); }
+    }
+    @keyframes aurora-shimmer {
+      0%,100% { opacity: .55; filter: saturate(1); }
+      50%     { opacity: 1; filter: saturate(1.6) drop-shadow(0 0 8px var(--aurora-glow,#cba6f7)); }
+    }
+    @keyframes aurora-blink {
+      0%,45%,100% { opacity: 1; }
+      50%,55%     { opacity: .25; }
+    }
+    @keyframes aurora-bob {
+      0%,100% { transform: translateY(0) rotate(0deg); }
+      30%     { transform: translateY(-2px) rotate(-5deg); }
+      70%     { transform: translateY(1px) rotate(5deg); }
+    }
+    @keyframes aurora-flicker {
+      0%,100% { opacity: 1; }
+      41%     { opacity: 1; }
+      42%     { opacity: .55; }
+      45%     { opacity: 1; }
+      92%     { opacity: .7; }
+      94%     { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+    }
+  `;
+
   // Full glass treatment for top-level cards: strong blur, a diagonal light
   // sheen plus a faint top-edge highlight (::before overlay).
   const GLASS = `
@@ -63,7 +121,7 @@
 
   const apexDone = new WeakSet();
   const glassDone = new WeakSet();
-  const gridDone = new WeakSet();
+  const baseCols = new WeakMap();
 
   // Enthaelt der Grid-Inhalt "breite" Karten (Charts/Uhr/Stacks)?
   const WIDE = ["CLOCK-WEATHER-CARD", "STACK-IN-CARD", "APEXCHARTS-CARD", "HUI-VERTICAL-STACK-CARD"];
@@ -116,28 +174,32 @@
         if (li.textContent.trim().toLowerCase().startsWith("scan")) li.style.display = "none";
       }
     }
-    // Responsive: feste Grid-Spalten auf schmalen Screens reduzieren.
-    if (el.tagName === "HUI-GRID-CARD" && !gridDone.has(sr)) {
+    // Responsive: Spaltenzahl aus der TATSAECHLICHEN Breite ableiten statt aus
+    // Breakpoints — ein Grid in einer schmalen Innenspalte ist genauso eng wie
+    // eines auf dem Handy, und feste Media Queries sehen den Unterschied nicht.
+    if (el.tagName === "HUI-GRID-CARD") {
       const root = sr.querySelector("#root");
       if (root && root.children.length) {
-        const cols = getComputedStyle(root).gridTemplateColumns.split(" ").length;
-        let css;
-        if (deepHas(root, 4)) {
-          css = "@media (max-width: 900px) { #root { grid-template-columns: repeat(1, minmax(0,1fr)) !important; } }";
-        } else {
-          const mid = Math.min(cols, 3);
-          const small = Math.min(cols, 2);
-          css = "@media (max-width: 900px) { #root { grid-template-columns: repeat(" + mid + ", minmax(0,1fr)) !important; } }" +
-                "@media (max-width: 600px) { #root { grid-template-columns: repeat(" + small + ", minmax(0,1fr)) !important; } }";
+        if (!baseCols.has(root)) {
+          baseCols.set(root, getComputedStyle(root).gridTemplateColumns.split(" ").length);
         }
-        gridDone.add(sr);
-        inject(sr, css);
+        const base = baseCols.get(root);
+        const w = root.getBoundingClientRect().width;
+        if (w > 0) {
+          // Breite Inhalte (Charts, Thermostate, Stacks) brauchen deutlich mehr Platz.
+          const min = deepHas(root, 4) ? 300 : 132;
+          const cols = Math.max(1, Math.min(base, Math.floor(w / min)));
+          if (root.dataset.auroraCols !== String(cols)) {
+            root.dataset.auroraCols = String(cols);
+            root.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
+          }
+        }
       }
     }
     // Theme var may arrive late — keep re-checking until injected.
     if (!glassDone.has(sr) && sr.querySelector("ha-card") && auroraActive(el)) {
       glassDone.add(sr);
-      inject(sr, insideStack(el) ? GLASS_INNER : GLASS);
+      inject(sr, KEYFRAMES + (insideStack(el) ? GLASS_INNER : GLASS));
     }
   };
 
