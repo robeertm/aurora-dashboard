@@ -234,6 +234,9 @@ button_card_templates:
       @media (prefers-reduced-motion: reduce) {
         ha-card, ha-card::after { animation: none; }
       }
+      /* guard against the glass helper: keep the sky a fixed overlay, no sheen */
+      ha-card { position: fixed !important; }
+      ha-card::before { content: none !important; }
 
   aurora_light:
     template: aurora_base
@@ -546,6 +549,108 @@ button_card_templates:
           - letter-spacing: .12em
           - color: "#fab387"
           - animation: aurora-pulse 1.6s ease-in-out infinite
+
+  # Signal tile: dBm value with traffic-light color + bar icon, pulses when
+  # the signal is very weak. For any BLE / Thread / WiFi RSSI sensor.
+  aurora_signal:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    show_state: true
+    size: 22px
+    tap_action:
+      action: more-info
+    state_display: |
+      [[[
+        const v = parseFloat(entity.state);
+        return isNaN(v) ? '—' : Math.round(v) + ' dBm';
+      ]]]
+    icon: |
+      [[[
+        const v = parseFloat(entity.state);
+        if (isNaN(v)) return 'mdi:signal-off';
+        return v >= -60 ? 'mdi:signal-cellular-3' : v >= -75 ? 'mdi:signal-cellular-2' : 'mdi:signal-cellular-1';
+      ]]]
+    name: |
+      [[[
+        return (entity.attributes.friendly_name || entity.entity_id)
+          .replace(/ Signal strength$/, '');
+      ]]]
+    styles:
+      grid:
+        - grid-template-areas: "'i s' 'i n'"
+        - grid-template-columns: 44px 1fr
+      card:
+        - height: 62px
+        - padding: 8px 12px
+      icon:
+        - color: |
+            [[[
+              const v = parseFloat(entity.state);
+              if (isNaN(v)) return '#585b70';
+              return v >= -60 ? '#a6e3a1' : v >= -75 ? '#f9e2af' : '#f38ba8';
+            ]]]
+        - animation: |
+            [[[
+              return parseFloat(entity.state) < -85 ? 'aurora-pulse 1.4s ease-in-out infinite' : 'none';
+            ]]]
+      state:
+        - justify-self: start
+        - align-self: end
+        - font-size: 15px
+        - font-weight: 700
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - color: |
+            [[[
+              const v = parseFloat(entity.state);
+              if (isNaN(v)) return '#585b70';
+              return v >= -60 ? '#a6e3a1' : v >= -75 ? '#f9e2af' : '#f38ba8';
+            ]]]
+      name:
+        - justify-self: start
+        - align-self: start
+        - text-align: left
+        - font-size: 10.5px
+        - color: "#a6adc8"
+        - white-space: nowrap
+        - overflow: hidden
+        - text-overflow: ellipsis
+        - max-width: 100%
+        - line-height: 1.1
+
+  # Radar tile: aurora_metric with a rotating radar sweep behind the icon and
+  # a halo pulse. For BLE scanners / sources.
+  aurora_radar:
+    template: aurora_metric
+    extra_styles: |
+      @keyframes aurora-spin { to { transform: rotate(360deg); } }
+      @keyframes aurora-halo {
+        0%       { box-shadow: 0 0 0 0 color-mix(in srgb, var(--aurora-glow,#94e2d5) 45%, transparent); }
+        70%,100% { box-shadow: 0 0 0 12px transparent; }
+      }
+      @keyframes aurora-pulse {
+        0%,100% { transform: scale(1); opacity: 1; }
+        50%     { transform: scale(1.22); opacity: .6; }
+      }
+      #img-cell { position: relative; overflow: hidden; }
+      #img-cell::before {
+        content: "";
+        position: absolute;
+        inset: -35%;
+        background: conic-gradient(from 0deg, transparent 62%, var(--aurora-glow, #94e2d5) 100%);
+        animation: aurora-spin 3.5s linear infinite;
+        opacity: .4;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #img-cell::before { animation: none; }
+      }
+    styles:
+      card:
+        - "--aurora-glow": "[[[ return variables.accent; ]]]"
+      img_cell:
+        - animation: aurora-halo 2.6s ease-out infinite
+      icon:
+        - z-index: "1"
 
 views:
 
@@ -2279,6 +2384,269 @@ views:
                         - state: unavailable
 
   # ═════════════════════════ 6 · SYSTEM ═════════════════════════
+  # ═════════════════════════ RADIO (Bluetooth / Thread / RSSI) ═════════════════════════
+  # The signal-tile grid below is fully generic (it discovers every sensor with
+  # device_class signal_strength). The scanner cards + charts reference
+  # placeholder entities — swap in your own BLE scanner / mesh sensors, or
+  # delete those cards if you don't track scanners.
+  - title: Radio
+    path: radio
+    icon: mdi:bluetooth-audio
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 3
+            square: false
+            cards:
+              - type: custom:button-card
+                template: aurora_chip
+                icon: mdi:bluetooth-audio
+                label: Signal sensors
+                name: |
+                  [[[
+                    return String(Object.values(hass.states).filter(s =>
+                      s.entity_id.startsWith('sensor.') &&
+                      s.attributes.device_class === 'signal_strength' &&
+                      !isNaN(parseFloat(s.state))).length);
+                  ]]]
+                styles:
+                  icon:
+                    - color: "#89dceb"
+                    - animation: aurora-pulse 2.4s ease-in-out infinite
+              - type: custom:button-card
+                template: aurora_chip
+                icon: mdi:signal-cellular-3
+                label: Strongest
+                name: |
+                  [[[
+                    const vs = Object.values(hass.states).filter(s =>
+                      s.entity_id.startsWith('sensor.') &&
+                      s.attributes.device_class === 'signal_strength' &&
+                      !isNaN(parseFloat(s.state))).map(s => parseFloat(s.state));
+                    return vs.length ? Math.round(Math.max(...vs)) + ' dBm' : '—';
+                  ]]]
+                styles:
+                  icon:
+                    - color: "#a6e3a1"
+              - type: custom:button-card
+                template: aurora_chip
+                icon: mdi:signal-cellular-1
+                label: Weakest
+                name: |
+                  [[[
+                    const vs = Object.values(hass.states).filter(s =>
+                      s.entity_id.startsWith('sensor.') &&
+                      s.attributes.device_class === 'signal_strength' &&
+                      !isNaN(parseFloat(s.state))).map(s => parseFloat(s.state));
+                    return vs.length ? Math.round(Math.min(...vs)) + ' dBm' : '—';
+                  ]]]
+                styles:
+                  icon:
+                    - color: |
+                        [[[
+                          const vs = Object.values(hass.states).filter(s =>
+                            s.entity_id.startsWith('sensor.') &&
+                            s.attributes.device_class === 'signal_strength' &&
+                            !isNaN(parseFloat(s.state))).map(s => parseFloat(s.state));
+                          if (!vs.length) return '#585b70';
+                          return Math.min(...vs) < -90 ? '#f38ba8' : '#f9e2af';
+                        ]]]
+                    - animation: |
+                        [[[
+                          const vs = Object.values(hass.states).filter(s =>
+                            s.entity_id.startsWith('sensor.') &&
+                            s.attributes.device_class === 'signal_strength' &&
+                            !isNaN(parseFloat(s.state))).map(s => parseFloat(s.state));
+                          return (vs.length && Math.min(...vs) < -90) ? 'aurora-pulse 1.4s ease-in-out infinite' : 'none';
+                        ]]]
+
+      # ── BLE scanner cards (placeholder entities — adapt or remove) ──
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Bluetooth scanners
+            heading_style: title
+            icon: mdi:radar
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_room
+                    entity: sensor.ble_scanner_1_rssi_avg
+                    name: Scanner 1
+                    icon: mdi:radar
+                    state_display: |
+                      [[[
+                        const v = parseFloat(entity.state);
+                        return isNaN(v) ? '—' : v.toFixed(1) + ' dBm';
+                      ]]]
+                    variables:
+                      accent: "#94e2d5"
+                      accent_bg: "rgba(148,226,213,0.10)"
+                  - type: grid
+                    columns: 2
+                    square: false
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_radar
+                        entity: sensor.ble_scanner_1_adverts
+                        name: Adverts / sweep
+                        icon: mdi:radar
+                        variables:
+                          accent: "#94e2d5"
+                          accent_bg: "rgba(148,226,213,0.10)"
+                      - type: custom:button-card
+                        template: aurora_radar
+                        entity: sensor.ble_scanner_1_unique_devices
+                        name: Devices seen
+                        icon: mdi:bluetooth-connect
+                        variables:
+                          accent: "#94e2d5"
+                          accent_bg: "rgba(148,226,213,0.10)"
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_room
+                    entity: sensor.ble_scanner_2_rssi_avg
+                    name: Scanner 2
+                    icon: mdi:cube-outline
+                    state_display: |
+                      [[[
+                        const v = parseFloat(entity.state);
+                        return isNaN(v) ? '—' : v.toFixed(1) + ' dBm';
+                      ]]]
+                    variables:
+                      accent: "#89dceb"
+                      accent_bg: "rgba(137,220,235,0.10)"
+                  - type: grid
+                    columns: 2
+                    square: false
+                    cards:
+                      - type: custom:button-card
+                        template: aurora_radar
+                        entity: sensor.ble_scanner_2_adverts
+                        name: Adverts / sweep
+                        icon: mdi:radar
+                        variables:
+                          accent: "#89dceb"
+                          accent_bg: "rgba(137,220,235,0.10)"
+                      - type: custom:button-card
+                        template: aurora_radar
+                        entity: sensor.ble_scanner_2_unique_devices
+                        name: Devices seen
+                        icon: mdi:bluetooth-connect
+                        variables:
+                          accent: "#89dceb"
+                          accent_bg: "rgba(137,220,235,0.10)"
+
+      # ── Every signal-strength sensor (fully auto-discovered) ──
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Signal strength — every radio sensor
+            heading_style: title
+            icon: mdi:bluetooth
+          - type: custom:auto-entities
+            grid_options:
+              columns: full
+            card:
+              type: grid
+              columns: 5
+              square: false
+            card_param: cards
+            sort:
+              method: state
+              numeric: true
+            filter:
+              include:
+                - domain: sensor
+                  attributes:
+                    device_class: signal_strength
+                  options:
+                    type: custom:button-card
+                    template: aurora_signal
+              exclude:
+                - state: unavailable
+                - state: unknown
+          - type: custom:stack-in-card
+            grid_options:
+              columns: full
+            mode: vertical
+            cards:
+              - type: custom:button-card
+                template: aurora_plot_header
+                entity: sensor.ble_scanner_1_rssi_avg
+                name: RSSI · 24 h
+                state_display: |
+                  [[[ return parseFloat(entity.state).toFixed(1) + ' dBm'; ]]]
+                variables:
+                  accent: "#89dceb"
+              - type: custom:apexcharts-card
+                graph_span: 24h
+                header:
+                  show: false
+                apex_config:
+                  chart:
+                    height: 240
+                    animations: *apex_anim
+                    dropShadow:
+                      enabled: true
+                      top: 0
+                      left: 0
+                      blur: 6
+                      opacity: 0.7
+                      color: "#89dceb"
+                  grid: *apex_grid
+                  fill:
+                    type: solid
+                    opacity: 1
+                  legend:
+                    show: true
+                all_series_config:
+                  type: line
+                  stroke_width: 2
+                  curve: smooth
+                  group_by:
+                    func: avg
+                    duration: 15min
+                series:
+                  - entity: sensor.ble_scanner_1_rssi_avg
+                    name: Scanner 1
+                    color: "#94e2d5"
+                  - entity: sensor.ble_scanner_2_rssi_avg
+                    name: Scanner 2
+                    color: "#89dceb"
+                  - entity: sensor.ble_scanner_1_rssi_avg
+                    name: scan
+                    type: line
+                    color: "#89dceb"
+                    stroke_width: 3
+                    show:
+                      in_legend: false
+                      in_header: false
+                      legend_value: false
+
   - title: System
     path: system
     icon: mdi:heart-pulse

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0
+
+- New **Radio** view: BLE scanner cards with a rotating radar sweep
+  (`aurora_radar` template), every `signal_strength` sensor auto-discovered as
+  a traffic-light dBm tile that pulses when weak (`aurora_signal` template),
+  plus RSSI history charts
+- **Glass 2.0** (`aurora-effects.js` v1.3.0): stronger backdrop blur with
+  saturation boost, a diagonal light sheen and top-edge highlight on top-level
+  cards; cards nested inside `stack-in-card` stay blur-only so a tile reads as
+  one pane of glass
+
 ## 0.10.0
 
 - New **Smart Home** view: one glass card per room with a monospace room
