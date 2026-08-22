@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1
+
+- Responsive layout on phones/tablets: `aurora-effects.js` now reduces fixed
+  grid columns on narrow screens (chart/clock groups collapse to one column,
+  button grids to 3/2 columns at 900/600 px)
+- Fluid plot-header typography (`clamp()`), no more truncated labels on mobile
+
 ## 0.9.0
 
 Initial version.
