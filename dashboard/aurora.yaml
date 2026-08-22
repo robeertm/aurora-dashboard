@@ -65,6 +65,10 @@ button_card_templates:
     show_icon: true
     show_name: true
     show_label: true
+    # These chips count across all entities, so they do need broad updates.
+    # If your instance has many fast-changing sensors, replace `all` with an
+    # explicit entity list per chip — that alone took one dashboard from
+    # 120 re-renders/s down to a handful.
     triggers_update: all
     size: 22px
     styles:
@@ -325,9 +329,9 @@ button_card_templates:
             - "--aurora-glow": "#f9e2af"
             - border: 1px solid rgba(249,226,175,0.35)
             - box-shadow: "0 0 30px -8px rgba(249,226,175,0.45), 0 10px 40px -12px rgba(0,0,0,0.65)"
+            - "--aurora-halo-anim": "aurora-halo 2.4s ease-out infinite"
           img_cell:
             - background: "rgba(249,226,175,0.12)"
-            - animation: aurora-halo 2.4s ease-out infinite
           icon:
             - color: "#f9e2af"
             - animation: |
@@ -345,9 +349,9 @@ button_card_templates:
             - "--aurora-glow": "#a6e3a1"
             - border: 1px solid rgba(166,227,161,0.35)
             - box-shadow: "0 0 30px -8px rgba(166,227,161,0.4), 0 10px 40px -12px rgba(0,0,0,0.65)"
+            - "--aurora-halo-anim": "aurora-halo 2.4s ease-out infinite"
           img_cell:
             - background: "rgba(166,227,161,0.12)"
-            - animation: aurora-halo 2.4s ease-out infinite
           icon:
             - color: "#a6e3a1"
             - animation: aurora-breathe 2.8s ease-in-out infinite
@@ -526,7 +530,8 @@ button_card_templates:
     show_name: true
     show_state: true
     size: 22px
-    triggers_update: all
+    # No `triggers_update: all` — that would re-render this card on EVERY state
+    # change in the whole system. Bind the window sensor per instance instead.
     tap_action:
       action: more-info
     variables:
@@ -598,7 +603,17 @@ button_card_templates:
           - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
           - letter-spacing: .12em
           - color: "#fab387"
-          - animation: aurora-pulse 1.6s ease-in-out infinite
+          # own compositor layer — otherwise every pulse frame makes the browser
+          # recompute the backdrop-filter of the whole room card
+          - will-change: transform, opacity
+          # Only pulse when a window is actually open. A permanent animation in
+          # this large glass card measured ~9 % CPU on its own.
+          - animation: |
+              [[[
+                if (!variables.window) return 'none';
+                const w = states[variables.window];
+                return (w && w.state === 'on') ? 'aurora-pulse 1.6s ease-in-out infinite' : 'none';
+              ]]]
 
   # Small group header inside a room card (mono label + count).
   aurora_group_header:
@@ -653,7 +668,6 @@ button_card_templates:
     show_state: true
     size: 20px
     icon: mdi:robot
-    triggers_update: all
     tap_action:
       action: toggle
     hold_action:
@@ -854,8 +868,7 @@ button_card_templates:
     styles:
       card:
         - "--aurora-glow": "[[[ return variables.accent; ]]]"
-      img_cell:
-        - animation: aurora-halo 2.6s ease-out infinite
+        - "--aurora-halo-anim": "aurora-halo 2.6s ease-out infinite"
       icon:
         - z-index: "1"
 
@@ -1357,11 +1370,11 @@ views:
                   accent_bg: "rgba(137,220,235,0.10)"
 
   # ═════════════════════════ 2 · LICHT & SCHALTEN ═════════════════════════
-  # ═════════════════════════ 2 · SMART HOME (all rooms) ═════════════════════════
-  # One section per room. Lights, scenes, switches and automations are found by
-  # AREA — assign your entities to areas in Home Assistant and this fills itself.
-  # Only the climate column references concrete entities (placeholders below).
-  # Note: Hue/room GROUP light entities are excluded so a room is not counted twice.
+  # ═════════════════════════ 2 · SMART HOME (overview) ═════════════════════════
+  # Light landing page: key figures plus one tile per room that navigates to
+  # that room's own view. The details deliberately live in separate views —
+  # one giant view with every room measured ~73 % CPU while idle, split up it
+  # is under 30 %. Browsers pay for every card that exists, not just visible ones.
   - title: Smart Home
     path: smarthome
     icon: mdi:home-automation
@@ -1428,14 +1441,101 @@ views:
                   icon:
                     - color: "#f38ba8"
       
-      # ─────────── Living Room ───────────
       - type: grid
         column_span: 3
         cards:
           - type: heading
-            heading: "Living Room"
+            heading: Rooms
             heading_style: title
-            icon: mdi:sofa
+            icon: mdi:floor-plan
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 4
+            square: false
+            cards:
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_living_room
+                name: "Living Room"
+                icon: mdi:sofa
+                tap_action:
+                  action: navigate
+                  navigation_path: /aurora-home/room-living_room
+                variables:
+                  accent: "#cba6f7"
+                  accent_bg: "rgba(203,166,247,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_kitchen
+                name: "Kitchen"
+                icon: mdi:countertop
+                tap_action:
+                  action: navigate
+                  navigation_path: /aurora-home/room-kitchen
+                variables:
+                  accent: "#fab387"
+                  accent_bg: "rgba(250,179,135,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_bedroom
+                name: "Bedroom"
+                icon: mdi:bed-king
+                tap_action:
+                  action: navigate
+                  navigation_path: /aurora-home/room-bedroom
+                variables:
+                  accent: "#b4befe"
+                  accent_bg: "rgba(180,190,254,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_office
+                name: "Office"
+                icon: mdi:desk
+                tap_action:
+                  action: navigate
+                  navigation_path: /aurora-home/room-office
+                variables:
+                  accent: "#89b4fa"
+                  accent_bg: "rgba(137,180,250,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                entity: sensor.room_temp_bathroom
+                name: "Bathroom"
+                icon: mdi:shower
+                tap_action:
+                  action: navigate
+                  navigation_path: /aurora-home/room-bathroom
+                variables:
+                  accent: "#94e2d5"
+                  accent_bg: "rgba(148,226,213,0.10)"
+              - type: custom:button-card
+                template: aurora_metric
+                show_state: false
+                name: "Hallway"
+                icon: mdi:coat-rack
+                tap_action:
+                  action: navigate
+                  navigation_path: /aurora-home/room-hallway
+                variables:
+                  accent: "#f9e2af"
+                  accent_bg: "rgba(249,226,175,0.10)"
+  
+  # ═════════════════════════ ROOM · LIVING ROOM ═════════════════════════
+  - title: "Living Room"
+    path: room-living_room
+    icon: mdi:sofa
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
           - type: grid
             grid_options:
               columns: full
@@ -1604,15 +1704,22 @@ views:
                             template: aurora_automation
                             variables:
                               accent: "#cba6f7"
-      
-      # ─────────── Kitchen ───────────
+  
+  # ═════════════════════════ ROOM · KITCHEN ═════════════════════════
+  - title: "Kitchen"
+    path: room-kitchen
+    icon: mdi:countertop
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
       - type: grid
         column_span: 3
         cards:
-          - type: heading
-            heading: "Kitchen"
-            heading_style: title
-            icon: mdi:countertop
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
           - type: grid
             grid_options:
               columns: full
@@ -1781,15 +1888,22 @@ views:
                             template: aurora_automation
                             variables:
                               accent: "#fab387"
-      
-      # ─────────── Bedroom ───────────
+  
+  # ═════════════════════════ ROOM · BEDROOM ═════════════════════════
+  - title: "Bedroom"
+    path: room-bedroom
+    icon: mdi:bed-king
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
       - type: grid
         column_span: 3
         cards:
-          - type: heading
-            heading: "Bedroom"
-            heading_style: title
-            icon: mdi:bed-king
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
           - type: grid
             grid_options:
               columns: full
@@ -1958,15 +2072,22 @@ views:
                             template: aurora_automation
                             variables:
                               accent: "#b4befe"
-      
-      # ─────────── Office ───────────
+  
+  # ═════════════════════════ ROOM · OFFICE ═════════════════════════
+  - title: "Office"
+    path: room-office
+    icon: mdi:desk
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
       - type: grid
         column_span: 3
         cards:
-          - type: heading
-            heading: "Office"
-            heading_style: title
-            icon: mdi:desk
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
           - type: grid
             grid_options:
               columns: full
@@ -2120,15 +2241,22 @@ views:
                             template: aurora_automation
                             variables:
                               accent: "#89b4fa"
-      
-      # ─────────── Bathroom ───────────
+  
+  # ═════════════════════════ ROOM · BATHROOM ═════════════════════════
+  - title: "Bathroom"
+    path: room-bathroom
+    icon: mdi:shower
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
       - type: grid
         column_span: 3
         cards:
-          - type: heading
-            heading: "Bathroom"
-            heading_style: title
-            icon: mdi:shower
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
           - type: grid
             grid_options:
               columns: full
@@ -2282,15 +2410,22 @@ views:
                             template: aurora_automation
                             variables:
                               accent: "#94e2d5"
-      
-      # ─────────── Hallway ───────────
+  
+  # ═════════════════════════ ROOM · HALLWAY ═════════════════════════
+  - title: "Hallway"
+    path: room-hallway
+    icon: mdi:coat-rack
+    theme: Aurora
+    type: sections
+    max_columns: 3
+    sections:
       - type: grid
         column_span: 3
         cards:
-          - type: heading
-            heading: "Hallway"
-            heading_style: title
-            icon: mdi:coat-rack
+          - type: custom:button-card
+            template: aurora_sky
+            grid_options:
+              columns: full
           - type: grid
             grid_options:
               columns: full
