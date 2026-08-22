@@ -42,14 +42,33 @@ frontend cards (via HACS or manually):
 | [clock-weather-card](https://github.com/pkissling/clock-weather-card) | hero clock/weather |
 
 **No card-mod required.** The glass blur and the scan-pulse animation come from
-the bundled `www/aurora-effects.js` (a ~90-line dependency-free helper).
+the bundled `dist/aurora-effects.js` (a small dependency-free helper).
 
-## Install
+## Easy install (one click)
+
+**Effects helper via HACS:**
+
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=robeertm&repository=aurora-dashboard&category=plugin)
+
+This adds the repo to HACS and installs `aurora-effects.js` including the
+dashboard resource — one click, then "Download".
+
+**Theme + dashboard in one command** — SSH into Home Assistant and run this
+inside `/config`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/robeertm/aurora-dashboard/main/install.sh | sh
+```
+
+It places the theme, the effects helper, and `aurora-dashboard.yaml` and prints
+the two remaining UI steps.
+
+## Manual install
 
 1. **Theme** — copy `themes/aurora.yaml` into your `config/themes/` folder
    (with `frontend: themes: !include_dir_merge_named themes`), then call the
    `frontend.reload_themes` action.
-2. **Effects helper** — copy `www/aurora-effects.js` to
+2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
    resource: `/local/aurora-effects/aurora-effects.js` (type *module*).
 3. **Dashboard** — create a new dashboard and paste `dashboard/aurora.yaml`
@@ -105,4 +124,7 @@ shipped YAML for the pattern.
 
 ## License
 
-MIT © Robert Manuwald
+Source-available, © Robert Manuwald: free to download and **use** on your own
+Home Assistant installation (including adapting entity IDs to your setup).
+Modification beyond that, redistribution, and derivative works are not
+permitted — see [LICENSE](LICENSE).
