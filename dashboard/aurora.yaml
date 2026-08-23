@@ -5236,6 +5236,316 @@ views:
             - state: unknown
 
   # ═════════════════════════ 7 · EXPLORER ═════════════════════════
+  - type: grid
+    column_span: 3
+    cards:
+    - type: heading
+      heading: Server / Raspberry Pi
+      heading_style: title
+      icon: mdi:raspberry-pi
+    - type: grid
+      grid_options:
+        columns: full
+      columns: 4
+      square: false
+      cards:
+      - type: custom:button-card
+        template: aurora_metric
+        entity: sensor.your_server_health_score
+        name: Health
+        icon: mdi:heart-pulse
+        variables:
+          accent: '#a6e3a1'
+          accent_bg: rgba(166,227,161,0.10)
+      - type: custom:button-card
+        template: aurora_metric
+        entity: sensor.your_server_cpu_usage
+        name: CPU
+        icon: mdi:cpu-64-bit
+        variables:
+          accent: '#89b4fa'
+          accent_bg: rgba(137,180,250,0.10)
+      - type: custom:button-card
+        template: aurora_metric
+        entity: sensor.your_server_cpu_temperature
+        name: Temperature
+        icon: mdi:thermometer
+        variables:
+          accent: '#fab387'
+          accent_bg: rgba(250,179,135,0.10)
+      - type: custom:button-card
+        template: aurora_metric
+        entity: sensor.your_server_memory_usage
+        name: Memory
+        icon: mdi:memory
+        variables:
+          accent: '#cba6f7'
+          accent_bg: rgba(203,166,247,0.10)
+      - type: custom:button-card
+        template: aurora_metric
+        entity: sensor.your_server_disk_usage
+        name: Disk
+        icon: mdi:harddisk
+        variables:
+          accent: '#94e2d5'
+          accent_bg: rgba(148,226,213,0.10)
+      - type: custom:button-card
+        template: aurora_metric
+        entity: sensor.your_server_sd_wear
+        name: Disk wear
+        icon: mdi:sd
+        variables:
+          accent: '#f38ba8'
+          accent_bg: rgba(243,139,168,0.10)
+      - type: custom:button-card
+        template: aurora_metric
+        entity: sensor.your_server_sd_years_left
+        name: Years left
+        icon: mdi:calendar-clock
+        variables:
+          accent: '#f9e2af'
+          accent_bg: rgba(249,226,175,0.10)
+      - type: custom:button-card
+        template: aurora_metric
+        entity: sensor.your_server_uptime
+        name: Uptime
+        icon: mdi:clock-outline
+        variables:
+          accent: '#a6adc8'
+          accent_bg: rgba(166,173,200,0.10)
+    - type: grid
+      grid_options:
+        columns: full
+      columns: 2
+      square: false
+      cards:
+      - type: custom:stack-in-card
+        mode: vertical
+        cards:
+        - type: custom:button-card
+          template: aurora_plot_header
+          entity: sensor.your_server_cpu_usage
+          name: CPU load · 24 h
+          state_display: "[[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(0) + ' %'; ]]]\n"
+          variables:
+            accent: '#cba6f7'
+        - type: custom:mini-graph-card
+          entities:
+          - entity: sensor.your_server_cpu_usage
+            name: total
+            color: '#cba6f7'
+          - entity: sensor.your_server_cpu_user
+            name: user
+            color: '#89b4fa'
+          - entity: sensor.your_server_cpu_system
+            name: system
+            color: '#94e2d5'
+          - entity: sensor.your_server_cpu_io_wait
+            name: io wait
+            color: '#f9e2af'
+          hours_to_show: 24
+          points_per_hour: 30
+          line_width: 1.5
+          animate: false
+          hour24: true
+          show:
+            name: false
+            icon: false
+            state: false
+            legend: true
+            fill: fade
+            labels: true
+            extrema: true
+          height: 146
+      - type: custom:stack-in-card
+        mode: vertical
+        cards:
+        - type: custom:button-card
+          template: aurora_plot_header
+          entity: sensor.your_server_memory_used
+          name: Memory · 24 h
+          state_display: "[[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(0) + ' MB'; ]]]\n"
+          variables:
+            accent: '#cba6f7'
+        - type: custom:mini-graph-card
+          entities:
+          - entity: sensor.your_server_memory_used
+            name: used
+            color: '#cba6f7'
+          - entity: sensor.your_server_cache_buffer
+            name: cache
+            color: '#89b4fa'
+          - entity: sensor.your_server_swap_used
+            name: swap
+            color: '#94e2d5'
+          hours_to_show: 24
+          points_per_hour: 30
+          line_width: 1.5
+          animate: false
+          hour24: true
+          show:
+            name: false
+            icon: false
+            state: false
+            legend: true
+            fill: fade
+            labels: true
+            extrema: true
+          height: 146
+      - type: custom:stack-in-card
+        mode: vertical
+        cards:
+        - type: custom:button-card
+          template: aurora_plot_header
+          entity: sensor.your_server_network_rx
+          name: Network · 24 h
+          state_display: "[[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1); ]]]\n"
+          variables:
+            accent: '#cba6f7'
+        - type: custom:mini-graph-card
+          entities:
+          - entity: sensor.your_server_network_rx
+            name: in
+            color: '#cba6f7'
+          - entity: sensor.your_server_network_tx
+            name: out
+            color: '#89b4fa'
+          hours_to_show: 24
+          points_per_hour: 30
+          line_width: 1.5
+          animate: false
+          hour24: true
+          show:
+            name: false
+            icon: false
+            state: false
+            legend: true
+            fill: fade
+            labels: true
+            extrema: true
+          height: 146
+      - type: custom:stack-in-card
+        mode: vertical
+        cards:
+        - type: custom:button-card
+          template: aurora_plot_header
+          entity: sensor.your_server_disk_read
+          name: Disk throughput · 24 h
+          state_display: "[[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1); ]]]\n"
+          variables:
+            accent: '#cba6f7'
+        - type: custom:mini-graph-card
+          entities:
+          - entity: sensor.your_server_disk_read
+            name: read
+            color: '#cba6f7'
+          - entity: sensor.your_server_disk_write
+            name: write
+            color: '#89b4fa'
+          hours_to_show: 24
+          points_per_hour: 30
+          line_width: 1.5
+          animate: false
+          hour24: true
+          show:
+            name: false
+            icon: false
+            state: false
+            legend: true
+            fill: fade
+            labels: true
+            extrema: true
+          height: 146
+      - type: custom:stack-in-card
+        mode: vertical
+        cards:
+        - type: custom:button-card
+          template: aurora_plot_header
+          entity: sensor.your_server_written_today
+          name: Bytes written per day · 14 d
+          state_display: "[[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' GB'; ]]]\n"
+          variables:
+            accent: '#cba6f7'
+        - type: custom:mini-graph-card
+          entities:
+          - entity: sensor.your_server_written_today
+            name: written
+            color: '#cba6f7'
+          - entity: sensor.your_server_read_today
+            name: read
+            color: '#89b4fa'
+          hours_to_show: 336
+          points_per_hour: 2
+          line_width: 1.5
+          animate: false
+          hour24: true
+          show:
+            name: false
+            icon: false
+            state: false
+            legend: true
+            fill: fade
+            labels: true
+            extrema: true
+          height: 146
+      - type: custom:stack-in-card
+        mode: vertical
+        cards:
+        - type: custom:button-card
+          template: aurora_plot_header
+          entity: sensor.your_server_sd_wear
+          name: Disk wear · 30 d
+          state_display: "[[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' %'; ]]]\n"
+          variables:
+            accent: '#cba6f7'
+        - type: custom:mini-graph-card
+          entities:
+          - entity: sensor.your_server_sd_wear
+            name: wear
+            color: '#cba6f7'
+          hours_to_show: 720
+          points_per_hour: 2
+          line_width: 1.5
+          animate: false
+          hour24: true
+          show:
+            name: false
+            icon: false
+            state: false
+            legend: false
+            fill: fade
+            labels: true
+            extrema: true
+          height: 170
+      - type: custom:stack-in-card
+        mode: vertical
+        cards:
+        - type: custom:button-card
+          template: aurora_plot_header
+          entity: sensor.your_server_health_score
+          name: Health score · 7 d
+          state_display: "[[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(0); ]]]\n"
+          variables:
+            accent: '#cba6f7'
+        - type: custom:mini-graph-card
+          entities:
+          - entity: sensor.your_server_health_score
+            name: score
+            color: '#cba6f7'
+          hours_to_show: 168
+          points_per_hour: 6
+          line_width: 1.5
+          animate: false
+          hour24: true
+          show:
+            name: false
+            icon: false
+            state: false
+            legend: false
+            fill: fade
+            labels: true
+            extrema: true
+          height: 170
 - title: Explorer
   path: explorer
   icon: mdi:telescope
