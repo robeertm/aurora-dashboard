@@ -1999,7 +1999,7 @@ views:
                     entity: sensor.total_power
                     name: Power · 12 h
                     state_display: |
-                      [[[ return Math.round(parseFloat(entity.state)) + ' W'; ]]]
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : Math.round(v) + ' W'; ]]]
                     variables:
                       accent: "#fab387"
                   - type: custom:apexcharts-card
@@ -2049,9 +2049,19 @@ views:
                   - type: custom:button-card
                     template: aurora_plot_header
                     entity: sensor.wan_download_rate
+                    triggers_update:
+                      - sensor.wan_download_rate
+                      - sensor.wan_upload_rate
                     name: WAN ↓ ↑ · 6 h
+                    # The big figure shows TOTAL throughput (down + up), not just
+                    # the download of the header entity.
                     state_display: |
-                      [[[ return parseFloat(entity.state).toFixed(1) + ' Mbit/s'; ]]]
+                      [[[
+                        const d = parseFloat((states['sensor.wan_download_rate'] || {}).state);
+                        const u = parseFloat((states['sensor.wan_upload_rate'] || {}).state);
+                        const t = (isNaN(d) ? 0 : d) + (isNaN(u) ? 0 : u);
+                        return t.toFixed(1) + ' Mbit/s';
+                      ]]]
                     variables:
                       accent: "#89b4fa"
                   - type: custom:apexcharts-card
@@ -2201,256 +2211,6 @@ views:
   # that room's own view. The details deliberately live in separate views —
   # one giant view with every room measured ~73 % CPU while idle, split up it
   # is under 30 %. Browsers pay for every card that exists, not just visible ones.
-  # ═════════════════════════════════════════════════════════════════════════
-  #  Phone — one compact view for when you are out.
-  #  Deliberately small (about 30 cards): on a phone every card counts twice,
-  #  and the browser pays for every card that exists, not just visible ones.
-  # ═════════════════════════════════════════════════════════════════════════
-  - title: Phone
-    path: phone
-    icon: mdi:cellphone
-    theme: Aurora
-    type: sections
-    max_columns: 2
-    sections:
-
-      - type: grid
-        column_span: 2
-        cards:
-          - type: custom:button-card
-            template: aurora_sky
-            grid_options:
-              columns: full
-          - type: custom:button-card
-            template: aurora_status
-            grid_options:
-              columns: full
-            triggers_update: *status_triggers
-          # Visible button row for the sky — right under the status card, so you
-          # find it without looking for it.
-          - type: grid
-            grid_options:
-              columns: full
-            columns: 4
-            square: false
-            cards:
-              - type: custom:button-card
-                template: aurora_sky_btn
-                icon: mdi:theme-light-dark
-                variables:
-                  option: Auto
-                  accent: "#94e2d5"
-                tap_action:
-                  action: call-service
-                  service: input_select.select_option
-                  service_data:
-                    entity_id: input_select.sky_mode
-                    option: Auto
-              - type: custom:button-card
-                template: aurora_sky_btn
-                icon: mdi:weather-sunny
-                variables:
-                  option: Day
-                  accent: "#f9e2af"
-                tap_action:
-                  action: call-service
-                  service: input_select.select_option
-                  service_data:
-                    entity_id: input_select.sky_mode
-                    option: Day
-              - type: custom:button-card
-                template: aurora_sky_btn
-                icon: mdi:weather-sunset
-                variables:
-                  option: Dusk
-                  accent: "#fab387"
-                tap_action:
-                  action: call-service
-                  service: input_select.select_option
-                  service_data:
-                    entity_id: input_select.sky_mode
-                    option: Dusk
-              - type: custom:button-card
-                template: aurora_sky_btn
-                icon: mdi:weather-night
-                variables:
-                  option: Night
-                  accent: "#b4befe"
-                tap_action:
-                  action: call-service
-                  service: input_select.select_option
-                  service_data:
-                    entity_id: input_select.sky_mode
-                    option: Night
-
-      - type: grid
-        column_span: 1
-        cards:
-          - type: heading
-            heading: Quick
-            heading_style: title
-            icon: mdi:gesture-tap-button
-          - type: grid
-            grid_options:
-              columns: full
-            columns: 2
-            square: false
-            cards:
-              - type: custom:button-card
-                template: aurora_skymode
-              - type: custom:button-card
-                template: aurora_chip
-                triggers_update: *status_triggers
-                icon: mdi:lightbulb-group
-                label: Lights on
-                name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('light.')&&s.state==='on').length); ]]]
-                tap_action:
-                  action: navigate
-                  navigation_path: /aurora/licht
-                styles:
-                  icon:
-                    - color: "#f9e2af"
-              - type: custom:button-card
-                template: aurora_chip
-                triggers_update: *status_triggers
-                icon: mdi:window-open-variant
-                label: Windows open
-                name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.attributes.device_class==='window'&&s.state==='on').length); ]]]
-                styles:
-                  icon:
-                    - color: "#fab387"
-              - type: custom:button-card
-                template: aurora_metric
-                entity: sensor.total_power
-                name: Power
-                icon: mdi:flash
-                variables:
-                  accent: "#f9e2af"
-                  accent_bg: "rgba(249,226,175,0.10)"
-
-      - type: grid
-        column_span: 1
-        cards:
-          - type: heading
-            heading: Rooms
-            heading_style: title
-            icon: mdi:floor-plan
-          - type: grid
-            grid_options:
-              columns: full
-            columns: 2
-            square: false
-            cards:
-              - type: custom:button-card
-                template: aurora_room
-                entity: sensor.room_temp_living_room
-                name: "Living Room"
-                icon: mdi:sofa
-                triggers_update:
-                  - binary_sensor.window_living_room
-                variables:
-                  accent: "#cba6f7"
-                  accent_bg: "rgba(203,166,247,0.10)"
-                  window: binary_sensor.window_living_room
-                tap_action:
-                  action: navigate
-                  navigation_path: /aurora/room-living_room
-              - type: custom:button-card
-                template: aurora_room
-                entity: sensor.room_temp_kitchen
-                name: "Kitchen"
-                icon: mdi:countertop
-                triggers_update:
-                  - binary_sensor.window_kitchen
-                variables:
-                  accent: "#fab387"
-                  accent_bg: "rgba(250,179,135,0.10)"
-                  window: binary_sensor.window_kitchen
-                tap_action:
-                  action: navigate
-                  navigation_path: /aurora/room-kitchen
-              - type: custom:button-card
-                template: aurora_room
-                entity: sensor.room_temp_bedroom
-                name: "Bedroom"
-                icon: mdi:bed
-                triggers_update:
-                  - binary_sensor.window_bedroom
-                variables:
-                  accent: "#89b4fa"
-                  accent_bg: "rgba(137,180,250,0.10)"
-                  window: binary_sensor.window_bedroom
-                tap_action:
-                  action: navigate
-                  navigation_path: /aurora/room-bedroom
-              - type: custom:button-card
-                template: aurora_chip
-                icon: mdi:view-grid-plus
-                label: All rooms
-                name: Overview
-                tap_action:
-                  action: navigate
-                  navigation_path: /aurora/smarthome
-                styles:
-                  icon:
-                    - color: "#b4befe"
-
-      - type: grid
-        column_span: 1
-        cards:
-          - type: heading
-            heading: On right now
-            heading_style: title
-            icon: mdi:lightbulb-on
-          - type: custom:auto-entities
-            show_empty: false
-            grid_options:
-              columns: full
-            card:
-              type: grid
-              columns: 3
-              square: false
-            card_param: cards
-            sort:
-              method: friendly_name
-            filter:
-              include:
-                - domain: light
-                  state: "on"
-                  options:
-                    type: custom:button-card
-                    template: aurora_light
-          - type: custom:auto-entities
-            show_empty: false
-            grid_options:
-              columns: full
-            card:
-              type: grid
-              columns: 2
-              square: false
-            card_param: cards
-            sort:
-              method: friendly_name
-            filter:
-              include:
-                # auto-entities has no top-level "device_class" rule — the
-                # device class is an attribute and belongs under attributes:
-                - domain: binary_sensor
-                  attributes:
-                    device_class: window
-                  state: "on"
-                  options:
-                    type: custom:button-card
-                    template: aurora_window
-                - domain: binary_sensor
-                  attributes:
-                    device_class: door
-                  state: "on"
-                  options:
-                    type: custom:button-card
-                    template: aurora_window
   - title: Smart Home
     path: smarthome
     icon: mdi:home-automation
@@ -2782,6 +2542,139 @@ views:
                               accent: "#cba6f7"
   
   # ═════════════════════════ ROOM · KITCHEN ═════════════════════════
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Trends
+            heading_style: title
+            icon: mdi:chart-areaspline
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.room_temp_living_room
+                    name: Temperature · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' °C'; ]]]
+                    variables:
+                      accent: "#cba6f7"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#cba6f7"
+                      grid: *apex_grid
+                      fill:
+                        type: ["gradient", "solid", "solid"]
+                        opacity: [1, 1, 1]
+                        gradient:
+                          opacityFrom: 0.4
+                          opacityTo: 0.03
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.room_temp_living_room
+                        name: Actual
+                        color: "#cba6f7"
+                        show:
+                          legend_value: false
+                      - entity: input_number.room_setpoint_living_room
+                        name: Target
+                        type: line
+                        color: "#a6adc8"
+                        stroke_width: 2
+                        show:
+                          legend_value: false
+                      - entity: sensor.room_temp_living_room
+                        name: scan
+                        type: line
+                        color: "#cba6f7"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.trv_living_room_valve
+                    name: Valve position · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : Math.round(v) + ' %'; ]]]
+                    variables:
+                      accent: "#fab387"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      grid: *apex_grid
+                      fill: *apex_fill2
+                      legend:
+                        show: false
+                      yaxis:
+                        - min: 0
+                          max: 100
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.trv_living_room_valve
+                        name: Valve
+                        color: "#fab387"
+                        show:
+                          legend_value: false
+                      - entity: sensor.trv_living_room_valve
+                        name: scan
+                        type: line
+                        color: "#fab387"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+
   - title: "Kitchen"
     path: room-kitchen
     icon: mdi:countertop
@@ -2966,6 +2859,139 @@ views:
                               accent: "#fab387"
   
   # ═════════════════════════ ROOM · BEDROOM ═════════════════════════
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Trends
+            heading_style: title
+            icon: mdi:chart-areaspline
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.room_temp_kitchen
+                    name: Temperature · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' °C'; ]]]
+                    variables:
+                      accent: "#fab387"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      grid: *apex_grid
+                      fill:
+                        type: ["gradient", "solid", "solid"]
+                        opacity: [1, 1, 1]
+                        gradient:
+                          opacityFrom: 0.4
+                          opacityTo: 0.03
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.room_temp_kitchen
+                        name: Actual
+                        color: "#fab387"
+                        show:
+                          legend_value: false
+                      - entity: input_number.room_setpoint_kitchen
+                        name: Target
+                        type: line
+                        color: "#a6adc8"
+                        stroke_width: 2
+                        show:
+                          legend_value: false
+                      - entity: sensor.room_temp_kitchen
+                        name: scan
+                        type: line
+                        color: "#fab387"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.trv_kitchen_valve
+                    name: Valve position · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : Math.round(v) + ' %'; ]]]
+                    variables:
+                      accent: "#fab387"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      grid: *apex_grid
+                      fill: *apex_fill2
+                      legend:
+                        show: false
+                      yaxis:
+                        - min: 0
+                          max: 100
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.trv_kitchen_valve
+                        name: Valve
+                        color: "#fab387"
+                        show:
+                          legend_value: false
+                      - entity: sensor.trv_kitchen_valve
+                        name: scan
+                        type: line
+                        color: "#fab387"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+
   - title: "Bedroom"
     path: room-bedroom
     icon: mdi:bed-king
@@ -3150,6 +3176,139 @@ views:
                               accent: "#b4befe"
   
   # ═════════════════════════ ROOM · OFFICE ═════════════════════════
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Trends
+            heading_style: title
+            icon: mdi:chart-areaspline
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.room_temp_bedroom
+                    name: Temperature · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' °C'; ]]]
+                    variables:
+                      accent: "#89b4fa"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#89b4fa"
+                      grid: *apex_grid
+                      fill:
+                        type: ["gradient", "solid", "solid"]
+                        opacity: [1, 1, 1]
+                        gradient:
+                          opacityFrom: 0.4
+                          opacityTo: 0.03
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.room_temp_bedroom
+                        name: Actual
+                        color: "#89b4fa"
+                        show:
+                          legend_value: false
+                      - entity: input_number.room_setpoint_bedroom
+                        name: Target
+                        type: line
+                        color: "#a6adc8"
+                        stroke_width: 2
+                        show:
+                          legend_value: false
+                      - entity: sensor.room_temp_bedroom
+                        name: scan
+                        type: line
+                        color: "#89b4fa"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.trv_bedroom_valve
+                    name: Valve position · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : Math.round(v) + ' %'; ]]]
+                    variables:
+                      accent: "#fab387"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      grid: *apex_grid
+                      fill: *apex_fill2
+                      legend:
+                        show: false
+                      yaxis:
+                        - min: 0
+                          max: 100
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.trv_bedroom_valve
+                        name: Valve
+                        color: "#fab387"
+                        show:
+                          legend_value: false
+                      - entity: sensor.trv_bedroom_valve
+                        name: scan
+                        type: line
+                        color: "#fab387"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+
   - title: "Office"
     path: room-office
     icon: mdi:desk
@@ -3319,6 +3478,139 @@ views:
                               accent: "#89b4fa"
   
   # ═════════════════════════ ROOM · BATHROOM ═════════════════════════
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Trends
+            heading_style: title
+            icon: mdi:chart-areaspline
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.room_temp_office
+                    name: Temperature · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' °C'; ]]]
+                    variables:
+                      accent: "#94e2d5"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#94e2d5"
+                      grid: *apex_grid
+                      fill:
+                        type: ["gradient", "solid", "solid"]
+                        opacity: [1, 1, 1]
+                        gradient:
+                          opacityFrom: 0.4
+                          opacityTo: 0.03
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.room_temp_office
+                        name: Actual
+                        color: "#94e2d5"
+                        show:
+                          legend_value: false
+                      - entity: input_number.room_setpoint_office
+                        name: Target
+                        type: line
+                        color: "#a6adc8"
+                        stroke_width: 2
+                        show:
+                          legend_value: false
+                      - entity: sensor.room_temp_office
+                        name: scan
+                        type: line
+                        color: "#94e2d5"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.trv_office_valve
+                    name: Valve position · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : Math.round(v) + ' %'; ]]]
+                    variables:
+                      accent: "#fab387"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      grid: *apex_grid
+                      fill: *apex_fill2
+                      legend:
+                        show: false
+                      yaxis:
+                        - min: 0
+                          max: 100
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.trv_office_valve
+                        name: Valve
+                        color: "#fab387"
+                        show:
+                          legend_value: false
+                      - entity: sensor.trv_office_valve
+                        name: scan
+                        type: line
+                        color: "#fab387"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+
   - title: "Bathroom"
     path: room-bathroom
     icon: mdi:shower
@@ -3488,6 +3780,139 @@ views:
                               accent: "#94e2d5"
   
   # ═════════════════════════ ROOM · HALLWAY ═════════════════════════
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Trends
+            heading_style: title
+            icon: mdi:chart-areaspline
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 2
+            square: false
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.room_temp_bathroom
+                    name: Temperature · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' °C'; ]]]
+                    variables:
+                      accent: "#89dceb"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#89dceb"
+                      grid: *apex_grid
+                      fill:
+                        type: ["gradient", "solid", "solid"]
+                        opacity: [1, 1, 1]
+                        gradient:
+                          opacityFrom: 0.4
+                          opacityTo: 0.03
+                      legend:
+                        show: false
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.room_temp_bathroom
+                        name: Actual
+                        color: "#89dceb"
+                        show:
+                          legend_value: false
+                      - entity: input_number.room_setpoint_bathroom
+                        name: Target
+                        type: line
+                        color: "#a6adc8"
+                        stroke_width: 2
+                        show:
+                          legend_value: false
+                      - entity: sensor.room_temp_bathroom
+                        name: scan
+                        type: line
+                        color: "#89dceb"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+              - type: custom:stack-in-card
+                mode: vertical
+                cards:
+                  - type: custom:button-card
+                    template: aurora_plot_header
+                    entity: sensor.trv_bathroom_valve
+                    name: Valve position · 24 h
+                    state_display: |
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : Math.round(v) + ' %'; ]]]
+                    variables:
+                      accent: "#fab387"
+                  - type: custom:apexcharts-card
+                    graph_span: 24h
+                    header:
+                      show: false
+                    apex_config:
+                      chart:
+                        height: 190
+                        animations: *apex_anim
+                        dropShadow:
+                          enabled: true
+                          top: 0
+                          left: 0
+                          blur: 6
+                          opacity: 0.7
+                          color: "#fab387"
+                      grid: *apex_grid
+                      fill: *apex_fill2
+                      legend:
+                        show: false
+                      yaxis:
+                        - min: 0
+                          max: 100
+                    all_series_config:
+                      type: area
+                      curve: smooth
+                      stroke_width: 2
+                      group_by:
+                        func: avg
+                        duration: 10min
+                    series:
+                      - entity: sensor.trv_bathroom_valve
+                        name: Valve
+                        color: "#fab387"
+                        show:
+                          legend_value: false
+                      - entity: sensor.trv_bathroom_valve
+                        name: scan
+                        type: line
+                        color: "#fab387"
+                        stroke_width: 3
+                        show:
+                          in_legend: false
+                          in_header: false
+                          legend_value: false
+
   - title: "Hallway"
     path: room-hallway
     icon: mdi:coat-rack
@@ -4084,7 +4509,7 @@ views:
                     entity: sensor.total_power
                     name: Total power · 24 h
                     state_display: |
-                      [[[ return Math.round(parseFloat(entity.state)) + ' W'; ]]]
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : Math.round(v) + ' W'; ]]]
                     variables:
                       accent: "#fab387"
                   - type: custom:apexcharts-card
@@ -4139,7 +4564,7 @@ views:
                     entity: sensor.total_energy_today
                     name: kWh per day · 14 days
                     state_display: |
-                      [[[ return parseFloat(entity.state).toFixed(2) + ' kWh'; ]]]
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(2) + ' kWh'; ]]]
                     variables:
                       accent: "#94e2d5"
                   - type: custom:apexcharts-card
@@ -4399,7 +4824,7 @@ views:
                     entity: sensor.wan_download_rate
                     name: WAN throughput · 12 h
                     state_display: |
-                      [[[ return parseFloat(entity.state).toFixed(1) + ' Mbit/s'; ]]]
+                      [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' Mbit/s'; ]]]
                     variables:
                       accent: "#89b4fa"
                   - type: custom:apexcharts-card
@@ -4821,7 +5246,7 @@ views:
                 entity: sensor.ble_scanner_1_rssi_avg
                 name: RSSI · 24 h
                 state_display: |
-                  [[[ return parseFloat(entity.state).toFixed(1) + ' dBm'; ]]]
+                  [[[ const v = parseFloat(entity.state); return isNaN(v) ? '—' : v.toFixed(1) + ' dBm'; ]]]
                 variables:
                   accent: "#89dceb"
               - type: custom:apexcharts-card
