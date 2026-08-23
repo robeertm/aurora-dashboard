@@ -7,17 +7,39 @@
  *  2. The scan-pulse animation on every apexcharts-card series named "scan"
  *     (a short bright dash travelling along the curve, mission-control style).
  *
+ * Every rule below lives in ONE shared constructable stylesheet that is adopted
+ * by each shadow root — never copied into it. A room view holds ~100 cards; a
+ * per-root <style> copy meant ~400 kB of duplicated CSS the browser had to parse
+ * and re-match on every style recalculation, which is what made views slow to
+ * open on a phone. See "Performance notes" in the README.
+ *
  * No card-mod required. © 2026 Robert Manuwald — use only, see LICENSE.
  */
 (() => {
-  // Shared keyframe library. Injected into every card shadow root so any
+  // Phones get the same look minus the two things a mobile GPU cannot afford:
+  // a backdrop blur per card (each one is its own compositing layer plus a
+  // snapshot of everything behind it, at 3x device pixels) and a full-screen
+  // animated sky underneath all of them, which forces every one of those
+  // blurred layers to be recomputed on every frame.
+  const MOBILE = "(max-width: 700px)";
+
+  // Shared keyframe library. Adopted by every card shadow root so any
   // button-card template can reference these by name — a child template's
   // own `extra_styles` REPLACES its parent's, so keyframes defined in a
   // parent template would otherwise be lost.
   const KEYFRAMES = `
+    /* The glow itself is STATIC and only its opacity breathes. Animating
+       drop-shadow() (a paint property) re-rasterises the icon on every frame
+       and, inside a card with backdrop-filter, the blur behind it too —
+       measured at ~120 style recalculations per second in a room with several
+       lights on. Opacity stays on the compositor and looks the same. */
+    [style*="aurora-breathe"] {
+      filter: drop-shadow(0 0 9px var(--aurora-glow,#89b4fa));
+      will-change: opacity;
+    }
     @keyframes aurora-breathe {
-      0%,100% { filter: drop-shadow(0 0 3px var(--aurora-glow,#89b4fa)); }
-      50%     { filter: drop-shadow(0 0 13px var(--aurora-glow,#89b4fa)); }
+      0%,100% { opacity: .62; }
+      50%     { opacity: 1; }
     }
     @keyframes aurora-pulse {
       0%,100% { transform: scale(1); opacity: 1; }
@@ -34,9 +56,13 @@
     }
     /* Animated icons get their own compositor layer. Without this, every frame
        of an icon animation invalidates the backdrop-filter of the whole card
-       behind it, which is what actually costs the CPU. */
-    ha-icon, ha-state-icon, ha-svg-icon, #img-cell::after {
-      will-change: transform, opacity;
+       behind it, which is what actually costs the CPU. On a phone there is no
+       backdrop-filter to protect and a layer per icon is GPU memory we do not
+       have, so this is desktop-only. */
+    @media not all and ${MOBILE} {
+      ha-icon, ha-state-icon, ha-svg-icon, #img-cell::after {
+        will-change: transform, opacity;
+      }
     }
     /* Ring element; templates switch it on via --aurora-halo-anim. */
     #img-cell { position: relative; }
@@ -87,6 +113,24 @@
       92%     { opacity: .7; }
       94%     { opacity: 1; }
     }
+    /* The sky keeps its picture on a phone — sun, moon, clouds, meadow, the
+       whole scene — but stops moving. A full-screen animated layer under
+       translucent cards is the single most expensive thing on a mobile GPU.
+       Idle decoration stops too: a floating icon says nothing, and 24 of them
+       measured ~24 % CPU on their own. What an animation actually MEANS stays:
+       a low battery still blinks, an open window still pulses, the halo still
+       marks a light that is on, a valve still spins. */
+    @media ${MOBILE} {
+      .sky, .sky *, .sky::before, .sky::after { animation: none !important; }
+      ha-icon[style*="aurora-float"], ha-icon[style*="aurora-swing"],
+      ha-icon[style*="aurora-bob"], ha-icon[style*="aurora-shimmer"],
+      ha-state-icon[style*="aurora-float"], ha-state-icon[style*="aurora-swing"],
+      ha-state-icon[style*="aurora-bob"], ha-state-icon[style*="aurora-shimmer"],
+      [style*="aurora-float"], [style*="aurora-swing"],
+      [style*="aurora-bob"], [style*="aurora-shimmer"] {
+        animation: none !important;
+      }
+    }
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; }
     }
@@ -115,12 +159,22 @@
     ha-card:hover {
       border-color: rgba(180,190,254,.25);
     }
+    /* No blur on phones — a slightly more opaque card keeps the text readable
+       over a bright sky without asking the GPU to blur the backdrop per card. */
+    @media ${MOBILE} {
+      ha-card {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background-color: rgba(30,31,48,0.86);
+      }
+    }
   `;
   // Cards nested inside stack-in-card sit ON their parent's glass surface, so
   // they need no blur of their own — and a second backdrop-filter per segment
   // is one of the most expensive things a browser can be asked to composite.
   const GLASS_INNER = `
     ha-card { background: transparent; }
+    @media ${MOBILE} { ha-card { background-color: transparent; } }
   `;
   const APEX = `
     .apexcharts-series[seriesName="scan"] path {
@@ -132,6 +186,9 @@
     @keyframes aurora-scan {
       from { stroke-dashoffset: 0; }
       to   { stroke-dashoffset: -1204; }
+    }
+    @media ${MOBILE} {
+      .apexcharts-series[seriesName="scan"] path { animation: none; visibility: hidden; }
     }
     @media (prefers-reduced-motion: reduce) {
       .apexcharts-series[seriesName="scan"] path {
@@ -157,6 +214,43 @@
     ha-card.aurora-offscreen::before,
     ha-card.aurora-offscreen::after { animation-play-state: paused !important; }
   `;
+
+  // One CSSStyleSheet object per rule set, shared by every shadow root that
+  // needs it. Adopting costs a pointer; copying cost kilobytes per card.
+  const canAdopt = (() => {
+    try {
+      const s = new CSSStyleSheet();
+      s.replaceSync(":host{}");
+      return "adoptedStyleSheets" in Document.prototype || "adoptedStyleSheets" in ShadowRoot.prototype;
+    } catch (e) {
+      return false;
+    }
+  })();
+  const mkSheet = (css) => {
+    if (!canAdopt) return css;
+    const s = new CSSStyleSheet();
+    s.replaceSync(css);
+    return s;
+  };
+  const SHEETS = {
+    base: mkSheet(KEYFRAMES + IDLE),
+    glass: mkSheet(GLASS),
+    glassInner: mkSheet(GLASS_INNER),
+    apex: mkSheet(APEX),
+    heading: mkSheet(HEADING),
+  };
+  const adopt = (sr, ...sheets) => {
+    if (!canAdopt) {
+      const s = document.createElement("style");
+      s.textContent = sheets.join("\n");
+      sr.appendChild(s);
+      return;
+    }
+    const have = sr.adoptedStyleSheets || [];
+    const add = sheets.filter((s) => !have.includes(s));
+    if (add.length) sr.adoptedStyleSheets = have.concat(add);
+  };
+
   const seen = new WeakSet();
   const io = ("IntersectionObserver" in window)
     ? new IntersectionObserver((entries) => {
@@ -209,12 +303,6 @@
     return false;
   };
 
-  const inject = (sr, css) => {
-    const s = document.createElement("style");
-    s.textContent = css;
-    sr.appendChild(s);
-  };
-
   const auroraActive = (el) => {
     try {
       return getComputedStyle(el).getPropertyValue("--aurora-fx").trim() !== "";
@@ -229,7 +317,7 @@
     if (el.tagName === "APEXCHARTS-CARD") {
       if (!apexDone.has(sr)) {
         apexDone.add(sr);
-        inject(sr, APEX);
+        adopt(sr, SHEETS.apex);
       }
       for (const li of sr.querySelectorAll(".apexcharts-legend-series")) {
         if (li.textContent.trim().toLowerCase().startsWith("scan")) li.style.display = "none";
@@ -253,13 +341,13 @@
     }
     if (el.tagName === "HUI-HEADING" && !headingDone.has(sr)) {
       headingDone.add(sr);
-      inject(sr, HEADING);
+      adopt(sr, SHEETS.heading);
     }
-    // Theme var may arrive late — keep re-checking until injected.
+    // Theme var may arrive late — keep re-checking until adopted.
     const card = sr.querySelector("ha-card");
     if (card && !glassDone.has(sr) && auroraActive(el)) {
       glassDone.add(sr);
-      inject(sr, KEYFRAMES + IDLE + (insideStack(el) ? GLASS_INNER : GLASS));
+      adopt(sr, SHEETS.base, insideStack(el) ? SHEETS.glassInner : SHEETS.glass);
     }
     if (io && card && !seen.has(card)) {
       seen.add(card);
@@ -286,5 +374,5 @@
   sweep();
   setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c ready ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.1.0 ready ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();

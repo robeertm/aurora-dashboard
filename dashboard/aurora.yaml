@@ -45,20 +45,8 @@ button_card_templates:
         - padding: 12px
       name:
         - font-weight: 600
-    extra_styles: |
-      @keyframes aurora-breathe {
-        0%,100% { filter: drop-shadow(0 0 3px var(--aurora-glow,#89b4fa)); }
-        50%     { filter: drop-shadow(0 0 13px var(--aurora-glow,#89b4fa)); }
-      }
-      @keyframes aurora-pulse {
-        0%,100% { transform: scale(1); opacity: 1; }
-        50%     { transform: scale(1.22); opacity: .6; }
-      }
-      @keyframes aurora-spin { to { transform: rotate(360deg); } }
-      @keyframes aurora-halo {
-        0%       { box-shadow: 0 0 0 0 color-mix(in srgb, var(--aurora-glow,#f9e2af) 45%, transparent); }
-        70%,100% { box-shadow: 0 0 0 12px transparent; }
-      }
+    # KEINE extra_styles: button-card kopiert sie in JEDE erbende Karte.
+    # Alle Keyframes liegen zentral im geteilten Stylesheet des Helfers.
 
   aurora_chip:
     template: aurora_base
@@ -1722,12 +1710,35 @@ views:
             columns: 3
             square: false
             cards:
-              - type: custom:clock-weather-card
-                entity: weather.forecast_home
-                sun_entity: sun.sun
-                locale: de
-                time_format: 24
-                forecast_rows: 4
+              # Same card twice: animated weather icon on a desktop, a still one
+              # on a phone. The animated icons are SVG images that animate inside
+              # their own image document — neither CSS nor JavaScript can stop
+              # them, and they repaint continuously (measured: ~20 % CPU on a
+              # phone, permanently). `conditional` only builds the matching one.
+              - type: conditional
+                conditions:
+                  - condition: screen
+                    media_query: "(min-width: 700px)"
+                card:
+                  type: custom:clock-weather-card
+                  entity: weather.forecast_home
+                  sun_entity: sun.sun
+                  locale: de
+                  time_format: 24
+                  forecast_rows: 4
+                  animated_icon: true
+              - type: conditional
+                conditions:
+                  - condition: screen
+                    media_query: "(max-width: 699px)"
+                card:
+                  type: custom:clock-weather-card
+                  entity: weather.forecast_home
+                  sun_entity: sun.sun
+                  locale: de
+                  time_format: 24
+                  forecast_rows: 4
+                  animated_icon: false
               - type: grid
                 columns: 2
                 square: false
@@ -1738,7 +1749,7 @@ views:
                     label: Lights on
                     name: |
                       [[[
-                        return String(Object.values(hass.states).filter(s =>
+                        return String(Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s =>
                           s.entity_id.startsWith('light.') && s.state === 'on').length);
                       ]]]
                     tap_action:
@@ -1748,7 +1759,7 @@ views:
                       icon:
                         - color: |
                             [[[
-                              const n = Object.values(hass.states).filter(s =>
+                              const n = Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s =>
                                 s.entity_id.startsWith('light.') && s.state === 'on').length;
                               return n > 0 ? '#f9e2af' : '#585b70';
                             ]]]
@@ -1758,7 +1769,7 @@ views:
                     label: Windows open
                     name: |
                       [[[
-                        return String(Object.values(hass.states).filter(s =>
+                        return String(Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
                           s.entity_id.startsWith('binary_sensor.') &&
                           ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
                           s.state === 'on').length);
@@ -1770,7 +1781,7 @@ views:
                       icon:
                         - color: |
                             [[[
-                              const n = Object.values(hass.states).filter(s =>
+                              const n = Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
                                 s.entity_id.startsWith('binary_sensor.') &&
                                 ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
                                 s.state === 'on').length;
@@ -1778,7 +1789,7 @@ views:
                             ]]]
                         - animation: |
                             [[[
-                              const n = Object.values(hass.states).filter(s =>
+                              const n = Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
                                 s.entity_id.startsWith('binary_sensor.') &&
                                 ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
                                 s.state === 'on').length;
@@ -1790,7 +1801,7 @@ views:
                     label: At home
                     name: |
                       [[[
-                        return String(Object.values(hass.states).filter(s =>
+                        return String(Object.keys(hass.states).filter(_i=>_i.startsWith('person.')).map(_i=>hass.states[_i]).filter(s =>
                           s.entity_id.startsWith('person.') && s.state === 'home').length);
                       ]]]
                     styles:
@@ -1802,7 +1813,7 @@ views:
                     label: Batteries ≤ 20 %
                     name: |
                       [[[
-                        return String(Object.values(hass.states).filter(s =>
+                        return String(Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
                           s.entity_id.startsWith('sensor.') &&
                           s.attributes.device_class === 'battery' &&
                           parseFloat(s.state) <= 20).length);
@@ -1814,7 +1825,7 @@ views:
                       icon:
                         - color: |
                             [[[
-                              const n = Object.values(hass.states).filter(s =>
+                              const n = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
                                 s.entity_id.startsWith('sensor.') &&
                                 s.attributes.device_class === 'battery' &&
                                 parseFloat(s.state) <= 20).length;
@@ -1822,7 +1833,7 @@ views:
                             ]]]
                         - animation: |
                             [[[
-                              const n = Object.values(hass.states).filter(s =>
+                              const n = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
                                 s.entity_id.startsWith('sensor.') &&
                                 s.attributes.device_class === 'battery' &&
                                 parseFloat(s.state) <= 20).length;
@@ -1834,7 +1845,7 @@ views:
                     label: Updates
                     name: |
                       [[[
-                        return String(Object.values(hass.states).filter(s =>
+                        return String(Object.keys(hass.states).filter(_i=>_i.startsWith('update.')).map(_i=>hass.states[_i]).filter(s =>
                           s.entity_id.startsWith('update.') && s.state === 'on').length);
                       ]]]
                     tap_action:
@@ -1844,7 +1855,7 @@ views:
                       icon:
                         - color: |
                             [[[
-                              const n = Object.values(hass.states).filter(s =>
+                              const n = Object.keys(hass.states).filter(_i=>_i.startsWith('update.')).map(_i=>hass.states[_i]).filter(s =>
                                 s.entity_id.startsWith('update.') && s.state === 'on').length;
                               return n > 0 ? '#89b4fa' : '#585b70';
                             ]]]
@@ -1854,14 +1865,14 @@ views:
                     label: Media playing
                     name: |
                       [[[
-                        return String(Object.values(hass.states).filter(s =>
+                        return String(Object.keys(hass.states).filter(_i=>_i.startsWith('media_player.')).map(_i=>hass.states[_i]).filter(s =>
                           s.entity_id.startsWith('media_player.') && s.state === 'playing').length);
                       ]]]
                     styles:
                       icon:
                         - color: |
                             [[[
-                              const n = Object.values(hass.states).filter(s =>
+                              const n = Object.keys(hass.states).filter(_i=>_i.startsWith('media_player.')).map(_i=>hass.states[_i]).filter(s =>
                                 s.entity_id.startsWith('media_player.') && s.state === 'playing').length;
                               return n > 0 ? '#cba6f7' : '#585b70';
                             ]]]
@@ -1871,7 +1882,7 @@ views:
                     label: Switches on
                     name: |
                       [[[
-                        return String(Object.values(hass.states).filter(s =>
+                        return String(Object.keys(hass.states).filter(_i=>_i.startsWith('switch.')).map(_i=>hass.states[_i]).filter(s =>
                           s.entity_id.startsWith('switch.') && s.state === 'on').length);
                       ]]]
                     styles:
@@ -1883,7 +1894,7 @@ views:
                     label: Ø indoor
                     name: |
                       [[[
-                        const vals = Object.values(hass.states)
+                        const vals = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.room_temp_')).map(_i=>hass.states[_i])
                           .filter(s => s.entity_id.startsWith('sensor.room_temp_'))
                           .map(s => parseFloat(s.state)).filter(v => !isNaN(v));
                         if (!vals.length) return '–';
@@ -2236,7 +2247,7 @@ views:
                 icon: mdi:thermometer
                 label: "Avg room temp"
                 name: |
-                  [[[ const vs=Object.values(hass.states).filter(s=>s.entity_id.startsWith('sensor.room_temp_')).map(s=>parseFloat(s.state)).filter(v=>!isNaN(v));return vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(1)+' °C':'—'; ]]]
+                  [[[ const vs=Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.room_temp_')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('sensor.room_temp_')).map(s=>parseFloat(s.state)).filter(v=>!isNaN(v));return vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(1)+' °C':'—'; ]]]
                 styles:
                   icon:
                     - color: "#94e2d5"
@@ -2245,7 +2256,7 @@ views:
                 icon: mdi:radiator
                 label: "Heating active"
                 name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('climate.')&&s.state==='heat').length); ]]]
+                  [[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith('climate.')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('climate.')&&s.state==='heat').length); ]]]
                 styles:
                   icon:
                     - color: "#fab387"
@@ -2254,7 +2265,7 @@ views:
                 icon: mdi:lightbulb-group
                 label: "Lights on"
                 name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('light.')&&s.state==='on').length); ]]]
+                  [[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('light.')&&s.state==='on').length); ]]]
                 styles:
                   icon:
                     - color: "#f9e2af"
@@ -2263,7 +2274,7 @@ views:
                 icon: mdi:robot
                 label: "Automations on"
                 name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('automation.')&&s.state==='on').length); ]]]
+                  [[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith('automation.')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('automation.')&&s.state==='on').length); ]]]
                 styles:
                   icon:
                     - color: "#a6e3a1"
@@ -2272,7 +2283,7 @@ views:
                 icon: mdi:window-open-variant
                 label: "Windows open"
                 name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('binary_sensor.')&&['door','window','opening'].includes(s.attributes.device_class)&&s.state==='on').length); ]]]
+                  [[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('binary_sensor.')&&['door','window','opening'].includes(s.attributes.device_class)&&s.state==='on').length); ]]]
                 styles:
                   icon:
                     - color: "#f38ba8"
@@ -4055,7 +4066,7 @@ views:
                 icon: mdi:robot
                 label: "Automations total"
                 name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('automation.')).length); ]]]
+                  [[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith('automation.')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('automation.')).length); ]]]
                 styles:
                   icon:
                     - color: "#cba6f7"
@@ -4064,7 +4075,7 @@ views:
                 icon: mdi:robot-happy
                 label: "Active"
                 name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('automation.')&&s.state==='on').length); ]]]
+                  [[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith('automation.')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('automation.')&&s.state==='on').length); ]]]
                 styles:
                   icon:
                     - color: "#a6e3a1"
@@ -4073,7 +4084,7 @@ views:
                 icon: mdi:robot-off
                 label: "Disabled"
                 name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('automation.')&&s.state!=='on').length); ]]]
+                  [[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith('automation.')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('automation.')&&s.state!=='on').length); ]]]
                 styles:
                   icon:
                     - color: "#f38ba8"
@@ -4082,7 +4093,7 @@ views:
                 icon: mdi:script-text-play
                 label: "Scripts"
                 name: |
-                  [[[ return String(Object.values(hass.states).filter(s=>s.entity_id.startsWith('script.')).length); ]]]
+                  [[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith('script.')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith('script.')).length); ]]]
                 styles:
                   icon:
                     - color: "#89dceb"
@@ -5063,7 +5074,7 @@ views:
                 label: Signal sensors
                 name: |
                   [[[
-                    return String(Object.values(hass.states).filter(s =>
+                    return String(Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
                       s.entity_id.startsWith('sensor.') &&
                       s.attributes.device_class === 'signal_strength' &&
                       !isNaN(parseFloat(s.state))).length);
@@ -5078,7 +5089,7 @@ views:
                 label: Strongest
                 name: |
                   [[[
-                    const vs = Object.values(hass.states).filter(s =>
+                    const vs = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
                       s.entity_id.startsWith('sensor.') &&
                       s.attributes.device_class === 'signal_strength' &&
                       !isNaN(parseFloat(s.state))).map(s => parseFloat(s.state));
@@ -5093,7 +5104,7 @@ views:
                 label: Weakest
                 name: |
                   [[[
-                    const vs = Object.values(hass.states).filter(s =>
+                    const vs = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
                       s.entity_id.startsWith('sensor.') &&
                       s.attributes.device_class === 'signal_strength' &&
                       !isNaN(parseFloat(s.state))).map(s => parseFloat(s.state));
@@ -5103,7 +5114,7 @@ views:
                   icon:
                     - color: |
                         [[[
-                          const vs = Object.values(hass.states).filter(s =>
+                          const vs = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
                             s.entity_id.startsWith('sensor.') &&
                             s.attributes.device_class === 'signal_strength' &&
                             !isNaN(parseFloat(s.state))).map(s => parseFloat(s.state));
@@ -5112,7 +5123,7 @@ views:
                         ]]]
                     - animation: |
                         [[[
-                          const vs = Object.values(hass.states).filter(s =>
+                          const vs = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
                             s.entity_id.startsWith('sensor.') &&
                             s.attributes.device_class === 'signal_strength' &&
                             !isNaN(parseFloat(s.state))).map(s => parseFloat(s.state));

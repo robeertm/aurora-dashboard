@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.17.0
+
+Performance release — room views were slow to open and could take the Home
+Assistant companion app down on a phone. Everything below was measured on a
+real installation (1450 entities) with Chrome in phone emulation (390×844 at
+3× device pixels, CPU throttled 4×), against the same installation's
+stock dashboard as the reference.
+
+- **One shared stylesheet instead of a copy per card.** The effects helper used
+  to append its `<style>` block to every card's shadow root. A room view holds
+  ~100 cards, so the browser had to parse and re-match **428 kB of duplicated
+  CSS in 175 stylesheets**. It is now a single constructable `CSSStyleSheet`
+  adopted by every root: **89 kB in 13 stylesheets**. Opening a room view went
+  from 1.8–3.6 s to 0.8–2.2 s, and one view that never settled at all (43 s)
+  now opens in 0.8 s
+- **`aurora_base` no longer ships `extra_styles`.** button-card copies a
+  template's `extra_styles` into every card that inherits it — ~90 copies per
+  room of a keyframe block the helper already provides, including an outdated
+  `box-shadow` halo that 0.13.0 had replaced for being a paint animation
+- **Counter chips no longer scan every entity.** Each chip ran
+  `Object.values(hass.states)` — through button-card's proxy, that is one
+  property read per entity, three times per chip (text, colour, animation), on
+  every render. They now pre-filter by domain on the key first. On the Overview
+  this alone took idle CPU from **~46 % to ~20 %**
+- **`aurora-breathe` no longer animates `drop-shadow()`.** The glow is now
+  static and only its opacity breathes — same look, on the compositor. In a
+  room with several lights on this was worth ~40 % of that view's CPU
+- **Phone mode.** Under 700 px the cards drop their backdrop blur (each blurred
+  card is its own compositing layer plus a snapshot of everything behind it, at
+  3× device pixels) and become slightly more opaque instead; the sky keeps its
+  picture but stops moving; idle decoration (floating, swinging, shimmering
+  icons) stops. Animations that *mean* something — a blinking low battery, a
+  pulsing open window, the halo on a light that is on — keep running
+- **The clock/weather card gets a still icon on phones.** Its animated icons are
+  SVG images that animate inside their own image document, so neither CSS nor
+  JavaScript can pause them — they repainted continuously and measured ~20 % CPU
+  on their own. The card is now declared twice behind `conditional` cards with a
+  `screen` condition, animated above 700 px, still below
+- Measured result: a room view is now **4.9 % idle CPU against the stock
+  dashboard's 5.5 %**, and the Overview 19.6 % against 7.6 %
+
 ## 0.16.0
 
 - **Per-room trend charts**: every room view now ends with a *Trends* section —
