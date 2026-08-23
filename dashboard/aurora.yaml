@@ -335,10 +335,16 @@ button_card_templates:
       }
       .stars2.faint { opacity: .45; animation: sky-twinkle 9s ease-in-out infinite alternate; }
       .moon {
-        position: absolute; top: 9%; right: 10%;
-        width: 76px; height: 76px; border-radius: 50%;
-        background: radial-gradient(circle at 34% 32%, #f6f2e2 0%, #ded9c4 58%, #b9b7a7 100%);
-        box-shadow: 0 0 46px 16px rgba(246,242,226,.13);
+        /* Behind a glass card the backdrop blur smears the moon into a glow —
+           so keep it large and high-contrast, and place it just under the
+           header where a gap usually remains. */
+        position: absolute; top: 4.5%; right: 7%;
+        width: 88px; height: 88px; border-radius: 50%;
+        background: radial-gradient(circle at 36% 33%, #f8f4e6 0%, #e6e0cf 52%, #c6c2b1 100%);
+        /* enger Schein + Innenschatten: sonst zerfliesst die Scheibe zu einem
+           Lichtfleck ohne Rand */
+        box-shadow: 0 0 26px 3px rgba(246,242,226,.14),
+                    inset -7px -5px 13px rgba(88,86,78,.30);
         will-change: transform;
         animation: sky-breath 40s ease-in-out infinite;
       }
@@ -392,7 +398,7 @@ button_card_templates:
           radial-gradient(circle at 76% 64%, rgba(205,214,244,.74) 0 27px, rgba(205,214,244,0) 28px),
           linear-gradient(to top, rgba(205,214,244,.68) 0 15px, rgba(205,214,244,0) 16px);
         filter: blur(1.5px);
-        opacity: .34;
+        opacity: .40;
         will-change: transform;
       }
       .cloud.warm {

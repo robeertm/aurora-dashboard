@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.1
+
+- Night sky polish: the moon is larger, sits just below the header where a gap
+  usually remains, and has a tighter glow plus an inset shadow — behind a glass
+  card the backdrop blur otherwise smeared it into a featureless bright spot.
+  Day clouds are a touch more present
+
 ## 0.14.0
 
 - **A sky that follows the sun.** Three hand-drawn full-screen scenes — Day
