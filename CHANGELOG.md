@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.18.0
+
+The 0.17.0 pass was measured in Chrome, and Chrome was never the problem: on
+**Safari — and therefore on every browser on an iPhone, because Apple requires
+WebKit there** — a room view took up to **160 seconds** to finish and scrolled
+at **4 fps**. Measured in real WebKit this time.
+
+- **Per-room trend charts now use `mini-graph-card` instead of
+  `apexcharts-card`.** In WebKit a room view of 92 cards with four apexcharts
+  took 160 s; without the charts, 2.3 s; with mini-graph, **4.7 s and 53 fps**.
+  The charts are not slow by themselves — the same four in a view of their own
+  render in 1 s. ApexCharts forces layout measurements while drawing and WebKit
+  re-lays-out the whole page for each one, so the cost is charts × page
+  complexity. The analysis views (Overview, Energy, Network, Radio) keep
+  apexcharts: there the charts *are* the content and the views are small.
+  Bar charts stay on apexcharts too — mini-graph has no equivalent
+- **Safari and iOS now get the phone treatment at any window size**: no
+  per-card backdrop blur (WebKit re-resolves every blurred card against the
+  full-screen backdrop while scrolling), a still sky, and the sky promoted to
+  its own layer
+- **Idle decoration no longer animates anywhere** — floating, swinging,
+  shimmering icons. Measured in Chrome, they were half of the CPU spent while
+  scrolling a room view (17 % → 7 %). Animations that carry meaning all stay: a
+  light that is on breathes and wears its halo, a low battery blinks, an open
+  window pulses, an open valve spins, an active automation wobbles
+- **`will-change` only on elements that actually animate.** Setting it on every
+  icon promoted 76 elements per room view to their own GPU layer and was the
+  only source of dropped frames while scrolling
+
 ## 0.17.0
 
 Performance release — room views were slow to open and could take the Home
