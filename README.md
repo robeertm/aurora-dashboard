@@ -20,6 +20,11 @@ sensor** in your installation, grouped by device class, with zero configuration.
     condition, the **number of clouds follows the cloud cover**, their **speed
     follows the real wind**, and rain, snow, fog and lightning are drawn on top
     while the sun fades out behind thick cover.
+  - At night the **moon is where the moon actually is** — its position is
+    computed from your installation's own latitude and longitude, it travels
+    across the sky as the night goes on, and it is drawn with its **true
+    phase**: the lit part is a computed lune, so a waxing crescent looks like
+    one. Hover it for the phase name and the illuminated percentage.
   - The ground is a **meadow that follows the season** — fresh green with
     spring flowers, deep green with poppies in summer, golden with falling
     leaves in autumn, snow-covered in winter. Plus a tree line on the horizon,
@@ -32,7 +37,9 @@ sensor** in your installation, grouped by device class, with zero configuration.
   nobody home, unusual power draw, pending updates. When nothing is pending it
   says *All clear* and stops pulsing.
 - 📈 **Per-room trends** — every room view ends with actual-vs-target
-  temperature and valve position over 24 h.
+  temperature and valve position over 24 h, drawn with a grid, a time axis
+  (`−24 h … now`), value labels, and min/max with unit and time. Charts placed
+  next to each other are the same height whether or not they carry a legend.
 - 🌌 **Animated constellation background** — fine star-lines drifting and twinkling
   behind everything (pure CSS + inline SVG, respects `prefers-reduced-motion`).
 - 📈 **Mission-control plots** — monospace label, big glowing live value, neon
