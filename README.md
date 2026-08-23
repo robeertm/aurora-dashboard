@@ -201,6 +201,26 @@ of idle time on a real installation (1450 entities), not guessed.
   idle**; the same content split into one view per room runs at **9–29 %**. A
   browser pays for every card that exists, not just the visible ones — so
   splitting is by far the biggest lever.
+- **Never inject the same CSS into every card.** Shadow DOM has no shared
+  stylesheet unless you make one. Appending a `<style>` block per card put
+  **428 kB of duplicated CSS in 175 stylesheets** into a single room view, all
+  of it re-matched on every style recalculation; a shared constructable
+  `CSSStyleSheet` adopted by each root brought that to **89 kB in 13**. The same
+  applies to a button-card template's `extra_styles`: it is copied into every
+  card that inherits it.
+- **Do not iterate `hass.states` from a card template.** button-card hands the
+  template a proxy, so `Object.values(hass.states)` is one trapped property read
+  per entity — 1450 of them, per chip, per render, and a chip usually evaluates
+  its text, its colour and its animation separately. Filter the *keys* by domain
+  first and read only what survives: on the Overview that was **~46 % → ~20 %**
+  idle CPU.
+- **Phones need less, not smaller.** Under 700 px this dashboard drops the
+  per-card backdrop blur (each blurred card is a compositing layer plus a
+  backdrop snapshot, at 3× device pixels), freezes the sky's motion while
+  keeping its picture, and stops idle decoration — while animations that carry
+  meaning keep running. An animated icon delivered as an **SVG image** cannot be
+  paused by CSS or JavaScript at all (it animates inside its own document), so
+  swap the card itself behind a `conditional` card with a `screen` condition.
 - **`triggers_update: all` is expensive.** A card with it re-renders on *every*
   state change anywhere in Home Assistant. 66 such cards produced 120 style
   recalculations per second. Bind cards to the entities they actually read.
