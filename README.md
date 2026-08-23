@@ -134,6 +134,7 @@ the two remaining UI steps.
    | `sensor.total_cost_today` | cost today |
    | `sensor.outdoor_temperature` | outdoor temperature |
    | `sensor.wan_download_rate` / `sensor.wan_upload_rate` | live WAN throughput |
+   | `sensor.your_server_*` | your server / Raspberry Pi monitor sensors (System view) |
    | `sensor.wan_download_today` … | WAN volume counters (MB) |
    | `sensor.room_temp_*` | one temperature sensor per room |
    | `climate.trv_*` | one thermostat (TRV) per room — Smart Home view |
