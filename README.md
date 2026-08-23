@@ -75,7 +75,8 @@ frontend cards (via HACS or manually):
 | Card | Used for |
 |------|----------|
 | [button-card](https://github.com/custom-cards/button-card) | all animated tiles, chips, plot headers |
-| [apexcharts-card](https://github.com/RomRider/apexcharts-card) | all charts |
+| [apexcharts-card](https://github.com/RomRider/apexcharts-card) | the analysis charts (Energy, Network, Radio, Overview) |
+| [mini-graph-card](https://github.com/kalkih/mini-graph-card) | the per-room trend charts — see the Safari note under *Performance* |
 | [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) | auto-discovery (lights, batteries, explorer …) |
 | [stack-in-card](https://github.com/custom-cards/stack-in-card) | seamless plot tiles |
 | [mushroom](https://github.com/piitaya/lovelace-mushroom) | climate + media cards |
@@ -214,6 +215,17 @@ of idle time on a real installation (1450 entities), not guessed.
   its text, its colour and its animation separately. Filter the *keys* by domain
   first and read only what survives: on the Overview that was **~46 % → ~20 %**
   idle CPU.
+- **Test in WebKit, not only in Chrome.** Every browser on iOS *is* Safari —
+  Apple requires WebKit there — so a dashboard that is smooth in Chrome can be
+  unusable on an iPhone. Measured in real WebKit, a room view with 92 cards and
+  four `apexcharts-card`s took **160 s to finish and scrolled at 4 fps**; the
+  same view with the charts removed took 2.3 s. Each chart forces layout
+  measurements while drawing, and WebKit re-lays-out the *whole* page for each
+  one — so the cost is charts × page complexity, not charts + page. Four charts
+  alone, in a view of their own, render in 1 s. Aurora therefore uses the much
+  lighter **mini-graph-card** for the per-room trends and keeps apexcharts for
+  the analysis views, where the charts *are* the content: **160 s → 4.7 s**,
+  4 fps → 53 fps.
 - **Phones need less, not smaller.** Under 700 px this dashboard drops the
   per-card backdrop blur (each blurred card is a compositing layer plus a
   backdrop snapshot, at 3× device pixels), freezes the sky's motion while

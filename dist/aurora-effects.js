@@ -54,15 +54,12 @@
       0%       { transform: scale(.88); opacity: .55; }
       70%,100% { transform: scale(1.75); opacity: 0; }
     }
-    /* Animated icons get their own compositor layer. Without this, every frame
-       of an icon animation invalidates the backdrop-filter of the whole card
-       behind it, which is what actually costs the CPU. On a phone there is no
-       backdrop-filter to protect and a layer per icon is GPU memory we do not
-       have, so this is desktop-only. */
+    /* A compositor layer for the icons that ACTUALLY animate — never for all of
+       them. will-change on every icon promoted 76 elements in a single room
+       view to their own GPU layer; measured, that was the only source of
+       dropped frames while scrolling (a 200 ms hitch, gone without it). */
     @media not all and ${MOBILE} {
-      ha-icon, ha-state-icon, ha-svg-icon, #img-cell::after {
-        will-change: transform, opacity;
-      }
+      [style*="aurora-"], #img-cell::after { will-change: transform, opacity; }
     }
     /* Ring element; templates switch it on via --aurora-halo-anim. */
     #img-cell { position: relative; }
@@ -113,23 +110,21 @@
       92%     { opacity: .7; }
       94%     { opacity: 1; }
     }
+    /* Idle decoration is off EVERYWHERE, not just on phones. A floating or
+       shimmering icon says nothing about the house, and a room view holds ~50
+       of them — measured, they were half of the CPU spent while scrolling
+       (17 % → 7 %). Animations that MEAN something all keep running: a light
+       that is on breathes and wears its halo, a low battery blinks, an open
+       window pulses, an open valve spins, an active automation wobbles. */
+    [style*="aurora-float"], [style*="aurora-swing"],
+    [style*="aurora-bob"], [style*="aurora-shimmer"] {
+      animation: none !important;
+    }
     /* The sky keeps its picture on a phone — sun, moon, clouds, meadow, the
        whole scene — but stops moving. A full-screen animated layer under
-       translucent cards is the single most expensive thing on a mobile GPU.
-       Idle decoration stops too: a floating icon says nothing, and 24 of them
-       measured ~24 % CPU on their own. What an animation actually MEANS stays:
-       a low battery still blinks, an open window still pulses, the halo still
-       marks a light that is on, a valve still spins. */
+       translucent cards is the single most expensive thing on a mobile GPU. */
     @media ${MOBILE} {
       .sky, .sky *, .sky::before, .sky::after { animation: none !important; }
-      ha-icon[style*="aurora-float"], ha-icon[style*="aurora-swing"],
-      ha-icon[style*="aurora-bob"], ha-icon[style*="aurora-shimmer"],
-      ha-state-icon[style*="aurora-float"], ha-state-icon[style*="aurora-swing"],
-      ha-state-icon[style*="aurora-bob"], ha-state-icon[style*="aurora-shimmer"],
-      [style*="aurora-float"], [style*="aurora-swing"],
-      [style*="aurora-bob"], [style*="aurora-shimmer"] {
-        animation: none !important;
-      }
     }
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; }
@@ -168,6 +163,43 @@
         background-color: rgba(30,31,48,0.86);
       }
     }
+  `;
+  // Safari / iOS get the phone treatment at ANY window size. WebKit does not
+  // composite `backdrop-filter` the way Blink does: with a full-screen backdrop
+  // behind them, every blurred card is re-resolved while scrolling, and a room
+  // view has ~90 of them. Measured by the person using it: Chrome and Edge
+  // smooth, Safari unusable, and the companion app on iOS is WebKit too.
+  // Chromium also reports AppleWebKit in its UA, hence the negative test.
+  const WEBKIT = (() => {
+    try {
+      const ua = navigator.userAgent || "";
+      return /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\/|OPR\//.test(ua);
+    } catch (e) {
+      return false;
+    }
+  })();
+  const GLASS_WEBKIT = `
+    ha-card {
+      position: relative;
+      background-color: rgba(30,31,48,0.86);
+      transition: border-color .3s ease;
+    }
+    ha-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: linear-gradient(125deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 30%, transparent 55%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+  `;
+  // The sky is a full-screen fixed layer. Blink keeps it on the compositor by
+  // itself; WebKit repaints it with the page unless it is promoted explicitly,
+  // and its motion is not worth a repaint per frame there.
+  const SKY_WEBKIT = `
+    .sky { transform: translateZ(0); }
+    .sky, .sky *, .sky::before, .sky::after { animation: none !important; }
   `;
   // Cards nested inside stack-in-card sit ON their parent's glass surface, so
   // they need no blur of their own — and a second backdrop-filter per segment
@@ -233,8 +265,8 @@
     return s;
   };
   const SHEETS = {
-    base: mkSheet(KEYFRAMES + IDLE),
-    glass: mkSheet(GLASS),
+    base: mkSheet(KEYFRAMES + IDLE + (WEBKIT ? SKY_WEBKIT : "")),
+    glass: mkSheet(WEBKIT ? GLASS_WEBKIT : GLASS),
     glassInner: mkSheet(GLASS_INNER),
     apex: mkSheet(APEX),
     heading: mkSheet(HEADING),
@@ -374,5 +406,5 @@
   sweep();
   setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c v2.1.0 ready ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.3.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
