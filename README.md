@@ -11,14 +11,21 @@ sensor** in your installation, grouped by device class, with zero configuration.
 
 ## Highlights
 
-- 🌅 **A sky that follows the sun** — three hand-drawn full-screen scenes:
-  **Day** (blue sky, drifting clouds, rotating sun rays), **Dusk** (violet to
-  amber with the first stars) and **Night** (drifting constellations and a
-  moon). It switches automatically with the real sun elevation, or by hand
-  from a tile. In Day and Dusk the sun sits **where it actually stands** —
-  azimuth drives its horizontal position, elevation its height. Everything is
-  CSS gradients and SVG points drawn for this project; **no third-party
-  artwork, no image files, nothing to license**.
+- 🌅 **A sky that follows the sun, the weather and the season** — three
+  hand-drawn full-screen scenes (**Day**, **Dusk**, **Night**) that switch with
+  the real sun elevation or from a visible four-button row.
+  - The sun sits **where it actually stands**: azimuth drives its horizontal
+    position, elevation its height.
+  - The sky **reflects the weather at your location**: the palette follows the
+    condition, the **number of clouds follows the cloud cover**, their **speed
+    follows the real wind**, and rain, snow, fog and lightning are drawn on top
+    while the sun fades out behind thick cover.
+  - The ground is a **meadow that follows the season** — fresh green with
+    spring flowers, deep green with poppies in summer, golden with falling
+    leaves in autumn, snow-covered in winter. Plus a tree line on the horizon,
+    swaying grass, birds on calm days and fireflies on summer nights.
+  - Everything is CSS gradients and SVG shapes drawn for this project;
+    **no third-party artwork, no image files, nothing to license**.
 - 🚦 **House traffic light** — one card at the top that shows what needs
   attention instead of what is always the same: a window open while that room
   is heating, low batteries, a device fault, laundry finished, lights on with
@@ -145,9 +152,15 @@ input_select:
 ```
 
 On **Auto** the scene follows `sun.sun`: above 6° elevation is Day, down to
-−8° is Dusk, below that Night. The *Sky* tile on the Overview and Phone views
-steps through the four options. Nothing else is wired to the helper — no
-automation, no template sensor.
+−8° is Dusk, below that Night. A row of four labelled buttons sits under the
+status card on the Overview and Phone views — the active one lights up.
+Nothing else is wired to the helper: no automation, no template sensor.
+
+The weather comes from the entity named in the sky template's `weather`
+variable (`weather.forecast_home` by default) — it reads the condition,
+`cloud_coverage` and `wind_speed`. The season is derived from the month; set
+the template's `season` variable to `spring`, `summer`, `autumn` or `winter`
+to pin one.
 
    The **Smart Home** view is a copy/paste pattern: duplicate one room section,
    swap the climate entities, set the area name and accent color — the light,
@@ -202,11 +215,13 @@ of idle time on a real installation (1450 entities), not guessed.
 - **The sky is free — but only because of how it is built.** Measured on the
   Overview: **Day ≈ 16 %, Night ≈ 23 %, Dusk ≈ 24 %** idle CPU, and switching
   every sky animation off live changed the figure by **0.4 %** — i.e. nothing
-  outside the noise of live sensor data. That holds only because each scene
-  animates `transform`/`opacity` exclusively, drifts an oversized layer instead
-  of a `background-position`, and never has more than one scene in the DOM.
-  Animate a paint property there instead and every glass card on top of it has
-  to re-blur on every frame.
+  outside the noise of live sensor data. The weather layers cost nothing
+  either: sunny 24.9 %, overcast 19.4 %, **heavy rain 15.5 %**, snow 16.0 %,
+  thunderstorm 21.0 % — the spread is measurement noise, not the animation.
+  That holds only because each scene animates `transform`/`opacity`
+  exclusively, drifts an oversized layer instead of a `background-position`,
+  and never has more than one scene in the DOM. Animate a paint property there
+  instead and every glass card on top of it has to re-blur on every frame.
 - Animations on cards scrolled out of view are paused automatically
   (IntersectionObserver in the effects helper).
 - Counter chips and button animations run entirely in the browser.
