@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.19.0
+
+- **The moon is real now.** It rises where the moon actually is (position
+  computed from the installation's own latitude/longitude, no service, no extra
+  integration), travels across the sky as the night goes on, and is drawn with
+  its **true phase** — the lit part is a computed lune, so a waxing crescent
+  looks like a waxing crescent. Hovering it names the phase and the illuminated
+  percentage. It also appears at dusk when it is already up, and stays hidden
+  below the horizon or behind thick cloud
+- **The trend charts got their axes back.** Every chart now has a grid, a time
+  axis underneath (`−24 h … now`, in days for longer spans), value labels on the
+  left, and min/max with unit *and* the time they occurred. The helper draws the
+  grid and the time axis itself — `mini-graph-card` has neither
+- **Charts drawn finely, not chunkily**: 30 points per hour instead of 4, a
+  1.4 px line with a soft static glow, so they read like the old chart tiles
+  again
+- **Charts standing next to each other are exactly the same height.** A legend
+  costs vertical space, so charts that have one get a correspondingly shorter
+  plot area — the cards line up either way
+- Series that sit at a constant value (a full battery, a closed valve) are drawn
+  on a fixed 0–100 scale without an area fill, instead of as one solid block
+- **Any chart series with more than ~2000 points per day is drawn by
+  mini-graph-card**, not apexcharts: fetching and laying out tens of thousands
+  of raw points is what made the Overview take 150 s in Safari (**now 1.8 s**).
+  Remaining apexcharts series are grouped into 2–10 minute averages
+
 ## 0.18.0
 
 The 0.17.0 pass was measured in Chrome, and Chrome was never the problem: on

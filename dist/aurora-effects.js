@@ -230,6 +230,71 @@
     }
   `;
 
+  // mini-graph-card draws the per-room trends. Give its line the same neon feel
+  // the chart tiles had before: a thin stroke and a soft, STATIC glow. Static is
+  // the whole point — an animated filter would repaint the card every frame.
+  // mini-graph-card draws the per-room trends. Give its line the same neon feel
+  // the chart tiles had before: a thin stroke and a soft, STATIC glow. Static is
+  // the whole point — an animated filter would repaint the card every frame.
+  // The card itself has no grid and no time axis, so both are added here: the
+  // grid as a pure CSS background (painted once, costs nothing to scroll) and
+  // the time axis as one row of labels derived from `hours_to_show`.
+  const MINI = `
+    .graph__container__svg svg { filter: drop-shadow(0 0 2.5px rgba(180,190,254,0.45)); }
+    path.line { stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+    .graph__legend { font-size: 11px; letter-spacing: .02em; opacity: .85; }
+    .graph__container__svg {
+      background-image:
+        repeating-linear-gradient(to right, rgba(180,190,254,.11) 0 1px, transparent 1px 25%),
+        repeating-linear-gradient(to top,   rgba(180,190,254,.11) 0 1px, transparent 1px 25%);
+      background-position: left bottom;
+    }
+    .graph__labels.--secondary, .graph__labels { font-size: 10px !important; opacity: .75; }
+    .aurora-xaxis {
+      display: flex;
+      width: 100%;
+      box-sizing: border-box;
+      justify-content: space-between;
+      padding: 2px 8px 6px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      letter-spacing: .04em;
+      color: var(--secondary-text-color, #a6adc8);
+      opacity: .8;
+      pointer-events: none;
+    }
+  `;
+
+  // One row of time ticks under the graph: -h ... now. Written once per card and
+  // re-checked on the regular sweep, because the card rebuilds its own DOM.
+  const xLabel = (h, frac) => {
+    const back = h * (1 - frac);
+    if (back <= 0.01) return "jetzt";
+    if (h > 48) {
+      const d = back / 24;
+      return "−" + (d >= 10 ? Math.round(d) : d.toFixed(d % 1 ? 1 : 0)) + " d";
+    }
+    return "−" + (back >= 10 ? Math.round(back) : back.toFixed(back % 1 ? 1 : 0)) + " h";
+  };
+  const addAxis = (el, sr) => {
+    try {
+      const box = sr.querySelector(".graph");
+      if (!box || box.querySelector(".aurora-xaxis")) return;
+      const cfg = el.config || el._config || {};
+      const h = Number(cfg.hours_to_show) || 24;
+      const row = document.createElement("div");
+      row.className = "aurora-xaxis";
+      for (let i = 0; i <= 4; i++) {
+        const s = document.createElement("span");
+        s.textContent = xLabel(h, i / 4);
+        row.appendChild(s);
+      }
+      box.appendChild(row);
+    } catch (e) {
+      /* eye candy only */
+    }
+  };
+
   // Section headings are plain light text sitting directly on the background.
   // The sky can be bright (a sunny day, a snow-covered meadow), so give them a
   // soft dark shadow — cheap insurance that costs nothing to paint once.
@@ -269,6 +334,7 @@
     glass: mkSheet(WEBKIT ? GLASS_WEBKIT : GLASS),
     glassInner: mkSheet(GLASS_INNER),
     apex: mkSheet(APEX),
+    mini: mkSheet(MINI),
     heading: mkSheet(HEADING),
   };
   const adopt = (sr, ...sheets) => {
@@ -306,6 +372,7 @@
     : null;
 
   const apexDone = new WeakSet();
+  const miniDone = new WeakSet();
   const glassDone = new WeakSet();
   const headingDone = new WeakSet();
   const baseCols = new WeakMap();
@@ -346,6 +413,13 @@
   const handle = (el) => {
     const sr = el.shadowRoot;
     if (!sr) return;
+    if (el.tagName === "MINI-GRAPH-CARD") {
+      if (!miniDone.has(sr)) {
+        miniDone.add(sr);
+        adopt(sr, SHEETS.mini);
+      }
+      addAxis(el, sr);
+    }
     if (el.tagName === "APEXCHARTS-CARD") {
       if (!apexDone.has(sr)) {
         apexDone.add(sr);
@@ -406,5 +480,5 @@
   sweep();
   setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c v2.3.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.5.1 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
