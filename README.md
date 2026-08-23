@@ -31,9 +31,8 @@ sensor** in your installation, grouped by device class, with zero configuration.
   is heating, low batteries, a device fault, laundry finished, lights on with
   nobody home, unusual power draw, pending updates. When nothing is pending it
   says *All clear* and stops pulsing.
-- 📱 **Phone view** — one compact tab with the handful of things that matter
-  when you are out: status, quick switches, room temperatures, what is on
-  right now, what is open.
+- 📈 **Per-room trends** — every room view ends with actual-vs-target
+  temperature and valve position over 24 h.
 - 🌌 **Animated constellation background** — fine star-lines drifting and twinkling
   behind everything (pure CSS + inline SVG, respects `prefers-reduced-motion`).
 - 📈 **Mission-control plots** — monospace label, big glowing live value, neon

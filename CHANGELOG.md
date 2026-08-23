@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.0
+
+- **Per-room trend charts**: every room view now ends with a *Trends* section —
+  actual vs. target temperature and the valve position over 24 h, in the same
+  mission-control style as the rest
+- **The WAN chart header now shows total throughput** (down + up) instead of
+  just the download figure the header entity happened to carry
+- **Plot headers no longer print `NaN`** when a sensor is unknown (a washing
+  machine that is not running, a counter that has not started) — they show `—`
+- **The Phone view is gone.** With one view per room, Home Assistant already
+  lays every tab out well on a phone; a separate mobile tab was one more place
+  to keep in sync for no gain
+
 ## 0.15.0
 
 - **The sky now reflects the weather at your location.** The palette follows
