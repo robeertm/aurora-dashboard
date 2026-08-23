@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.14.0
+
+- **A sky that follows the sun.** Three hand-drawn full-screen scenes — Day
+  (blue sky, drifting clouds, rotating sun rays), Dusk (violet to amber with
+  the first stars) and Night (drifting constellations plus a moon). It switches
+  automatically with the real sun elevation or by hand via the new
+  `input_select.sky_mode` helper and the *Sky* tile. In Day and Dusk the sun is
+  placed by the real azimuth and elevation. Everything is CSS gradients and
+  hand-placed SVG points — no third-party artwork and no image files
+- **House traffic light** (`aurora_status`): one card at the top of the
+  Overview that surfaces what needs attention — window open while that room is
+  heating, low batteries, device faults, laundry finished, lights on with
+  nobody home, unusual power draw, pending updates, holiday mode. When nothing
+  is pending it reads *All clear* and the ring stops pulsing. All checks run
+  client-side; devices to ignore and the fault sensors to watch are explicit
+  variables, so "since boot" flags cannot make the card red forever
+- **Phone view**: one compact tab (status, quick switches, room temperatures,
+  what is on, what is open) for use away from the desk
+- Room tiles no longer truncate their name on a phone
+- Fixed the open-windows list in the new views: `auto-entities` has no
+  top-level `device_class` rule — the device class belongs under `attributes:`
+
 ## 0.13.0
 
 Performance release — measured, not guessed (Chrome `Performance.getMetrics`,

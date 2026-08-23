@@ -11,6 +11,22 @@ sensor** in your installation, grouped by device class, with zero configuration.
 
 ## Highlights
 
+- 🌅 **A sky that follows the sun** — three hand-drawn full-screen scenes:
+  **Day** (blue sky, drifting clouds, rotating sun rays), **Dusk** (violet to
+  amber with the first stars) and **Night** (drifting constellations and a
+  moon). It switches automatically with the real sun elevation, or by hand
+  from a tile. In Day and Dusk the sun sits **where it actually stands** —
+  azimuth drives its horizontal position, elevation its height. Everything is
+  CSS gradients and SVG points drawn for this project; **no third-party
+  artwork, no image files, nothing to license**.
+- 🚦 **House traffic light** — one card at the top that shows what needs
+  attention instead of what is always the same: a window open while that room
+  is heating, low batteries, a device fault, laundry finished, lights on with
+  nobody home, unusual power draw, pending updates. When nothing is pending it
+  says *All clear* and stops pulsing.
+- 📱 **Phone view** — one compact tab with the handful of things that matter
+  when you are out: status, quick switches, room temperatures, what is on
+  right now, what is open.
 - 🌌 **Animated constellation background** — fine star-lines drifting and twinkling
   behind everything (pure CSS + inline SVG, respects `prefers-reduced-motion`).
 - 📈 **Mission-control plots** — monospace label, big glowing live value, neon
@@ -112,6 +128,26 @@ the two remaining UI steps.
    | `input_number.room_setpoint_*` | optional room-setpoint helper shown as a slider |
    | `media_player.*` | one media row per room (optional) |
    | `sensor.ble_scanner_*` | optional BLE scanner metrics (adverts / unique devices / avg RSSI) — Radio view; the signal-tile grid works without them |
+   | `input_select.sky_mode` | the sky switch — see below |
+
+### The sky switch
+
+The sky reads one helper. Create it in *Settings → Devices & services →
+Helpers → Dropdown*, name it `sky_mode`, and give it exactly these four
+options — or drop this into your `configuration.yaml`:
+
+```yaml
+input_select:
+  sky_mode:
+    name: Sky
+    icon: mdi:theme-light-dark
+    options: [Auto, Day, Dusk, Night]
+```
+
+On **Auto** the scene follows `sun.sun`: above 6° elevation is Day, down to
+−8° is Dusk, below that Night. The *Sky* tile on the Overview and Phone views
+steps through the four options. Nothing else is wired to the helper — no
+automation, no template sensor.
 
    The **Smart Home** view is a copy/paste pattern: duplicate one room section,
    swap the climate entities, set the area name and accent color — the light,
@@ -163,6 +199,14 @@ of idle time on a real installation (1450 entities), not guessed.
   elements their own layer with `will-change`, and only animate when the state
   actually says something (a window badge pulses when the window is open, not
   always).
+- **The sky is free — but only because of how it is built.** Measured on the
+  Overview: **Day ≈ 16 %, Night ≈ 23 %, Dusk ≈ 24 %** idle CPU, and switching
+  every sky animation off live changed the figure by **0.4 %** — i.e. nothing
+  outside the noise of live sensor data. That holds only because each scene
+  animates `transform`/`opacity` exclusively, drifts an oversized layer instead
+  of a `background-position`, and never has more than one scene in the DOM.
+  Animate a paint property there instead and every glass card on top of it has
+  to re-blur on every frame.
 - Animations on cards scrolled out of view are paused automatically
   (IntersectionObserver in the effects helper).
 - Counter chips and button animations run entirely in the browser.
