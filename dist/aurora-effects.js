@@ -136,6 +136,7 @@
   const GLASS = `
     ha-card {
       position: relative;
+      z-index: 1;
       backdrop-filter: blur(18px) saturate(1.45);
       -webkit-backdrop-filter: blur(18px) saturate(1.45);
       transition: border-color .3s ease, box-shadow .3s ease;
@@ -181,6 +182,7 @@
   const GLASS_WEBKIT = `
     ha-card {
       position: relative;
+      z-index: 1;
       background-color: rgba(30,31,48,0.86);
       transition: border-color .3s ease;
     }
@@ -205,7 +207,7 @@
   // they need no blur of their own — and a second backdrop-filter per segment
   // is one of the most expensive things a browser can be asked to composite.
   const GLASS_INNER = `
-    ha-card { background: transparent; }
+    ha-card { background: transparent; position: relative; z-index: 1; }
     @media ${MOBILE} { ha-card { background-color: transparent; } }
   `;
   const APEX = `
@@ -239,6 +241,11 @@
   // The card itself has no grid and no time axis, so both are added here: the
   // grid as a pure CSS background (painted once, costs nothing to scroll) and
   // the time axis as one row of labels derived from `hours_to_show`.
+  const SKY_LAYER = `
+    .sky { z-index: 0; }
+    ha-card:has(.sky) { z-index: 0 !important; background: none !important; }
+  `;
+
   const MINI = `
     .graph__container__svg svg { filter: drop-shadow(0 0 2.5px rgba(180,190,254,0.45)); }
     path.line { stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
@@ -330,7 +337,7 @@
     return s;
   };
   const SHEETS = {
-    base: mkSheet(KEYFRAMES + IDLE + (WEBKIT ? SKY_WEBKIT : "")),
+    base: mkSheet(KEYFRAMES + IDLE + SKY_LAYER + (WEBKIT ? SKY_WEBKIT : "")),
     glass: mkSheet(WEBKIT ? GLASS_WEBKIT : GLASS),
     glassInner: mkSheet(GLASS_INNER),
     apex: mkSheet(APEX),
@@ -480,5 +487,5 @@
   sweep();
   setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c v2.5.1 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.6.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
