@@ -231,13 +231,24 @@ button_card_templates:
 
   # ─────────────────────────────────────────────────────────────────────────
   #  aurora_sky — the drawn sky behind everything.
-  #  Three hand-built scenes (Day / Dusk / Night) — NO third-party artwork:
-  #  everything is CSS gradients plus SVG dots placed by hand.
-  #  Switching: input_select.sky_mode (Auto/Day/Dusk/Night); on "Auto" the
-  #  real sun elevation decides. In Day and Dusk the sun sits where it
-  #  actually stands (azimuth → left/right, elevation → height).
+  #  Three scenes (Day / Dusk / Night), all drawn from scratch: plain CSS
+  #  gradients and hand-placed SVG shapes. NO third-party image files.
+  #
+  #  What decides the scene:
+  #   · switch     input_select.sky_mode (Auto/Day/Dusk/Night)
+  #   · Auto       sun elevation: > 6° Day, -8°…6° Dusk, < -8° Night
+  #   · sun spot   azimuth → left/right, elevation → up/down (real values)
+  #   · WEATHER    weather.forecast_home: the palette follows the local
+  #                conditions, the number of clouds follows the cloud cover and
+  #                their speed the real wind; rain/snow/fog/lightning are drawn
+  #                on top and the sun fades out behind thick cover
+  #   · SEASON     the ground is a meadow — fresh in spring, deep green with
+  #                poppies in summer, golden with falling leaves in autumn and
+  #                snow-covered in winter (month → season, or force one via
+  #                the `season` variable)
+  #
   #  Performance: only ONE scene ever exists in the DOM, every animation runs
-  #  on transform/opacity only (compositor), cycles are 18–420 s.
+  #  on transform/opacity only (compositor). Measured figures: see README.
   # ─────────────────────────────────────────────────────────────────────────
   aurora_sky:
     show_icon: false
@@ -245,46 +256,134 @@ button_card_templates:
     show_state: false
     tap_action:
       action: none
+    variables:
+      weather: weather.forecast_home
+      # empty = season from the month; otherwise force one of
+      # spring|summer|autumn|winter
+      season: ""
     triggers_update:
       - sun.sun
       - input_select.sky_mode
+      - weather.forecast_home
     custom_fields:
       scene: |
         [[[
-          const sel = states['input_select.sky_mode'];
+          const V = variables;
+          const S = states;
+          // ── pick the scene ─────────────────────────────────────────────
+          const sel = S['input_select.sky_mode'];
           let mode = sel ? sel.state : 'Auto';
-          const sun = states['sun.sun'];
+          const sun  = S['sun.sun'];
           const elev = sun ? Number(sun.attributes.elevation) : -30;
           const azi  = sun ? Number(sun.attributes.azimuth)   : 180;
           if (mode === 'Auto' || !['Day','Dusk','Night'].includes(mode)) {
             mode = elev > 6 ? 'Day' : (elev > -8 ? 'Dusk' : 'Night');
           }
+
+          // ── local weather ──────────────────────────────────────────────
+          const w    = S[V.weather];
+          const cond = w ? String(w.state) : 'partlycloudy';
+          const att  = w ? w.attributes : {};
+          const cover = att.cloud_coverage != null ? Number(att.cloud_coverage)
+                      : (cond === 'sunny' || cond === 'clear-night') ? 5
+                      : cond === 'cloudy' ? 90 : 50;
+          const wind = Number(att.wind_speed) || 8;
+          const rain  = ['rainy','pouring','lightning-rainy','snowy-rainy','hail'].includes(cond);
+          const heavy = ['pouring','lightning-rainy','hail'].includes(cond);
+          const snow  = ['snowy','snowy-rainy'].includes(cond);
+          const fog   = ['fog','exceptional'].includes(cond);
+          const storm = ['lightning','lightning-rainy'].includes(cond);
+          const clear = ['sunny','clear-night'].includes(cond);
+          // cloud count follows the cover, their speed the real wind
+          const nClouds = Math.max(0, Math.min(6, Math.round(cover / 17)));
+          const sail    = Math.max(80, Math.round(430 - wind * 9));
+
+          // ── season (northern hemisphere) ───────────────────────────────
+          const m = new Date().getMonth();
+          const season = ['spring','summer','autumn','winter'].includes(V.season) ? V.season
+                       : (m >= 2 && m <= 4) ? 'spring'
+                       : (m >= 5 && m <= 7) ? 'summer'
+                       : (m >= 8 && m <= 10) ? 'autumn' : 'winter';
+
+          // ── building blocks ───────────────────────────────────────────
+          const clouds = (cls) => {
+            let out = '';
+            for (let i = 0; i < nClouds; i++) {
+              const top   = 9 + i * 9;
+              const scale = (i % 3 === 0) ? 1.25 : (i % 3 === 1) ? 1 : .8;
+              const dur   = Math.round(sail * (1 + i * 0.22));
+              const delay = -Math.round(dur * (i * 0.31 % 1));
+              out += `<div class="cloud ${cls}" style="top:${top}%;`
+                   + `width:${Math.round(230 * scale)}px;height:${Math.round(78 * scale)}px;`
+                   + `animation-duration:${dur}s;animation-delay:${delay}s;`
+                   + `opacity:${(clear ? .26 : rain || cond === 'cloudy' ? .62 : .42).toFixed(2)}"></div>`;
+            }
+            return out;
+          };
+          const weatherFx = () => {
+            let out = '';
+            if (rain)  out += `<div class="rain${heavy ? ' heavy' : ''}"></div><div class="rain far"></div>`;
+            if (snow)  out += '<div class="snow"></div><div class="snow s2"></div><div class="snow s3"></div>';
+            if (fog)   out += '<div class="fogband f1"></div><div class="fogband f2"></div>';
+            if (storm) out += '<div class="flash"></div>';
+            return out;
+          };
+          const ground = (variant) => {
+            let extra = '';
+            if (season === 'autumn' && variant !== 'night') {
+              extra = '<div class="leaf l1"></div><div class="leaf l2"></div><div class="leaf l3"></div>';
+            }
+            if (season === 'summer' && variant === 'night') {
+              extra = '<div class="firefly f1"></div><div class="firefly f2"></div>'
+                    + '<div class="firefly f3"></div><div class="firefly f4"></div>';
+            }
+            return `<div class="ground ${season} ${variant}">
+              <div class="treeline"></div>
+              <div class="meadow"></div>
+              <div class="flowers"></div>
+              <div class="grass"></div>
+              ${extra}
+            </div>`;
+          };
+
+          // ── night ─────────────────────────────────────────────────────
           if (mode === 'Night') {
+            const starDim = Math.max(.18, 1 - cover / 120);
             return `<div class="sky sky-night">
-              <div class="stars"></div><div class="stars2"></div>
-              <div class="moon"></div>
+              <div class="stars" style="opacity:${(0.75 * starDim).toFixed(2)}"></div>
+              <div class="stars2" style="opacity:${starDim.toFixed(2)}"></div>
+              ${clear || cover < 70 ? '<div class="moon"></div>' : ''}
+              ${clouds('night')}
+              ${weatherFx()}
+              ${ground('night')}
             </div>`;
           }
+
           // Put the sun where it really is: azimuth 60°–300° → 2 %–92 %,
-          // elevation 0°–55° → 72 %–6 % (low sun sits just above the horizon).
+          // elevation 0°–55° → 72 %–6 % (a low sun sits just above the horizon).
           const x = Math.max(2, Math.min(92, ((azi - 60) / 240) * 90 + 2));
           const y = Math.max(6, Math.min(74, 72 - (Math.max(elev, -6) / 55) * 66));
           const pos = `left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;`;
-          if (mode === 'Day') {
-            return `<div class="sky sky-day">
-              <div class="rays" style="${pos}"></div>
-              <div class="sun" style="${pos}"></div>
-              <div class="cloud c1"></div><div class="cloud c2"></div>
-              <div class="cloud c3"></div><div class="cloud c4"></div>
-              <div class="hills"></div>
-            </div>`;
-          }
-          return `<div class="sky sky-dusk">
-            <div class="stars2 faint"></div>
-            <div class="rays dusk" style="${pos}"></div>
-            <div class="sun dusk" style="${pos}"></div>
-            <div class="cloud c2 warm"></div><div class="cloud c3 warm"></div>
-            <div class="hills"></div>
+          // Under thick cover the sun disappears behind the clouds
+          const sunOp = Math.max(0, 1 - cover / 105).toFixed(2);
+          const dusk  = mode === 'Dusk';
+          const paletteFor = () => {
+            if (dusk) return 'sky-dusk';
+            if (rain || cond === 'cloudy') return 'sky-day wet';
+            if (snow) return 'sky-day snowy';
+            if (fog)  return 'sky-day foggy';
+            if (clear) return 'sky-day clear';
+            return 'sky-day';
+          };
+          return `<div class="sky ${paletteFor()}">
+            <div class="rays${dusk ? ' dusk' : ''}" style="${pos}opacity:${sunOp}"></div>
+            <div class="sun${dusk ? ' dusk' : ''}" style="${pos}opacity:${sunOp}"></div>
+            ${dusk ? '<div class="stars2 faint"></div>' : ''}
+            <div class="haze"></div>
+            ${clouds(dusk ? 'warm' : '')}
+            ${!rain && !snow && !fog && !dusk ? '<div class="bird b1"></div><div class="bird b2"></div>' : ''}
+            ${weatherFx()}
+            ${ground(dusk ? 'dusk' : 'day')}
           </div>`;
         ]]]
     styles:
@@ -307,25 +406,37 @@ button_card_templates:
           - position: absolute
           - inset: "0"
     extra_styles: |
-      /* fixed, not absolute: the card itself covers the screen but its content
-         grid does not — an absolute layer inside would only be as tall as the
+      /* fixed, not absolute: the card covers the screen but its content grid
+         does not — an absolute layer inside would only be as tall as the
          (empty) card content and the scene would cling to the top edge. */
       .sky { position: fixed; inset: 0; overflow: hidden; }
 
-      /* ══ NIGHT ══ constellations plus scattered stars, drifting slowly.
-         The drift is a transform on an oversized layer — animating
-         background-position is a paint property and would force the blur of
-         every glass card above it to be recomputed on each frame. */
-      .sky-night { background: radial-gradient(120% 80% at 50% 108%, rgba(49,50,68,.5), transparent 62%); }
-      .stars, .stars2 {
-        position: absolute; inset: -30%;
-        background-repeat: repeat;
-        will-change: transform;
+      /* ══ SKY PALETTES ══ follow the local weather ════════════════════ */
+      .sky-day        { background: linear-gradient(180deg, #12253f 0%, #1d4a75 26%, #2e7aa8 58%, #4aa3cc 100%); }
+      .sky-day.clear  { background: linear-gradient(180deg, #0d2c52 0%, #1a5c92 30%, #3390c2 62%, #6fbde0 100%); }
+      .sky-day.wet    { background: linear-gradient(180deg, #222c3a 0%, #3b4b5e 30%, #566a80 62%, #73879b 100%); }
+      .sky-day.snowy  { background: linear-gradient(180deg, #2c3a49 0%, #4c6072 30%, #74899c 62%, #a3b5c4 100%); }
+      .sky-day.foggy  { background: linear-gradient(180deg, #363d45 0%, #5e666e 30%, #868d94 62%, #aab1b8 100%); }
+      .sky-dusk       { background: linear-gradient(180deg, #12122a 0%, #241f45 26%, #4a3059 52%, #7c4460 74%, #a8583f 100%); }
+      .sky-night      { background: radial-gradient(120% 80% at 50% 108%, rgba(49,50,68,.5), transparent 62%); }
+
+      /* Scrim: keeps the upper area dark enough for the light section
+         headings while letting the meadow at the bottom stay bright. */
+      .sky-day::after, .sky-dusk::after {
+        content: ""; position: absolute; inset: 0; pointer-events: none;
+        background: linear-gradient(180deg,
+          rgba(17,17,27,.16) 0%, rgba(17,17,27,.34) 42%,
+          rgba(17,17,27,.28) 72%, rgba(17,17,27,.08) 100%);
       }
+
+      /* ══ NIGHT ══ constellations plus scattered stars. The drift is a
+         transform on an oversized layer — animating background-position is a
+         paint property and would force the blur of every glass card above it
+         to be recomputed on every frame. */
+      .stars, .stars2 { position: absolute; inset: -30%; background-repeat: repeat; will-change: transform; }
       .stars {
         background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='700'><g fill='none' stroke='rgba(180,190,254,0.12)' stroke-width='0.7'><path d='M60,80 L140,58 L204,122 L298,96 L344,150'/><path d='M420,178 L502,140 L558,210 L622,188'/><path d='M118,418 L182,378 L262,430 L252,520 L176,548'/><path d='M478,478 L542,430 L612,470 L590,560 L518,584'/><path d='M320,260 L362,300 L330,360 L320,260'/><path d='M560,60 L610,96 L664,72'/></g><g fill='%23b4befe'><circle cx='60' cy='80' r='1.4' opacity='.8'/><circle cx='140' cy='58' r='1.1' opacity='.7'/><circle cx='204' cy='122' r='1.5' opacity='.9'/><circle cx='298' cy='96' r='1' opacity='.6'/><circle cx='344' cy='150' r='1.2' opacity='.7'/><circle cx='420' cy='178' r='1.3' opacity='.8'/><circle cx='502' cy='140' r='1' opacity='.6'/><circle cx='558' cy='210' r='1.5' opacity='.9'/><circle cx='622' cy='188' r='1.1' opacity='.7'/><circle cx='118' cy='418' r='1.2' opacity='.7'/><circle cx='182' cy='378' r='1.4' opacity='.85'/><circle cx='262' cy='430' r='1' opacity='.6'/><circle cx='252' cy='520' r='1.3' opacity='.8'/><circle cx='176' cy='548' r='1' opacity='.6'/><circle cx='478' cy='478' r='1.4' opacity='.8'/><circle cx='542' cy='430' r='1.1' opacity='.65'/><circle cx='612' cy='470' r='1.5' opacity='.9'/><circle cx='590' cy='560' r='1' opacity='.6'/><circle cx='518' cy='584' r='1.2' opacity='.7'/><circle cx='320' cy='260' r='1.3' opacity='.75'/><circle cx='362' cy='300' r='1' opacity='.6'/><circle cx='330' cy='360' r='1.2' opacity='.7'/><circle cx='560' cy='60' r='1.2' opacity='.7'/><circle cx='610' cy='96' r='1.4' opacity='.85'/><circle cx='664' cy='72' r='1' opacity='.6'/></g><g fill='%23cdd6f4'><circle cx='40' cy='240' r='0.8' opacity='.35'/><circle cx='96' cy='300' r='0.7' opacity='.3'/><circle cx='230' cy='210' r='0.9' opacity='.4'/><circle cx='390' cy='60' r='0.7' opacity='.3'/><circle cx='470' cy='300' r='0.8' opacity='.35'/><circle cx='540' cy='330' r='0.7' opacity='.3'/><circle cx='640' cy='320' r='0.9' opacity='.4'/><circle cx='60' cy='620' r='0.8' opacity='.35'/><circle cx='340' cy='560' r='0.7' opacity='.3'/><circle cx='400' cy='640' r='0.9' opacity='.4'/><circle cx='660' cy='620' r='0.8' opacity='.35'/><circle cx='300' cy='400' r='0.7' opacity='.3'/></g></svg>");
         background-size: 700px 700px;
-        opacity: .75;
         animation: sky-drift-a 420s linear infinite alternate;
       }
       .stars2 {
@@ -333,40 +444,28 @@ button_card_templates:
         background-size: 420px 420px;
         animation: sky-drift-b 300s linear infinite alternate, sky-twinkle 7s ease-in-out infinite alternate;
       }
-      .stars2.faint { opacity: .45; animation: sky-twinkle 9s ease-in-out infinite alternate; }
+      .stars2.faint { opacity: .45 !important; animation: sky-twinkle 9s ease-in-out infinite alternate; }
       .moon {
         /* Behind a glass card the backdrop blur smears the moon into a glow —
-           so keep it large and high-contrast, and place it just under the
-           header where a gap usually remains. */
+           so keep it large and high-contrast, just under the header where a
+           gap usually remains. */
         position: absolute; top: 4.5%; right: 7%;
         width: 88px; height: 88px; border-radius: 50%;
         background: radial-gradient(circle at 36% 33%, #f8f4e6 0%, #e6e0cf 52%, #c6c2b1 100%);
-        /* enger Schein + Innenschatten: sonst zerfliesst die Scheibe zu einem
-           Lichtfleck ohne Rand */
         box-shadow: 0 0 26px 3px rgba(246,242,226,.14),
                     inset -7px -5px 13px rgba(88,86,78,.30);
         will-change: transform;
         animation: sky-breath 40s ease-in-out infinite;
       }
-      /* Craters — three soft spots, placed by hand */
       .moon::after {
         content: ""; position: absolute; inset: 0; border-radius: 50%;
         background:
-          radial-gradient(circle at 63% 29%, rgba(126,124,110,.30) 0 7px, transparent 8px),
-          radial-gradient(circle at 39% 61%, rgba(126,124,110,.26) 0 10px, transparent 11px),
-          radial-gradient(circle at 69% 68%, rgba(126,124,110,.20) 0 6px, transparent 7px);
+          radial-gradient(circle at 63% 29%, rgba(126,124,110,.30) 0 8px, transparent 9px),
+          radial-gradient(circle at 39% 61%, rgba(126,124,110,.26) 0 12px, transparent 13px),
+          radial-gradient(circle at 69% 68%, rgba(126,124,110,.20) 0 7px, transparent 8px);
       }
 
-      /* ══ DAY ══ blue sky, real sun position, drifting clouds. */
-      .sky-day  { background: linear-gradient(180deg, #12253f 0%, #1d4a75 26%, #2e7aa8 58%, #4aa3cc 100%); }
-      .sky-dusk { background: linear-gradient(180deg, #12122a 0%, #241f45 26%, #4a3059 52%, #7c4460 74%, #a8583f 100%); }
-      /* Scrim: the sky may carry colour, but section headings are light text
-         sitting directly on it — this gradient keeps the ground dark enough
-         for them to stay readable. */
-      .sky-day::after, .sky-dusk::after {
-        content: ""; position: absolute; inset: 0;
-        background: linear-gradient(180deg, rgba(17,17,27,.18) 0%, rgba(17,17,27,.38) 45%, rgba(17,17,27,.66) 100%);
-      }
+      /* ══ SUN ══ position from azimuth/elevation, opacity from cloud cover */
       .sun {
         position: absolute; width: 132px; height: 132px; margin: -66px 0 0 -66px;
         border-radius: 50%;
@@ -374,9 +473,7 @@ button_card_templates:
         will-change: opacity;
         animation: sky-breath 22s ease-in-out infinite;
       }
-      .sun.dusk {
-        background: radial-gradient(circle at 50% 50%, #ffe9c9 0%, #ffab68 32%, rgba(240,124,88,.40) 58%, rgba(240,124,88,0) 74%);
-      }
+      .sun.dusk { background: radial-gradient(circle at 50% 50%, #ffe9c9 0%, #ffab68 32%, rgba(240,124,88,.40) 58%, rgba(240,124,88,0) 74%); }
       .rays {
         position: absolute; width: 460px; height: 460px; margin: -230px 0 0 -230px;
         border-radius: 50%;
@@ -388,18 +485,27 @@ button_card_templates:
       }
       .rays.dusk { background: repeating-conic-gradient(rgba(255,163,110,.11) 0deg 3deg, rgba(255,163,110,0) 3deg 22deg); }
 
-      /* Clouds: three soft circles over a flat base — drawn, not photographed.
-         They travel by translate only. */
+      /* Haze band above the horizon — pushes the distance back */
+      .haze {
+        position: absolute; left: 0; right: 0; bottom: 24%; height: 18%;
+        background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.14) 100%);
+      }
+
+      /* ══ CLOUDS ══ three soft circles over a flat base — drawn, not
+         photographed. Count = cloud cover, speed = real wind. */
       .cloud {
-        position: absolute; width: 230px; height: 78px;
+        position: absolute;
         background:
           radial-gradient(circle at 28% 62%, rgba(205,214,244,.80) 0 30px, rgba(205,214,244,0) 31px),
           radial-gradient(circle at 52% 44%, rgba(205,214,244,.86) 0 39px, rgba(205,214,244,0) 40px),
           radial-gradient(circle at 76% 64%, rgba(205,214,244,.74) 0 27px, rgba(205,214,244,0) 28px),
           linear-gradient(to top, rgba(205,214,244,.68) 0 15px, rgba(205,214,244,0) 16px);
+        background-size: cover;
         filter: blur(1.5px);
-        opacity: .40;
         will-change: transform;
+        animation-name: sky-sail;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
       }
       .cloud.warm {
         background:
@@ -407,31 +513,164 @@ button_card_templates:
           radial-gradient(circle at 52% 44%, rgba(255,206,172,.78) 0 39px, rgba(255,206,172,0) 40px),
           radial-gradient(circle at 76% 64%, rgba(255,186,150,.66) 0 27px, rgba(255,186,150,0) 28px),
           linear-gradient(to top, rgba(255,196,158,.60) 0 15px, rgba(255,196,158,0) 16px);
-        opacity: .38;
       }
-      .c1 { top: 13%; width: 300px; height: 96px; animation: sky-sail 300s linear infinite; }
-      .c2 { top: 27%; animation: sky-sail 240s linear infinite; animation-delay: -80s; }
-      .c3 { top: 41%; width: 170px; height: 62px; opacity: .24; animation: sky-sail 380s linear infinite; animation-delay: -200s; }
-      .c4 { top: 56%; width: 260px; height: 84px; opacity: .18; animation: sky-sail 460s linear infinite; animation-delay: -310s; }
-
-      /* Hill silhouette: grounds the scene and darkens the foot of the page */
-      .hills {
-        position: absolute; left: 0; right: 0; bottom: 0; height: 30%;
+      .cloud.night {
         background:
-          radial-gradient(120% 118% at 18% 108%, rgba(17,17,27,.88) 0 58%, rgba(17,17,27,0) 59%),
-          radial-gradient(150% 130% at 74% 112%, rgba(17,17,27,.80) 0 54%, rgba(17,17,27,0) 55%),
-          linear-gradient(to top, rgba(17,17,27,.75), rgba(17,17,27,0));
+          radial-gradient(circle at 28% 62%, rgba(120,130,165,.55) 0 30px, rgba(120,130,165,0) 31px),
+          radial-gradient(circle at 52% 44%, rgba(126,136,172,.62) 0 39px, rgba(126,136,172,0) 40px),
+          radial-gradient(circle at 76% 64%, rgba(114,124,158,.50) 0 27px, rgba(114,124,158,0) 28px),
+          linear-gradient(to top, rgba(120,130,165,.46) 0 15px, rgba(120,130,165,0) 16px);
       }
 
-      @keyframes sky-drift-a { from { transform: translate3d(0,0,0); }      to { transform: translate3d(-180px,-70px,0); } }
-      @keyframes sky-drift-b { from { transform: translate3d(0,0,0); }      to { transform: translate3d(120px,60px,0); } }
-      @keyframes sky-twinkle { from { opacity: .25; }                       to { opacity: .8; } }
-      @keyframes sky-breath  { 0%,100% { opacity: .85; }                    50% { opacity: 1; } }
+      /* Two birds, only on a calm day */
+      .bird {
+        position: absolute; width: 26px; height: 13px;
+        background-color: rgba(30,40,60,.55);
+        -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='13'><path d='M2 9 C6 2 9 2 13 8 C17 2 20 2 24 9' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>") no-repeat center / contain;
+        mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='13'><path d='M2 9 C6 2 9 2 13 8 C17 2 20 2 24 9' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>") no-repeat center / contain;
+        will-change: transform;
+      }
+      .bird.b1 { top: 21%; animation: sky-fly 128s linear infinite; }
+      .bird.b2 { top: 25%; transform: scale(.72); animation: sky-fly 155s linear infinite; animation-delay: -44s; }
+
+      /* ══ PRECIPITATION ══ one layer, only translated (compositor) ═════ */
+      .rain {
+        position: absolute; inset: -25% -12%;
+        background-image: repeating-linear-gradient(101deg, rgba(205,214,244,.40) 0 1px, rgba(205,214,244,0) 1px 9px);
+        opacity: .5; will-change: transform;
+        animation: sky-rain .55s linear infinite;
+      }
+      .rain.far {
+        background-image: repeating-linear-gradient(99deg, rgba(205,214,244,.24) 0 1px, rgba(205,214,244,0) 1px 15px);
+        opacity: .34; animation-duration: .95s;
+      }
+      .rain.heavy { opacity: .72; animation-duration: .38s; }
+      .snow {
+        position: absolute; inset: -25%;
+        background-image: radial-gradient(circle, rgba(255,255,255,.9) 0 1.7px, rgba(255,255,255,0) 2.4px);
+        background-size: 95px 95px; will-change: transform;
+        animation: sky-snow 15s linear infinite;
+      }
+      .snow.s2 { background-size: 140px 140px; opacity: .7; animation-duration: 22s; }
+      .snow.s3 { background-size: 62px 62px; opacity: .45; animation-duration: 10s; }
+      .fogband {
+        position: absolute; left: -20%; right: -20%; height: 22%;
+        background: linear-gradient(180deg, rgba(226,232,240,0), rgba(226,232,240,.30), rgba(226,232,240,0));
+        will-change: transform;
+      }
+      .fogband.f1 { top: 38%; animation: sky-fog 90s ease-in-out infinite alternate; }
+      .fogband.f2 { top: 58%; opacity: .7; animation: sky-fog 130s ease-in-out infinite alternate-reverse; }
+      .flash {
+        position: absolute; inset: 0;
+        background: radial-gradient(58% 42% at 62% 16%, rgba(255,255,255,.55), rgba(255,255,255,0) 70%);
+        opacity: 0; will-change: opacity;
+        animation: sky-flash 11s linear infinite;
+      }
+
+      /* ══ GROUND ══ a light meadow, colour follows the season ══════════ */
+      .ground { position: absolute; left: 0; right: 0; bottom: 0; height: 27%; }
+      .ground.spring { --meadow-far: #6f9f57; --meadow-near: #8fc76c; --grass: #7ab760; --tree: #3f6b3a; }
+      .ground.summer { --meadow-far: #55913f; --meadow-near: #7cb654; --grass: #6aa94a; --tree: #2f5c31; }
+      .ground.autumn { --meadow-far: #8a7538; --meadow-near: #c69d50; --grass: #ae9249; --tree: #6b4a24; }
+      .ground.winter { --meadow-far: #b3c1d0; --meadow-near: #e7eef5; --grass: #a6b6c3; --tree: #3d4a58; }
+
+      /* Tree line on the horizon — hand-drawn crowns, coloured through a
+         mask so one SVG shape serves every season. */
+      .ground .treeline {
+        position: absolute; left: 0; right: 0; top: -46px; height: 74px;
+        background-color: var(--tree); opacity: .92;
+        -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='74'><g fill='white'><path d='M0 74 L0 58 C10 58 12 44 22 44 C32 44 34 56 44 57 L44 74Z'/><ellipse cx='72' cy='50' rx='26' ry='19'/><rect x='68' y='52' width='8' height='22'/><path d='M112 74 L104 74 L108 40 L112 74Z'/><path d='M96 52 L108 26 L120 52Z'/><path d='M100 62 L108 40 L116 62Z'/><ellipse cx='152' cy='54' rx='30' ry='21'/><rect x='148' y='56' width='9' height='18'/><ellipse cx='206' cy='48' rx='22' ry='17'/><rect x='202' y='50' width='7' height='24'/><path d='M244 74 L236 74 L240 34 L244 74Z'/><path d='M228 50 L240 20 L252 50Z'/><path d='M232 62 L240 38 L248 62Z'/><ellipse cx='288' cy='53' rx='28' ry='20'/><rect x='284' y='55' width='8' height='19'/><ellipse cx='336' cy='49' rx='20' ry='16'/><rect x='333' y='51' width='7' height='23'/><path d='M380 74 L372 74 L376 42 L380 74Z'/><path d='M364 54 L376 28 L388 54Z'/><ellipse cx='412' cy='55' rx='24' ry='18'/></g></svg>") repeat-x bottom / 420px 74px;
+        mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='74'><g fill='white'><path d='M0 74 L0 58 C10 58 12 44 22 44 C32 44 34 56 44 57 L44 74Z'/><ellipse cx='72' cy='50' rx='26' ry='19'/><rect x='68' y='52' width='8' height='22'/><path d='M112 74 L104 74 L108 40 L112 74Z'/><path d='M96 52 L108 26 L120 52Z'/><path d='M100 62 L108 40 L116 62Z'/><ellipse cx='152' cy='54' rx='30' ry='21'/><rect x='148' y='56' width='9' height='18'/><ellipse cx='206' cy='48' rx='22' ry='17'/><rect x='202' y='50' width='7' height='24'/><path d='M244 74 L236 74 L240 34 L244 74Z'/><path d='M228 50 L240 20 L252 50Z'/><path d='M232 62 L240 38 L248 62Z'/><ellipse cx='288' cy='53' rx='28' ry='20'/><rect x='284' y='55' width='8' height='19'/><ellipse cx='336' cy='49' rx='20' ry='16'/><rect x='333' y='51' width='7' height='23'/><path d='M380 74 L372 74 L376 42 L380 74Z'/><path d='M364 54 L376 28 L388 54Z'/><ellipse cx='412' cy='55' rx='24' ry='18'/></g></svg>") repeat-x bottom / 420px 74px;
+      }
+      .ground .meadow {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(120% 60% at 30% 0%, rgba(255,255,255,.14), transparent 60%),
+          linear-gradient(180deg, var(--meadow-far) 0%, var(--meadow-near) 100%);
+      }
+      /* Flowers: scattered dots, different colours per season */
+      .ground .flowers { position: absolute; inset: 0; opacity: .85; }
+      .ground.spring .flowers {
+        background-image:
+          radial-gradient(circle, #ffffff 0 2.2px, transparent 3px),
+          radial-gradient(circle, #f9e2af 0 2px, transparent 2.8px),
+          radial-gradient(circle, #f5c2e7 0 1.8px, transparent 2.6px);
+        background-size: 96px 62px, 138px 84px, 172px 108px;
+        background-position: 14px 26px, 62px 12px, 110px 48px;
+      }
+      .ground.summer .flowers {
+        background-image:
+          radial-gradient(circle, #f38ba8 0 2.4px, transparent 3.2px),
+          radial-gradient(circle, #ffffff 0 2px, transparent 2.8px),
+          radial-gradient(circle, #f9e2af 0 1.8px, transparent 2.6px);
+        background-size: 118px 70px, 88px 56px, 164px 96px;
+        background-position: 22px 30px, 54px 16px, 96px 54px;
+      }
+      .ground.autumn .flowers {
+        background-image:
+          radial-gradient(circle, #e8b45c 0 2px, transparent 2.8px),
+          radial-gradient(circle, #d08b4a 0 1.6px, transparent 2.4px);
+        background-size: 132px 78px, 186px 112px;
+        background-position: 26px 34px, 88px 60px;
+        opacity: .6;
+      }
+      .ground.winter .flowers { opacity: 0; }
+      /* Grass blades along the bottom edge, swaying gently */
+      .ground .grass {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 44px;
+        background-color: var(--grass);
+        transform-origin: bottom center; will-change: transform;
+        animation: sky-sway 11s ease-in-out infinite;
+        -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='210' height='44'><g fill='white'><path d='M6 44 C9 30 3 22 11 8 C8 24 12 32 12 44Z'/><path d='M24 44 C26 34 22 26 28 16 C26 28 30 34 30 44Z'/><path d='M44 44 C48 28 40 20 50 4 C45 22 52 32 50 44Z'/><path d='M66 44 C68 36 64 28 70 20 C68 30 72 36 72 44Z'/><path d='M86 44 C90 30 82 22 92 10 C87 26 94 34 92 44Z'/><path d='M108 44 C110 34 106 26 112 14 C110 28 114 34 114 44Z'/><path d='M128 44 C132 32 124 24 134 12 C129 28 136 34 134 44Z'/><path d='M150 44 C152 36 148 28 154 18 C152 30 156 36 156 44Z'/><path d='M170 44 C174 28 166 20 176 6 C171 24 178 32 176 44Z'/><path d='M192 44 C194 34 190 26 196 16 C194 28 198 34 198 44Z'/></g></svg>") repeat-x bottom / 210px 44px;
+        mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='210' height='44'><g fill='white'><path d='M6 44 C9 30 3 22 11 8 C8 24 12 32 12 44Z'/><path d='M24 44 C26 34 22 26 28 16 C26 28 30 34 30 44Z'/><path d='M44 44 C48 28 40 20 50 4 C45 22 52 32 50 44Z'/><path d='M66 44 C68 36 64 28 70 20 C68 30 72 36 72 44Z'/><path d='M86 44 C90 30 82 22 92 10 C87 26 94 34 92 44Z'/><path d='M108 44 C110 34 106 26 112 14 C110 28 114 34 114 44Z'/><path d='M128 44 C132 32 124 24 134 12 C129 28 136 34 134 44Z'/><path d='M150 44 C152 36 148 28 154 18 C152 30 156 36 156 44Z'/><path d='M170 44 C174 28 166 20 176 6 C171 24 178 32 176 44Z'/><path d='M192 44 C194 34 190 26 196 16 C194 28 198 34 198 44Z'/></g></svg>") repeat-x bottom / 210px 44px;
+      }
+      .ground.winter .grass { height: 30px; opacity: .75; }
+      /* Dusk and night settle over the meadow as a calm blanket */
+      .ground.dusk::after, .ground.night::after {
+        content: ""; position: absolute; left: 0; right: 0; top: -46px; bottom: 0;
+        pointer-events: none;
+      }
+      .ground.dusk::after  { background: linear-gradient(180deg, rgba(74,38,58,.60), rgba(26,16,32,.78)); }
+      .ground.night::after { background: linear-gradient(180deg, rgba(12,14,30,.82), rgba(8,9,20,.93)); }
+
+      /* Falling leaves in autumn */
+      .leaf {
+        position: absolute; width: 9px; height: 6px; border-radius: 60% 40% 55% 45%;
+        background: #d08b4a; opacity: .8; will-change: transform;
+      }
+      .leaf.l1 { left: 18%; top: -50%; animation: sky-leaf 17s linear infinite; }
+      .leaf.l2 { left: 52%; top: -50%; background: #c2703c; animation: sky-leaf 23s linear infinite; animation-delay: -9s; }
+      .leaf.l3 { left: 78%; top: -50%; background: #e8b45c; animation: sky-leaf 20s linear infinite; animation-delay: -15s; }
+      /* Fireflies on summer nights */
+      .firefly {
+        position: absolute; width: 5px; height: 5px; border-radius: 50%;
+        background: radial-gradient(circle, #f9e2af 0%, rgba(249,226,175,0) 70%);
+        will-change: transform, opacity;
+      }
+      .firefly.f1 { left: 16%; bottom: 34%; animation: sky-blink 5.5s ease-in-out infinite, sky-hover 19s ease-in-out infinite; }
+      .firefly.f2 { left: 38%; bottom: 20%; animation: sky-blink 7s ease-in-out infinite 1.5s, sky-hover 24s ease-in-out infinite reverse; }
+      .firefly.f3 { left: 63%; bottom: 41%; animation: sky-blink 6.2s ease-in-out infinite .8s, sky-hover 21s ease-in-out infinite; }
+      .firefly.f4 { left: 84%; bottom: 26%; animation: sky-blink 8s ease-in-out infinite 2.4s, sky-hover 27s ease-in-out infinite reverse; }
+
+      @keyframes sky-drift-a { from { transform: translate3d(0,0,0); }     to { transform: translate3d(-180px,-70px,0); } }
+      @keyframes sky-drift-b { from { transform: translate3d(0,0,0); }     to { transform: translate3d(120px,60px,0); } }
+      @keyframes sky-twinkle { from { opacity: .25; }                      to { opacity: .8; } }
+      @keyframes sky-breath  { 0%,100% { opacity: .85; }                   50% { opacity: 1; } }
       @keyframes sky-spin    { to { transform: rotate(360deg); } }
-      @keyframes sky-sail    { from { transform: translate3d(-30vw,0,0); }  to { transform: translate3d(112vw,0,0); } }
+      @keyframes sky-sail    { from { transform: translate3d(-32vw,0,0); } to { transform: translate3d(114vw,0,0); } }
+      @keyframes sky-fly     { from { transform: translate3d(-10vw,0,0); } to { transform: translate3d(112vw,-40px,0); } }
+      @keyframes sky-rain    { to { transform: translate3d(-44px, 210px, 0); } }
+      @keyframes sky-snow    { to { transform: translate3d(34px, 340px, 0); } }
+      @keyframes sky-fog     { from { transform: translate3d(-6%,0,0); }   to { transform: translate3d(6%,0,0); } }
+      @keyframes sky-flash   { 0%,92%,100% { opacity: 0; } 93% { opacity: .85; } 94% { opacity: .12; } 95% { opacity: .65; } 96.5% { opacity: 0; } }
+      @keyframes sky-sway    { 0%,100% { transform: skewX(0deg); }         50% { transform: skewX(2.2deg); } }
+      @keyframes sky-leaf    { from { transform: translate3d(0,0,0) rotate(0deg); } to { transform: translate3d(-70px, 150vh, 0) rotate(540deg); } }
+      @keyframes sky-blink   { 0%,100% { opacity: .15; }                   50% { opacity: 1; } }
+      @keyframes sky-hover   { 0%,100% { transform: translate3d(0,0,0); }  50% { transform: translate3d(26px,-18px,0); } }
 
       @media (prefers-reduced-motion: reduce) {
-        .stars, .stars2, .moon, .sun, .rays, .cloud { animation: none !important; }
+        .stars, .stars2, .moon, .sun, .rays, .cloud, .bird,
+        .rain, .snow, .fogband, .flash, .grass, .leaf, .firefly { animation: none !important; }
       }
       /* Guard against the glass helper: the sky stays a fixed layer, no sheen */
       ha-card { position: fixed !important; }
@@ -1049,6 +1288,73 @@ button_card_templates:
         - z-index: "1"
 
   # ─────────────────────────────────────────────────────────────────────────
+  #  aurora_sky_btn — ONE button of the sky switch.
+  #  Four of them side by side make a visible button row: the active setting
+  #  lights up, the others stay grey. Deliberately NOT a cycle-through tile —
+  #  that was simply not recognised as a switch.
+  #  Each card sets variables.option AND its own service_data.option.
+  # ─────────────────────────────────────────────────────────────────────────
+  aurora_sky_btn:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    show_label: false
+    show_state: false
+    size: 21px
+    entity: input_select.sky_mode
+    triggers_update:
+      - input_select.sky_mode
+      - sun.sun
+    variables:
+      option: Auto
+      accent: "#94e2d5"
+    name: |
+      [[[ return variables.option; ]]]
+    styles:
+      grid:
+        - grid-template-areas: "'i' 'n'"
+        - grid-template-rows: min-content min-content
+        - justify-items: center
+      card:
+        - padding: 10px 6px
+        - height: 68px
+        - cursor: pointer
+        - border: |
+            [[[
+              const a = states['input_select.sky_mode'];
+              return (a && a.state === variables.option)
+                ? '1px solid ' + variables.accent
+                : '1px solid rgba(180,190,254,0.10)';
+            ]]]
+        - background: |
+            [[[
+              const a = states['input_select.sky_mode'];
+              return (a && a.state === variables.option)
+                ? 'color-mix(in srgb, ' + variables.accent + ' 16%, transparent)'
+                : 'transparent';
+            ]]]
+      img_cell:
+        - width: 34px
+        - height: 34px
+      icon:
+        - color: |
+            [[[
+              const a = states['input_select.sky_mode'];
+              return (a && a.state === variables.option) ? variables.accent : '#6c7086';
+            ]]]
+      name:
+        - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+        - font-size: 11.5px
+        - font-weight: 700
+        - letter-spacing: .06em
+        - margin-top: 3px
+        - color: |
+            [[[
+              const a = states['input_select.sky_mode'];
+              return (a && a.state === variables.option) ? '#cdd6f4' : '#7f849c';
+            ]]]
+
+  # ─────────────────────────────────────────────────────────────────────────
   #  aurora_status — the house traffic light.
   #  Shows what needs attention rather than what is always the same. When
   #  everything is quiet it simply says "All clear".
@@ -1354,6 +1660,62 @@ views:
               - climate.trv_bathroom
               - sensor.outdoor_temperature
               - sensor.total_power
+          # Visible button row for the sky — right under the status card, so you
+          # find it without looking for it.
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 4
+            square: false
+            cards:
+              - type: custom:button-card
+                template: aurora_sky_btn
+                icon: mdi:theme-light-dark
+                variables:
+                  option: Auto
+                  accent: "#94e2d5"
+                tap_action:
+                  action: call-service
+                  service: input_select.select_option
+                  service_data:
+                    entity_id: input_select.sky_mode
+                    option: Auto
+              - type: custom:button-card
+                template: aurora_sky_btn
+                icon: mdi:weather-sunny
+                variables:
+                  option: Day
+                  accent: "#f9e2af"
+                tap_action:
+                  action: call-service
+                  service: input_select.select_option
+                  service_data:
+                    entity_id: input_select.sky_mode
+                    option: Day
+              - type: custom:button-card
+                template: aurora_sky_btn
+                icon: mdi:weather-sunset
+                variables:
+                  option: Dusk
+                  accent: "#fab387"
+                tap_action:
+                  action: call-service
+                  service: input_select.select_option
+                  service_data:
+                    entity_id: input_select.sky_mode
+                    option: Dusk
+              - type: custom:button-card
+                template: aurora_sky_btn
+                icon: mdi:weather-night
+                variables:
+                  option: Night
+                  accent: "#b4befe"
+                tap_action:
+                  action: call-service
+                  service: input_select.select_option
+                  service_data:
+                    entity_id: input_select.sky_mode
+                    option: Night
           - type: grid
             grid_options:
               columns: full
@@ -1864,6 +2226,62 @@ views:
             grid_options:
               columns: full
             triggers_update: *status_triggers
+          # Visible button row for the sky — right under the status card, so you
+          # find it without looking for it.
+          - type: grid
+            grid_options:
+              columns: full
+            columns: 4
+            square: false
+            cards:
+              - type: custom:button-card
+                template: aurora_sky_btn
+                icon: mdi:theme-light-dark
+                variables:
+                  option: Auto
+                  accent: "#94e2d5"
+                tap_action:
+                  action: call-service
+                  service: input_select.select_option
+                  service_data:
+                    entity_id: input_select.sky_mode
+                    option: Auto
+              - type: custom:button-card
+                template: aurora_sky_btn
+                icon: mdi:weather-sunny
+                variables:
+                  option: Day
+                  accent: "#f9e2af"
+                tap_action:
+                  action: call-service
+                  service: input_select.select_option
+                  service_data:
+                    entity_id: input_select.sky_mode
+                    option: Day
+              - type: custom:button-card
+                template: aurora_sky_btn
+                icon: mdi:weather-sunset
+                variables:
+                  option: Dusk
+                  accent: "#fab387"
+                tap_action:
+                  action: call-service
+                  service: input_select.select_option
+                  service_data:
+                    entity_id: input_select.sky_mode
+                    option: Dusk
+              - type: custom:button-card
+                template: aurora_sky_btn
+                icon: mdi:weather-night
+                variables:
+                  option: Night
+                  accent: "#b4befe"
+                tap_action:
+                  action: call-service
+                  service: input_select.select_option
+                  service_data:
+                    entity_id: input_select.sky_mode
+                    option: Night
 
       - type: grid
         column_span: 1

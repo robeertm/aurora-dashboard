@@ -141,6 +141,15 @@
     }
   `;
 
+  // Section headings are plain light text sitting directly on the background.
+  // The sky can be bright (a sunny day, a snow-covered meadow), so give them a
+  // soft dark shadow — cheap insurance that costs nothing to paint once.
+  const HEADING = `
+    .heading, .heading *, h1, h2, .title, .subtitle {
+      text-shadow: 0 1px 3px rgba(9,9,16,.55), 0 0 14px rgba(9,9,16,.35);
+    }
+  `;
+
   // Animations outside the viewport still cost paint/composite every frame.
   // Pause them per card and let an IntersectionObserver switch them back on.
   const IDLE = `
@@ -172,6 +181,7 @@
 
   const apexDone = new WeakSet();
   const glassDone = new WeakSet();
+  const headingDone = new WeakSet();
   const baseCols = new WeakMap();
 
   // Enthaelt der Grid-Inhalt "breite" Karten (Charts/Uhr/Stacks)?
@@ -240,6 +250,10 @@
         if (ro) ro.observe(root);
         else applyCols(root, root.getBoundingClientRect().width);
       }
+    }
+    if (el.tagName === "HUI-HEADING" && !headingDone.has(sr)) {
+      headingDone.add(sr);
+      inject(sr, HEADING);
     }
     // Theme var may arrive late — keep re-checking until injected.
     const card = sr.querySelector("ha-card");

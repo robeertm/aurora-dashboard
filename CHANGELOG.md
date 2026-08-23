@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.15.0
+
+- **The sky now reflects the weather at your location.** The palette follows
+  the condition, the number of clouds follows `cloud_coverage`, their speed
+  follows the real `wind_speed`, and rain, snow, fog and lightning are drawn on
+  top while the sun fades out behind thick cover
+- **A seasonal meadow instead of a dark hill silhouette.** Fresh green with
+  spring flowers, deep green with poppies in summer, golden with falling leaves
+  in autumn, snow-covered in winter — plus a hand-drawn tree line on the
+  horizon, grass swaying along the bottom edge, birds on calm days and
+  fireflies on summer nights. Set the sky template's `season` variable to pin
+  one instead of following the month
+- **The sky switch is now a visible row of four labelled buttons** (Auto / Day
+  / Dusk / Night) under the status card, with the active one lit. The previous
+  cycle-through tile was simply not recognised as a switch
+- New **weather tile** showing the current condition
+- Section headings get a soft text shadow from the effects helper, so they stay
+  readable over a bright sky or a snow-covered meadow
+- Measured: every weather condition lands in the same 15–25 % idle-CPU band as
+  before — heavy rain is the *lowest* reading, so the spread is noise
+
 ## 0.14.1
 
 - Night sky polish: the moon is larger, sits just below the header where a gap
