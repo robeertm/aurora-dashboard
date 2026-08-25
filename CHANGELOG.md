@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.21.2
+
+- **The halo around a lit icon fades in instead of popping.** It had been
+  starting at 85 % opacity, so the ring appeared fully formed from one frame to
+  the next. Measured from a phone screen recording of a room view: the icon's
+  brightness jumped by 11 of 255 in a single frame, three times in 5.6 seconds,
+  exactly 2.4 s apart — the halo's own period. Everything else in the animation
+  moved by less than 1.5 per frame, so that one pop was the entire "jerky"
+  impression. The ring now grows out of nothing over the first fifth of the
+  cycle, travels, fades, and rests before the next beat. Frame-accurate figures
+  after the change: the steepest step is 0.046 of opacity per frame instead of
+  0.85, and the icon underneath was already smooth (0.008 opacity and 0.001
+  scale per frame).
+- **Per-keyframe easing.** The card asks for `ease-out`, which is fastest at the
+  start — exactly where a ring must be gentlest. The fade-in carries its own
+  `ease-in-out` inside the keyframes, so the card's declaration stays untouched
+  and nothing snaps at either end of the rise.
+
+
 ## 0.21.1
 
 - **A flat series is drawn flat.** Where zero is the natural floor of a
