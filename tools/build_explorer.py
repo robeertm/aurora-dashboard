@@ -6,13 +6,15 @@ every generated card, and `mini-graph-card` insists on an `entities:` LIST. So
 the tiles are generated here instead — read the live states once, write the
 views back through the WebSocket API.
 
-Three views are written, because the tiles have a measured ceiling of roughly
+Two views are written, because the tiles have a measured ceiling of roughly
 250 per view before a phone starts to stutter:
 
   explorer    every measurement class (temperature … gas), one section each
-  data-rate   per-device network rates, which alone halve any view they sit in
-  other       counters, enums, timestamps and binary sensors — as plain lists,
-              since a curve of a monotonic counter says nothing
+  other       counters, enums, timestamps, binary sensors AND per-device network
+              rates — as plain lists. A curve of a monotonic counter says
+              nothing, and most per-device rates read 0.00 all day: mini-graph
+              then scales into the noise and paints a bright hill where there is
+              no traffic at all.
 
 Usage:  HA_URL=http://homeassistant.local:8123 HA_TOKEN=... \
         python3 tools/build_explorer.py [dashboard-url-path]
@@ -50,8 +52,12 @@ CLASSES = [
     ("water",           "Water",         "#89dceb"),
     ("gas",             "Gas",           "#fab387"),
 ]
-RATE = ("data_rate", "Data rate", "#89b4fa")
 HOURS = 6
+# Classes whose natural floor is zero. Without a fixed lower bound mini-graph
+# zooms into the last digit of a flat series and draws a hill out of nothing.
+ZERO_FLOOR = {"power", "energy", "illuminance", "current", "water", "gas",
+              "monetary", "duration", "power_factor"}
+PERCENT = {"battery", "humidity"}
 
 
 async def call(ws, i, msg):
@@ -75,6 +81,10 @@ def numeric(state):
 
 def tile(state, colour):
     name = state["attributes"].get("friendly_name") or state["entity_id"].split(".", 1)[1]
+    dc = state["attributes"].get("device_class")
+    bounds = {"lower_bound": 0} if dc in ZERO_FLOOR else {}
+    if dc in PERCENT:
+        bounds = {"lower_bound": 0, "upper_bound": 100}
     return {
         "type": "custom:stack-in-card", "mode": "vertical",
         "cards": [
@@ -87,7 +97,8 @@ def tile(state, colour):
              "animate": False, "hour24": True, "smoothing": True, "height": 46,
              "update_interval": 300,
              "show": {"name": False, "icon": False, "state": False, "legend": False,
-                      "fill": "fade", "labels": False, "extrema": False, "points": False}},
+                      "fill": "fade", "labels": False, "extrema": False, "points": False},
+             **bounds},
         ]}
 
 
@@ -146,14 +157,11 @@ async def main():
 
         view["sections"] = [head] + sections_for(states, CLASSES)
         view["max_columns"] = 3
-        rate = {"title": "Data rate", "path": "data-rate", "icon": "mdi:speedometer",
-                "type": "sections", "max_columns": 3,
-                "sections": [head] + sections_for(states, [RATE])}
         rest = {"title": "Other", "path": "other", "icon": "mdi:format-list-bulleted",
                 "type": "sections", "max_columns": 3, "sections": [head] + lists}
         cfg["views"] = [v for v in cfg["views"] if v.get("path") not in ("data-rate", "other")]
         i = cfg["views"].index(view)
-        cfg["views"][i + 1:i + 1] = [rate, rest]
+        cfg["views"][i + 1:i + 1] = [rest]
 
         await call(ws, 3, {"type": "lovelace/config/save", "url_path": DASH, "config": cfg})
         n = sum(len(s["cards"][1]["cards"]) for s in view["sections"][1:])
