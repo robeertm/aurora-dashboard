@@ -790,7 +790,8 @@ button_card_templates:
         - "--aurora-glow": "#f9e2af"
         - border: 1px solid rgba(249,226,175,0.35)
         - box-shadow: "0 0 30px -8px rgba(249,226,175,0.45), 0 10px 40px -12px rgba(0,0,0,0.65)"
-        - "--aurora-halo-anim": "aurora-halo 2.4s ease-out infinite"
+        - "--aurora-halo-anim": "aurora-halo-strong 2.4s ease-out infinite"
+        - "--aurora-halo-width": "3px"
         img_cell:
         - background: "rgba(249,226,175,0.12)"
         icon:
@@ -798,7 +799,8 @@ button_card_templates:
         - animation: |
             [[[
               const d = (entity.entity_id.length % 4) * 0.5;
-              return 'aurora-breathe 2.8s ease-in-out ' + d + 's infinite, aurora-flicker 9s linear infinite';
+              const f = (entity.entity_id.length % 7) * 1.3;
+              return 'aurora-breathe 2.8s ease-in-out ' + d + 's infinite, aurora-flicker 9s ease-in-out -' + f + 's infinite';
             ]]]
 
   aurora_switch:
@@ -810,7 +812,8 @@ button_card_templates:
         - "--aurora-glow": "#a6e3a1"
         - border: 1px solid rgba(166,227,161,0.35)
         - box-shadow: "0 0 30px -8px rgba(166,227,161,0.4), 0 10px 40px -12px rgba(0,0,0,0.65)"
-        - "--aurora-halo-anim": "aurora-halo 2.4s ease-out infinite"
+        - "--aurora-halo-anim": "aurora-halo-strong 2.4s ease-out infinite"
+        - "--aurora-halo-width": "3px"
         img_cell:
         - background: "rgba(166,227,161,0.12)"
         icon:

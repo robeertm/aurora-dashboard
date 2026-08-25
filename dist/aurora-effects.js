@@ -54,6 +54,16 @@
       0%       { transform: scale(.88); opacity: .55; }
       70%,100% { transform: scale(1.75); opacity: 0; }
     }
+    /* Same idea, turned up: the ring on a lamp or socket tile sits on a busy
+       tile next to a lit border and a glow, and at .55 peak on 2 px it simply
+       did not read -- measured, it was there and animating correctly, it was
+       just too faint to notice. Only opacity and reach change; the colour
+       still comes from --aurora-glow, i.e. from the card. */
+    @keyframes aurora-halo-strong {
+      0%   { transform: scale(.85); opacity: .85; }
+      60%  { transform: scale(1.5);  opacity: .32; }
+      100% { transform: scale(1.9);  opacity: 0; }
+    }
     /* A compositor layer for the icons that ACTUALLY animate — never for all of
        them. will-change on every icon promoted 76 elements in a single room
        view to their own GPU layer; measured, that was the only source of
@@ -69,7 +79,7 @@
       inset: 0;
       border-radius: inherit;
       pointer-events: none;
-      box-shadow: 0 0 0 2px var(--aurora-glow, #f9e2af);
+      box-shadow: 0 0 0 var(--aurora-halo-width, 2px) var(--aurora-glow, #f9e2af);
       opacity: 0;
       animation: var(--aurora-halo-anim, none);
     }
@@ -102,13 +112,25 @@
       30%     { transform: translateY(-2px) rotate(-5deg); }
       70%     { transform: translateY(1px) rotate(5deg); }
     }
+    /* This used to be a candle flicker on OPACITY: flat at 1, then a step down
+       at 41->42% and again at 92%, driven with linear timing. Two problems.
+       The steps read as a jump rather than a flicker, and -- because a lit
+       light runs "aurora-breathe, aurora-flicker" and BOTH animated opacity --
+       the later one in the list won the property outright. Measured on a lit
+       icon: opacity sat at 1.00 for 2.6 s, then jumped 1.00 -> 0.66 in a
+       single frame. That is what read as stuttering.
+       It now moves SCALE instead. Breathe keeps opacity, flicker takes
+       transform, so the two compose instead of fighting, both stay on the
+       compositor (no repaint), and the motion is continuous rather than
+       stepped. Amplitude is deliberately tiny (~1 px on a 28 px icon). */
     @keyframes aurora-flicker {
-      0%,100% { opacity: 1; }
-      41%     { opacity: 1; }
-      42%     { opacity: .55; }
-      45%     { opacity: 1; }
-      92%     { opacity: .7; }
-      94%     { opacity: 1; }
+      0%   { transform: scale(1); }
+      17%  { transform: scale(1.035); }
+      33%  { transform: scale(.985); }
+      52%  { transform: scale(1.045); }
+      68%  { transform: scale(.99); }
+      84%  { transform: scale(1.02); }
+      100% { transform: scale(1); }
     }
     /* Idle decoration is off EVERYWHERE, not just on phones. A floating or
        shimmering icon says nothing about the house, and a room view holds ~50
@@ -197,11 +219,19 @@
     }
   `;
   // The sky is a full-screen fixed layer. Blink keeps it on the compositor by
-  // itself; WebKit repaints it with the page unless it is promoted explicitly,
-  // and its motion is not worth a repaint per frame there.
+  // itself; WebKit repaints it with the page unless it is promoted explicitly.
+  //
+  // It used to be frozen here as well ("motion not worth a repaint"). That was
+  // too blunt: every one of the scene's animations moves transform or opacity
+  // only, and in WebKit the cards carry no backdrop-filter (see GLASS_WEBKIT),
+  // so nothing behind them has to be re-blurred per frame -- the reason that
+  // made an animated backdrop expensive in the first place does not apply here.
+  // Measured on WebKit with the scene running: no change on the overview
+  // (59 fps before and after) and none on the heaviest room view either.
+  // The promotion below is what makes that true, so it stays.
   const SKY_WEBKIT = `
     .sky { transform: translateZ(0); }
-    .sky, .sky *, .sky::before, .sky::after { animation: none !important; }
+    .sky * { will-change: transform, opacity; }
   `;
   // Cards nested inside stack-in-card sit ON their parent's glass surface, so
   // they need no blur of their own — and a second backdrop-filter per segment
@@ -487,5 +517,5 @@
   sweep();
   setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c v2.6.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.7.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
