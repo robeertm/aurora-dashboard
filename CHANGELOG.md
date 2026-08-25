@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.21.0
+
+- **Every trend now says what it shows.** A chart with a title, two lines and a
+  Min/Max block is not self-explanatory — the washing machine view was the proof:
+  its "remaining time" plot drew the countdown and the elapsed time on top of
+  each other, filled both, and crossed them into an X that means nothing. Each
+  plot header carries a plain-language line under its title now, naming what the
+  curve is and in which unit ("How far the radiator valve was open — 100 % is
+  full heat, 0 % is shut"). The wording is checked against the entity's real
+  unit, which is how twenty-three captions that named the wrong one were caught.
+- **The Min/Max block is gone.** It cost three lines above every chart and often
+  said nothing at all — a socket that was off all day reported "Min 0 W 18:40 /
+  Max 0 W 18:40". The header already carries the current value and the axis the
+  range.
+- **Step-shaped quantities are no longer smoothed.** Valve positions, battery
+  levels, fill levels and countdowns move in steps; drawing them as a soft curve
+  invents values that were never measured.
+- **Long windows are outlier-proof.** Thirty-day plots take one point every two
+  hours and aggregate by median, so a single dropped radio reading no longer
+  drags a battery curve to the floor.
+- **A sensor that reports nothing reads as zero, not as its last value.** An
+  appliance that goes `unknown` when idle used to leave its last number standing
+  flat across the whole day.
+- **The scan dot is back, and it rides on the curve.** A small bright dot travels
+  along every trend, the way the old apexcharts series looked. Getting there was
+  a lesson in what costs frames: a copy of the path with a travelling dash
+  measured 60 → 6 fps on a room view (shifting a dash repaints the entire
+  curve); moving a real circle with `<animateMotion>` inside the chart's own svg
+  still cost 60 → 39 (the motion invalidates that whole gradient-filled
+  drawing); the same circle on its own transparent layer above the chart costs
+  nothing measurable — 60.4 fps with the dot and 60.4 without. A drop-shadow
+  glow around it costs another 7 fps, so it wears a thin bright rim instead.
+- **A sensor explorer made of small charts.** Every measurement in the house as
+  its own tile — name, current value, a six-hour sparkline — two per row on a
+  phone and six across on a desktop. `auto-entities` cannot build this
+  (`mini-graph-card` needs an `entities` list, and auto-entities injects a
+  single `entity`), so `tools/build_explorer.py` generates the views from the
+  live states.
+- **Measured limits, written down rather than guessed.** Roughly 250 tiles per
+  view is the ceiling: 512 tiles measured 14 fps, 231 measured 34, 163 measured
+  43. One glass card per class instead of one per tile is worth 18.5 → 44 fps.
+  Per-device network rates alone halve whatever view they sit in, so they get a
+  view of their own.
+- **New template `aurora_plot_tile`** — the plot header squeezed for two-across
+  tiles: the name takes the full width over two lines, the time window and the
+  value share the row below. Same colours, no new tone.
+- **The time axis picks its tick count from the card width**, so narrow tiles
+  show "−6 h … now" instead of five labels wrapping into two lines of noise.
+
+
 ## 0.20.1
 
 - **The sky moves on phones too.** It had been frozen outright below 700px —

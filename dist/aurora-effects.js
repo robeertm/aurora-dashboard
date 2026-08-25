@@ -1,5 +1,8 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.9.2 — the scan spot is back: a soft bright dot travels left to right
+ *          across every trend, and the time axis picks its tick count from
+ *          the card width so narrow tiles stay readable.
  *
  * Injects two things into shadow DOM (which plain themes cannot reach):
  *  1. Glass blur on every ha-card — only while the Aurora theme is active
@@ -299,6 +302,39 @@
       background-position: left bottom;
     }
     .graph__labels.--secondary, .graph__labels { font-size: 10px !important; opacity: .75; }
+    /* The scan dot rides ON the curve, the way the house cockpit draws it.
+       It is a real little circle moved along the line by SVG <animateMotion> —
+       NOT a stroke-dashoffset animation on a copy of the path. That was the
+       obvious way and it was measured at 60 -> 6 fps on a room view: shifting a
+       dash repaints the whole curve every frame, while a moving circle only
+       repaints its own few pixels. */
+    /* No glow around it. Measured on a room view: plain dot 57.6 fps, dot with
+       a pale halo circle 51.6, dot with a drop-shadow 50.8 — against 60.4 with
+       no dot at all. A thin bright rim gives it presence for free instead. */
+    g.aurora-scandot { pointer-events: none; }
+    g.aurora-scandot circle {
+      stroke: rgba(205,214,244,.9);
+      stroke-width: 1;
+      paint-order: stroke;
+    }
+    /* …and it gets its OWN transparent svg on top of the chart. Sharing the
+       chart's svg cost 60 -> 39 fps on a room view, because every step of the
+       motion invalidated that whole gradient-filled drawing. On a layer of its
+       own only the dot's few pixels are ever repainted. */
+    .graph__container__svg { position: relative; }
+    svg.aurora-scanlayer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+      will-change: transform;
+    }
+    /* Out of view it is simply not drawn — SMIL ignores animation-play-state. */
+    ha-card.aurora-offscreen g.aurora-scandot { display: none; }
+    @media (prefers-reduced-motion: reduce) { g.aurora-scandot { display: none; } }
+
     .aurora-xaxis {
       display: flex;
       width: 100%;
@@ -311,6 +347,7 @@
       color: var(--secondary-text-color, #a6adc8);
       opacity: .8;
       pointer-events: none;
+      white-space: nowrap;
     }
   `;
 
@@ -333,12 +370,72 @@
       const h = Number(cfg.hours_to_show) || 24;
       const row = document.createElement("div");
       row.className = "aurora-xaxis";
-      for (let i = 0; i <= 4; i++) {
+      // Narrow tiles (the sensor explorer packs two per row) cannot hold five
+      // ticks — they wrap and turn into two lines of noise. Pick by width.
+      const w = box.getBoundingClientRect().width || 400;
+      const ticks = w < 210 ? 1 : w < 330 ? 2 : 4;
+      for (let i = 0; i <= ticks; i++) {
         const s = document.createElement("span");
-        s.textContent = xLabel(h, i / 4);
+        s.textContent = xLabel(h, i / ticks);
         row.appendChild(s);
       }
       box.appendChild(row);
+    } catch (e) {
+      /* eye candy only */
+    }
+  };
+
+  // One extra path per trend, holding the scan dot. It is a copy of the line's
+  // own `d`, so the dot follows every bend. Recomputed only when the curve
+  // actually changed, and skipped entirely while the card is off screen —
+  // getTotalLength() forces layout and there are hundreds of these.
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const addScan = (el, sr) => {
+    try {
+      const karte = sr.querySelector("ha-card");
+      if (karte && karte.classList.contains("aurora-offscreen")) return;
+      const orig = sr.querySelector("path.line");
+      if (!orig) return;
+      const svg = orig.ownerSVGElement;
+      const d = orig.getAttribute("d");
+      // The line itself lives inside an SVG <mask>; anything placed next to it
+      // would only brighten the mask. The dot belongs on the svg root, which
+      // shares the very same coordinate system.
+      if (!svg || !d || d.length < 8) return;
+      const box = svg.parentNode;
+      let layer = box.querySelector(":scope > svg.aurora-scanlayer");
+      if (!layer) {
+        layer = document.createElementNS(SVGNS, "svg");
+        layer.setAttribute("class", "aurora-scanlayer");
+        layer.setAttribute("preserveAspectRatio", svg.getAttribute("preserveAspectRatio") || "none");
+        box.appendChild(layer);
+      }
+      const vb = svg.getAttribute("viewBox");
+      if (vb && layer.getAttribute("viewBox") !== vb) layer.setAttribute("viewBox", vb);
+      let dot = layer.querySelector(":scope > g.aurora-scandot");
+      if (!dot) {
+        dot = document.createElementNS(SVGNS, "g");
+        dot.setAttribute("class", "aurora-scandot");
+        const c = document.createElementNS(SVGNS, "circle");
+        c.setAttribute("r", "3");
+        c.setAttribute("cx", "0");
+        c.setAttribute("cy", "0");
+        dot.appendChild(c);
+        const m = document.createElementNS(SVGNS, "animateMotion");
+        m.setAttribute("dur", "6s");
+        m.setAttribute("repeatCount", "indefinite");
+        m.setAttribute("rotate", "0");
+        dot.appendChild(m);
+        layer.appendChild(dot);
+      }
+      const m = dot.querySelector("animateMotion");
+      if (!m || m.getAttribute("path") === d) return;
+      m.setAttribute("path", d);
+      if (m.beginElement) m.beginElement();
+      const cfg = el.config || el._config || {};
+      const erste = (cfg.entities || [])[0] || {};
+      const farbe = erste.color || cfg.line_color || "#b4befe";
+      for (const c of dot.querySelectorAll("circle")) c.style.fill = farbe;
     } catch (e) {
       /* eye candy only */
     }
@@ -468,6 +565,7 @@
         adopt(sr, SHEETS.mini);
       }
       addAxis(el, sr);
+      addScan(el, sr);
     }
     if (el.tagName === "APEXCHARTS-CARD") {
       if (!apexDone.has(sr)) {
