@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.20.0
+
+- **The sky moves again in Safari.** The whole scene — sun, drifting clouds,
+  birds, swaying grass — had been frozen on WebKit since the performance pass,
+  on the assumption that a full-screen animated layer was not worth a repaint
+  per frame there. That was too blunt. Every animation in the scene moves
+  `transform` or `opacity` only, and on WebKit the cards carry no
+  `backdrop-filter` at all, so nothing behind them has to be re-blurred — the
+  very thing that made an animated backdrop expensive does not apply. Measured
+  with the scene running: 59 fps on the overview before and after, and no loss
+  on the heaviest room view either. The compositor promotion that makes this
+  true stays in place.
+- **Lit icons breathe smoothly instead of stuttering.** A lamp that is on ran
+  `aurora-breathe` and `aurora-flicker` at the same time — and both animated
+  `opacity`, so the later one in the list won the property outright. The
+  flicker's stepped candle keyframes were all you ever saw: measured, opacity
+  sat at 1.00 for 2.6 s and then jumped to 0.66 in a single frame. The flicker
+  now moves `scale` instead, so the two compose rather than fight, both stay on
+  the compositor, and the largest change per frame drops from a visible step to
+  0.008.
+- **The halo ring on lamps and sockets is actually visible.** It was running
+  correctly all along, just too faint to notice next to a lit border and a glow.
+  A stronger variant (`aurora-halo-strong`) and a ring width variable
+  (`--aurora-halo-width`, default 2px) give those tiles a ring that reads. Every
+  other template keeps the original `aurora-halo` untouched.
+
 ## 0.19.0
 
 - **The moon is real now.** It rises where the moon actually is (position
