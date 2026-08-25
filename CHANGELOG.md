@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.21.3
+
+- **The moon is visible again.** The sky draws the real moon — its position from
+  the observer's latitude and longitude, its phase as a proper lune — but two
+  rules had made it disappear in practice. It was suppressed entirely above 85 %
+  cloud cover, and on an overcast night that is most nights; and at 92 px behind
+  a frosted card it read as a faint smudge rather than a moon. Cloud cover now
+  *dims* the moon instead of deleting it (never below 0.8 opacity), and the disc
+  is 132 px, large enough to carry its shape through the glass. Verified on a
+  night with 88 % and 95 % cover: previously nothing rendered, now the disc is
+  present with the correct label ("waxing gibbous, 94 % lit").
+- No colour changed — only opacity, size, and the visibility rule.
+
+---
+
 ## 0.21.2
 
 - **The halo around a lit icon fades in instead of popping.** It had been

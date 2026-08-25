@@ -448,7 +448,8 @@ button_card_templates:
             const s1 = waxing ? 1 : 0;
             const s2 = (k > 0.5) ? (waxing ? 1 : 0) : (waxing ? 0 : 1);
             const lit = `M0,${-r} A${r},${r} 0 0,${s1} 0,${r} A${rx},${r} 0 0,${s2} 0,${-r} Z`;
-            const dim = Math.min(1, Math.max(0.25, 0.35 + k));    // schmale Sichel leuchtet schwaecher
+            const dim = Math.min(1, Math.max(0.25, 0.35 + k))
+                      * Math.max(0.8, 1 - cover / 400);   // schmale Sichel + Wolken daempfen
             const NAMES = ['Neumond','zunehmende Sichel','erstes Viertel','zunehmender Mond',
                            'Vollmond','abnehmender Mond','letztes Viertel','abnehmende Sichel'];
             const idx = k < 0.04 ? 0 : k > 0.96 ? 4
@@ -482,7 +483,7 @@ button_card_templates:
             return `<div class="sky sky-night">
               <div class="stars" style="opacity:${(0.75 * starDim).toFixed(2)}"></div>
               <div class="stars2" style="opacity:${starDim.toFixed(2)}"></div>
-              ${cover < 85 ? moonHTML() : ''}
+              ${moonHTML()}
               ${clouds('night')}
               ${weatherFx()}
               ${ground('night')}
@@ -509,7 +510,7 @@ button_card_templates:
             <div class="rays${dusk ? ' dusk' : ''}" style="${pos}opacity:${sunOp}"></div>
             <div class="sun${dusk ? ' dusk' : ''}" style="${pos}opacity:${sunOp}"></div>
             ${dusk ? '<div class="stars2 faint"></div>' : ''}
-            ${dusk && cover < 85 ? moonHTML() : ''}
+            ${dusk ? moonHTML() : ''}
             <div class="haze"></div>
             ${clouds(dusk ? 'warm' : '')}
             ${!rain && !snow && !fog && !dusk ? '<div class="bird b1"></div><div class="bird b2"></div>' : ''}
@@ -809,8 +810,8 @@ button_card_templates:
 
         .moonwrap {
           position: absolute;
-          width: 92px; height: 92px;
-          margin: -46px 0 0 -46px;
+          width: 132px; height: 132px;
+          margin: -66px 0 0 -66px;
           pointer-events: none;
           filter: drop-shadow(0 0 18px rgba(249,226,175,.28));
           transition: left 2s linear, top 2s linear;
