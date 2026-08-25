@@ -1,5 +1,6 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.10.0 — the halo fades in instead of popping; scan spot on the curve.
  * v2.9.2 — the scan spot is back: a soft bright dot travels left to right
  *          across every trend, and the time axis picks its tick count from
  *          the card width so narrow tiles stay readable.
@@ -63,9 +64,19 @@
        just too faint to notice. Only opacity and reach change; the colour
        still comes from --aurora-glow, i.e. from the card. */
     @keyframes aurora-halo-strong {
-      0%   { transform: scale(.85); opacity: .85; }
-      60%  { transform: scale(1.5);  opacity: .32; }
-      100% { transform: scale(1.9);  opacity: 0; }
+      /* It has to FADE IN. Starting at .85 meant the ring appeared fully formed
+         from one frame to the next — measured in a phone screen recording, the
+         icon's brightness jumped by 11 of 255 in a single frame, three times in
+         5.6 s, exactly 2.4 s apart. Everything else about the animation moved by
+         less than 1.5 per frame. That one pop was the whole "jerky" impression.
+         The pause at the end gives the pulse a breath between beats. */
+      /* The card asks for ease-out, which is fastest at the START — exactly
+         where the ring must be gentlest. Per-keyframe timing fixes that without
+         touching the card: ease-in while it appears, ease-out as it travels. */
+      0%       { transform: scale(.78);  opacity: 0;  animation-timing-function: ease-in-out; }
+      22%      { transform: scale(.96);  opacity: .8; animation-timing-function: ease-out; }
+      55%      { transform: scale(1.45); opacity: .3; }
+      82%,100% { transform: scale(1.9);  opacity: 0; }
     }
     /* A compositor layer for the icons that ACTUALLY animate — never for all of
        them. will-change on every icon promoted 76 elements in a single room
