@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.21.1
+
+- **A flat series is drawn flat.** Where zero is the natural floor of a
+  measurement — power, energy, illuminance, current, water, gas, cost, runtime —
+  the chart is pinned to it. Without that, mini-graph scales to the range it
+  finds, so a sensor sitting at 0.00 all day had its last digit of noise
+  stretched over the full height and painted a bright hill where there was no
+  traffic at all. Battery and humidity are pinned to 0–100 for the same reason.
+- **No separate view for per-device network rates.** They are back in the list
+  view with the other things a curve cannot describe: on a real installation
+  most of those sensors read zero most of the time, which is exactly the case
+  the paragraph above is about, and a view of two hundred empty charts earns
+  nobody anything.
+
+
 ## 0.21.0
 
 - **Every trend now says what it shows.** A chart with a title, two lines and a
