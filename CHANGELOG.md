@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.20.1
+
+- **The sky moves on phones too.** It had been frozen outright below 700px —
+  which is what made it look, on a handset, as though the animation simply died
+  once the page finished updating: the card animates on first paint, then the
+  shared stylesheet is adopted into its shadow root and `animation: none` wins.
+  Measured in a phone-sized WebKit window: 60 fps frozen versus 58.6 fps with
+  the whole scene running on the overview and 59.7 on the heaviest room view.
+  Phone cards carry no `backdrop-filter` either, so nothing behind them is
+  re-blurred per frame. What stays off there are the particle swarms — rain,
+  snow, falling leaves, fireflies — because those are not one element each but
+  dozens in bad weather, and they scale with the forecast rather than with the
+  layout.
+
 ## 0.20.0
 
 - **The sky moves again in Safari.** The whole scene — sun, drifting clouds,
