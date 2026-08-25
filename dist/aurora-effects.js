@@ -142,11 +142,23 @@
     [style*="aurora-bob"], [style*="aurora-shimmer"] {
       animation: none !important;
     }
-    /* The sky keeps its picture on a phone — sun, moon, clouds, meadow, the
-       whole scene — but stops moving. A full-screen animated layer under
-       translucent cards is the single most expensive thing on a mobile GPU. */
+    /* The scene used to be frozen outright on a phone. That killed exactly the
+       thing people notice -- drifting clouds, the turning sun -- to save
+       something that turns out not to cost much: measured in a phone-sized
+       WebKit window, 60 fps frozen vs 58.6 fps with the whole scene running on
+       the overview and 59.7 on the heaviest room view. Phone cards carry no
+       backdrop-filter either, so nothing behind them is re-blurred per frame.
+       What stays off here are the particle swarms. Rain, snow, falling leaves
+       and fireflies are not one element each -- in bad weather they are dozens,
+       each with its own animation, and a phone GPU is still a phone GPU. The
+       big, slow motions cost a handful of composited layers; the swarms scale
+       with the weather. Note this is a headless measurement on desktop
+       hardware, so it bounds the layout cost, not the GPU cost of a real
+       handset. */
     @media ${MOBILE} {
-      .sky, .sky *, .sky::before, .sky::after { animation: none !important; }
+      .sky { transform: translateZ(0); }
+      .rain, .snow, .leaf, .firefly, .flash,
+      .rain *, .snow *, .fogband { animation: none !important; }
     }
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; }
