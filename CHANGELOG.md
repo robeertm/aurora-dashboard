@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.23.0
+
+- **A part-filled last row is stretched to fill — but only where every card in
+  it keeps the same width.** Nine charts in two columns left the ninth alone at
+  half width with bare space beside it; it now spans the row. The rule is
+  arithmetic: stretch only when the column count divides by how many cards are
+  left over (two columns with one left over becomes full width, four with two
+  becomes half each). Three columns with two left over would need one and a half
+  tracks per card, so those keep the grid width rather than making one card
+  wider than its neighbour.
+- Cards where Home Assistant sets the column span itself (full-width cards) are
+  recognised and left alone.
+- Measured at 1600 px across both installations: rows with unused width went
+  41 -> 26 -> **11** and 64 -> 38 -> **10**. Eighteen of twenty-two views and
+  twenty-one of twenty-six are now completely free of unused width; what remains
+  is exactly the arithmetic that cannot come out even.
+
+---
+
 ## 0.22.0
 
 - **A grid never uses more columns than it has cards.** A room tab whose control
