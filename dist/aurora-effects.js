@@ -1,5 +1,7 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.14.0 — small screens: a tile keeps a readable width, and a tile whose
+ *            text needs more room grows instead of clipping it.
  * v2.13.0 — a part-filled last row is stretched to fill, but only where every
  *            card in it keeps the same width.
  * v2.12.0 — a grid never uses more columns than it has cards, so a row is
@@ -31,6 +33,21 @@
   // animated sky underneath all of them, which forces every one of those
   // blurred layers to be recomputed on every frame.
   const MOBILE = "(max-width: 700px)";
+
+  // Auf dem Handy braucht eine Kachel mehr Breite als auf dem Schreibtisch.
+  // Gemessen auf einem 430-px-Bildschirm: mit der Schreibtisch-Mindestbreite
+  // passen drei Kacheln nebeneinander (133 px) — dort bleibt vom Namen
+  // "Heizungsthermostat Arbeitszimmer Batterie" nur "Heizungsth…", und der
+  // Wert darueber wird oben abgeschnitten. Mit 176 px werden es zwei Kacheln,
+  // und der Name steht vollstaendig da. Der Bildschirm scrollt ohnehin.
+  const KACHEL_MIN_HANDY = 176;
+  const istHandy = () => {
+    try {
+      return window.matchMedia(MOBILE).matches;
+    } catch (e) {
+      return false;
+    }
+  };
 
   // Shared keyframe library. Adopted by every card shadow root so any
   // button-card template can reference these by name — a child template's
@@ -537,7 +554,8 @@
     // einzelne Karte in einem Zweierraster sogar die Haelfte. Die Karten bleiben
     // dabei untereinander gleich breit — es faellt nur die leere Spur weg.
     const n = root.children.length || 1;
-    const cols = Math.max(1, Math.min(info.cols, n, Math.floor(info.w / info.min)));
+    const min = istHandy() ? Math.max(info.min, KACHEL_MIN_HANDY) : info.min;
+    const cols = Math.max(1, Math.min(info.cols, n, Math.floor(info.w / min)));
     if (root.dataset.auroraCols !== String(cols)) {
       root.dataset.auroraCols = String(cols);
       root.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
@@ -630,6 +648,22 @@
         fillDone.add(el);
         el.style.height = "100%";
         adopt(sr, SHEETS.fill);
+      }
+    }
+    // Kachel mit fester Hoehe: braucht der Text mehr Platz, waechst sie mit,
+    // statt ihn abzuschneiden. Gemessen auf einem 430-px-Bildschirm: sieben
+    // Kacheln im System-Tab schoben ihren Wert oben aus dem Rahmen heraus.
+    // Aus der festen Hoehe wird eine Mindesthoehe — kurze Kacheln bleiben
+    // also exakt so hoch wie bisher —, und "height: 100%" haelt die Nachbarn
+    // in derselben Zeile auf gleicher Hoehe (dieselbe Regel wie v2.11.0).
+    // button-card schreibt die Hoehe als Inline-Stil; danach steht dort
+    // "100%", die Umstellung passiert je Render also genau einmal.
+    if (el.tagName === "BUTTON-CARD") {
+      const kachel = sr.querySelector("ha-card");
+      if (kachel && kachel.style.height.endsWith("px")) {
+        kachel.style.minHeight = kachel.style.height;
+        kachel.style.height = "100%";
+        el.style.height = "100%";
       }
     }
     if (el.tagName === "APEXCHARTS-CARD") {
