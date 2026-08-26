@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.21.4
+
+- **Neighbouring cards now share one frame height.** Two charts side by side
+  could end at visibly different heights — one frame 332 px, the one next to it
+  408 px. The cause was not the per-card chart heights: Home Assistant already
+  stretches every grid cell to the row height, but the glass card inside stopped
+  at its own content height and left the rest of the cell empty. Two CSS lines
+  adopted into the tile's shadow root make the card fill its cell, so the row
+  decides the frame height — in every grid, at every window width and column
+  count, and for cards added later.
+- Measured across both installations, 48 views, at 1280 / 1600 / 2560 px:
+  crooked rows went from twelve to zero. The sensor explorer (202 and 231 tiles)
+  is level too.
+- A card with much less content than its neighbour now shows empty glass below
+  its content rather than a short frame. That is the trade-off of a shared row
+  height; where the difference was large it comes from a chart whose sensor has
+  no data at all.
+- No colour changed — only height and box-sizing.
+
+---
+
 ## 0.21.3
 
 - **The moon is visible again.** The sky draws the real moon — its position from
