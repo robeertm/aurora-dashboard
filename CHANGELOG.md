@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.24.0
+
+- **On a phone, a tile keeps a readable width.** Measured on a 430 px screen,
+  the desktop minimum let three tiles share a row at 133 px each: the name was
+  cut to an ellipsis after twelve characters and the value above it was clipped
+  off the top of the frame. On screens up to 700 px wide a tile now asks for
+  176 px, which makes it two tiles per row with the whole name in place. The
+  screen scrolls anyway. Desktop layouts are untouched.
+- **A tile whose text needs more room grows instead of clipping it.** The tile
+  templates set a fixed frame height; that height is now treated as a minimum,
+  so a long name pushes the frame taller rather than sliding out of the top of
+  it. `height: 100%` keeps every tile in the same row the same height, so the
+  frames still line up (the same rule as 0.21.4).
+- Measured across every view of both installations at 430 px: tiles with
+  clipped content went from dozens to **0**, grids too narrow to read to **0**,
+  and rows of unequal height stayed at **0**.
+
+---
+
 ## 0.23.0
 
 - **A part-filled last row is stretched to fill — but only where every card in

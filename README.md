@@ -120,8 +120,11 @@ the two remaining UI steps.
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
    resource: `/local/aurora-effects/aurora-effects.js` (type *module*).
 3. **Dashboard** — create a new dashboard and paste `dashboard/aurora.yaml`
-   into its raw configuration editor. Set the *Aurora* theme on each view (the
-   shipped YAML already does).
+   into its raw configuration editor. Set the *Aurora* theme on **every** view
+   (the shipped YAML already does). A view that misses `theme: Aurora` falls
+   back to the default light theme in any browser that has not picked Aurora by
+   hand: its native cards turn white, and the glass never appears — the effects
+   helper only styles a card while the theme variable `aurora-fx` is present.
 4. **Adapt the entities** — most of the dashboard auto-discovers, only the hero
    metrics and charts reference concrete entities. Search the YAML for these and
    replace them with yours:
