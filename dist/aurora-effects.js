@@ -1,5 +1,6 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.11.0 — cards in a grid fill their cell, so neighbours share one frame height.
  * v2.10.0 — the halo fades in instead of popping; scan spot on the curve.
  * v2.9.2 — the scan spot is back: a soft bright dot travels left to right
  *          across every trend, and the time axis picks its tick count from
@@ -266,6 +267,14 @@
     ha-card { background: transparent; position: relative; z-index: 1; }
     @media ${MOBILE} { ha-card { background-color: transparent; } }
   `;
+  // Karten in einem Raster fuellen ihre Zelle. HA streckt die Rasterzellen
+  // bereits auf die Zeilenhoehe (gemessen: Zelle 408 px), nur die Glaskarte
+  // darin blieb bei ihrer Inhaltshoehe (332 px) stehen — daher die ungleich
+  // hohen Rahmen nebeneinander. Zwei Zeilen genuegen; die Zeilenhoehe rechnet
+  // weiterhin das Raster aus, unabhaengig von Spaltenzahl und Fensterbreite.
+  const FILL = `
+    ha-card { height: 100%; box-sizing: border-box; }
+  `;
   const APEX = `
     .apexcharts-series[seriesName="scan"] path {
       stroke-dasharray: 4 1200;
@@ -492,6 +501,7 @@
     glassInner: mkSheet(GLASS_INNER),
     apex: mkSheet(APEX),
     mini: mkSheet(MINI),
+    fill: mkSheet(FILL),
     heading: mkSheet(HEADING),
   };
   const adopt = (sr, ...sheets) => {
@@ -531,6 +541,7 @@
   const apexDone = new WeakSet();
   const miniDone = new WeakSet();
   const glassDone = new WeakSet();
+  const fillDone = new WeakSet();
   const headingDone = new WeakSet();
   const baseCols = new WeakMap();
 
@@ -577,6 +588,15 @@
       }
       addAxis(el, sr);
       addScan(el, sr);
+    }
+    // Kachel im Raster: fuellt die Zelle, damit Nachbarn gleich hohe Rahmen haben
+    if (el.tagName === "STACK-IN-CARD" && !fillDone.has(el)) {
+      const zelle = el.parentNode;
+      if (zelle && zelle.tagName === "HUI-CARD") {
+        fillDone.add(el);
+        el.style.height = "100%";
+        adopt(sr, SHEETS.fill);
+      }
     }
     if (el.tagName === "APEXCHARTS-CARD") {
       if (!apexDone.has(sr)) {
@@ -638,5 +658,5 @@
   sweep();
   setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c v2.7.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.11.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
