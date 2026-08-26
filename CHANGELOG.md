@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.22.0
+
+- **A grid never uses more columns than it has cards.** A room tab whose control
+  section held two cards laid them out in a three-column grid: two cards of
+  421 px and 430 px of empty row. A grid holding a single card gave it half the
+  width and left the other half bare. The responsive column logic now caps the
+  column count at the number of cards, so the row is filled and the cards stay
+  exactly as wide as each other.
+- Measured across both installations at 1600 px: rows with unused width dropped
+  from 41 to 26 and from 64 to 38. Every case of "fewer cards than columns" is
+  gone; what remains are trailing part-rows of larger grids, where the cards
+  keep the grid's column width so a chart is never wider than the one above it.
+- Widths *within* a row were already equal everywhere — the only exceptions are
+  inside the weather card's own forecast layout, which is not ours to change.
+
+---
+
 ## 0.21.4
 
 - **Neighbouring cards now share one frame height.** Two charts side by side

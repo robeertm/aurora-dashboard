@@ -1,5 +1,7 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.12.0 — a grid never uses more columns than it has cards, so a row is
+ *            never left part empty.
  * v2.11.0 — cards in a grid fill their cell, so neighbours share one frame height.
  * v2.10.0 — the halo fades in instead of popping; scan spot on the curve.
  * v2.9.2 — the scan spot is back: a soft bright dot travels left to right
@@ -525,8 +527,15 @@
 
   const applyCols = (root, w) => {
     const info = baseCols.get(root);
-    if (!info || !w) return;
-    const cols = Math.max(1, Math.min(info.cols, Math.floor(w / info.min)));
+    if (!info) return;
+    if (w) info.w = w;
+    if (!info.w) return;
+    // Nie mehr Spalten als Karten. Zwei Karten in einem Dreierraster liessen
+    // sonst ein Drittel der Zeile leer (gemessen: 421+421 px in 1280 px), eine
+    // einzelne Karte in einem Zweierraster sogar die Haelfte. Die Karten bleiben
+    // dabei untereinander gleich breit — es faellt nur die leere Spur weg.
+    const n = root.children.length || 1;
+    const cols = Math.max(1, Math.min(info.cols, n, Math.floor(info.w / info.min)));
     if (root.dataset.auroraCols !== String(cols)) {
       root.dataset.auroraCols = String(cols);
       root.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
@@ -614,13 +623,19 @@
     // meldet sich auch, wenn die Karte erst spaeter ihre echte Breite bekommt).
     if (el.tagName === "HUI-GRID-CARD") {
       const root = sr.querySelector("#root");
-      if (root && root.children.length && !baseCols.has(root)) {
-        baseCols.set(root, {
-          cols: getComputedStyle(root).gridTemplateColumns.split(" ").length,
-          min: deepHas(root, 4) ? 300 : 132,
-        });
-        if (ro) ro.observe(root);
-        else applyCols(root, root.getBoundingClientRect().width);
+      if (root && root.children.length) {
+        if (!baseCols.has(root)) {
+          baseCols.set(root, {
+            cols: getComputedStyle(root).gridTemplateColumns.split(" ").length,
+            min: deepHas(root, 4) ? 300 : 132,
+          });
+          if (ro) ro.observe(root);
+          else applyCols(root, root.getBoundingClientRect().width);
+        } else {
+          // Kartenzahl kann sich geaendert haben (bedingte Karten, Nachladen).
+          // Kostenlos: nutzt die gespeicherte Breite, liest kein Layout.
+          applyCols(root, 0);
+        }
       }
     }
     if (el.tagName === "HUI-HEADING" && !headingDone.has(sr)) {
@@ -658,5 +673,5 @@
   sweep();
   setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c v2.11.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.12.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
