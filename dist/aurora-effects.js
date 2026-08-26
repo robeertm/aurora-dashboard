@@ -1,5 +1,7 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.15.0 — a grid ignores cards it does not size: a hidden conditional card
+ *            no longer costs the row an empty column.
  * v2.14.0 — small screens: a tile keeps a readable width, and a tile whose
  *            text needs more room grows instead of clipping it.
  * v2.13.0 — a part-filled last row is stretched to fill, but only where every
@@ -553,14 +555,16 @@
     // sonst ein Drittel der Zeile leer (gemessen: 421+421 px in 1280 px), eine
     // einzelne Karte in einem Zweierraster sogar die Haelfte. Die Karten bleiben
     // dabei untereinander gleich breit — es faellt nur die leere Spur weg.
-    const n = root.children.length || 1;
+    const frei = freieKinder(root);
+    // Raster, in dem HA jede Breite selbst vergibt: Spaltenzahl unveraendert.
+    const n = frei.length || info.cols;
     const min = istHandy() ? Math.max(info.min, KACHEL_MIN_HANDY) : info.min;
     const cols = Math.max(1, Math.min(info.cols, n, Math.floor(info.w / min)));
     if (root.dataset.auroraCols !== String(cols)) {
       root.dataset.auroraCols = String(cols);
       root.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
     }
-    fuelleLetzteZeile(root, cols);
+    fuelleLetzteZeile(root, cols, frei);
   };
 
   // Angebrochene letzte Zeile auffuellen — aber NUR, wenn dabei alle Karten der
@@ -568,18 +572,36 @@
   // teilbar ist (2 Spalten/1 Rest -> volle Breite, 4/2 -> je die Haelfte).
   // Bei 3 Spalten und 2 Resten waere eine Karte 1,5 Spuren breit — dann lieber
   // die Rasterbreite behalten, sonst ist eine Karte breiter als die daneben.
-  const fuelleLetzteZeile = (root, cols) => {
-    const kinder = root.children;
-    const n = kinder.length;
-    const rest = n % cols;
-    const span = (rest && cols % rest === 0) ? cols / rest : 1;
-    for (let i = 0; i < n; i++) {
-      const el = kinder[i];
-      // Was Home Assistant selbst gesetzt hat (z. B. volle Breite), bleibt.
+  // Die Karten, deren Breite dieses Raster ueberhaupt vergibt. Zwei Sorten
+  // zaehlen NICHT mit:
+  //  · Karten, deren Spaltenbreite Home Assistant selbst setzt (volle Breite) —
+  //    sie belegen ohnehin die ganze Zeile.
+  //  · bedingte Karten, die gerade unsichtbar sind. HA setzt auf ihrer hui-card
+  //    das Attribut `hidden` (und display:none), sie belegen also keine Zelle.
+  //    Mitgezaehlt fuehrten sie zu einer Spalte zu viel: die Uebersicht stellte
+  //    Uhr und Kachelblock in ein Dreierraster und liess die dritte Spur leer
+  //    (gemessen 516 + 516 px, 516 px Loch) — genau die Luecke im Tab.
+  // `hidden` ist ein Attribut, die Pruefung kostet also weder Stil- noch
+  // Layout-Berechnung.
+  const freieKinder = (root) => {
+    const frei = [];
+    for (const el of root.children) {
       if (!("auroraSpanFrei" in el.dataset)) {
         el.dataset.auroraSpanFrei = el.style.gridColumn ? "0" : "1";
       }
       if (el.dataset.auroraSpanFrei !== "1") continue;
+      if (el.hidden) continue;
+      frei.push(el);
+    }
+    return frei;
+  };
+
+  const fuelleLetzteZeile = (root, cols, frei) => {
+    const n = frei.length;
+    const rest = n % cols;
+    const span = (rest && cols % rest === 0) ? cols / rest : 1;
+    for (let i = 0; i < n; i++) {
+      const el = frei[i];
       const soll = (span > 1 && i >= n - rest) ? "span " + span : "";
       if (el.style.gridColumn !== soll) el.style.gridColumn = soll;
     }

@@ -2063,35 +2063,37 @@ views:
           styles:
             icon:
             - color: "#94e2d5"
-      - type: vertical-stack
-        cards:
-        - type: custom:auto-entities
-          card:
-            type: grid
-            columns: 3
-            square: false
-          card_param: cards
-          filter:
-            include:
-            - domain: person
-              options:
-                type: custom:button-card
-                template: aurora_person
-        - type: custom:auto-entities
-          show_empty: false
-          card:
-            type: vertical-stack
-          card_param: cards
-          filter:
-            include:
-            - domain: media_player
-              state: playing
-              options:
-                type: custom:mushroom-media-player-card
-                use_media_info: true
-                media_controls:
-                - play_pause_stop
+    - type: vertical-stack
+      cards:
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: false
+        card_param: cards
+        filter:
+          include:
+          - domain: person
+            options:
+              type: custom:button-card
+              template: aurora_person
+      - type: custom:auto-entities
+        show_empty: false
+        card:
+          type: vertical-stack
+        card_param: cards
+        filter:
+          include:
+          - domain: media_player
+            state: playing
+            options:
+              type: custom:mushroom-media-player-card
+              use_media_info: true
+              media_controls:
+              - play_pause_stop
 
+      grid_options:
+        columns: full
   - type: grid
     column_span: 3
     cards:

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.25.0
+
+- **A grid no longer counts cards whose width it does not decide.** Two kinds
+  were being counted: a conditional card that is currently hidden (Home
+  Assistant marks its `hui-card` with the `hidden` attribute, so it occupies no
+  cell) and a card whose column span Home Assistant sets itself. The overview
+  put the clock and the tile block into a three-column grid and left the third
+  track empty — measured 516 + 516 px with a 516 px hole beside them. Both are
+  now skipped when the column count is worked out, and the same set decides
+  which cards a part-filled last row stretches. `hidden` is an attribute, so
+  the check costs neither a style nor a layout calculation.
+- **The people strip moved out of that grid into its own full-width row.** It
+  is a flat bar of person cards and does not belong beside a tall clock card;
+  as the grid's fourth child it either squeezed into a narrow third column or
+  pushed the row layout around. The card itself is unchanged, only relocated.
+- Measured at 1600 px: rows with unused width **11 -> 10** and **10 -> 9**;
+  the overview is now free of gaps at 1280, 1600 and 2560 px.
+
+---
+
 ## 0.24.0
 
 - **On a phone, a tile keeps a readable width.** Measured on a 430 px screen,
