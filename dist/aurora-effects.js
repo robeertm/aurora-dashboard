@@ -1,5 +1,7 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.13.0 — a part-filled last row is stretched to fill, but only where every
+ *            card in it keeps the same width.
  * v2.12.0 — a grid never uses more columns than it has cards, so a row is
  *            never left part empty.
  * v2.11.0 — cards in a grid fill their cell, so neighbours share one frame height.
@@ -540,6 +542,29 @@
       root.dataset.auroraCols = String(cols);
       root.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
     }
+    fuelleLetzteZeile(root, cols);
+  };
+
+  // Angebrochene letzte Zeile auffuellen — aber NUR, wenn dabei alle Karten der
+  // Zeile gleich breit bleiben, also wenn die Spaltenzahl durch die Restzahl
+  // teilbar ist (2 Spalten/1 Rest -> volle Breite, 4/2 -> je die Haelfte).
+  // Bei 3 Spalten und 2 Resten waere eine Karte 1,5 Spuren breit — dann lieber
+  // die Rasterbreite behalten, sonst ist eine Karte breiter als die daneben.
+  const fuelleLetzteZeile = (root, cols) => {
+    const kinder = root.children;
+    const n = kinder.length;
+    const rest = n % cols;
+    const span = (rest && cols % rest === 0) ? cols / rest : 1;
+    for (let i = 0; i < n; i++) {
+      const el = kinder[i];
+      // Was Home Assistant selbst gesetzt hat (z. B. volle Breite), bleibt.
+      if (!("auroraSpanFrei" in el.dataset)) {
+        el.dataset.auroraSpanFrei = el.style.gridColumn ? "0" : "1";
+      }
+      if (el.dataset.auroraSpanFrei !== "1") continue;
+      const soll = (span > 1 && i >= n - rest) ? "span " + span : "";
+      if (el.style.gridColumn !== soll) el.style.gridColumn = soll;
+    }
   };
   const ro = ("ResizeObserver" in window)
     ? new ResizeObserver((entries) => {
@@ -673,5 +698,5 @@
   sweep();
   setInterval(sweep, 4000);
   window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c v2.12.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.13.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
