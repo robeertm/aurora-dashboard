@@ -1,6 +1,8 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
- * v2.16.0 — the layout is right from the first paint, and a minimum width
+ * v2.17.0 — the grid is right in the FIRST paint: the card's own column rule
+ *            gets a phone fallback, so no observer has to find it first.
+ * v2.16.0 — build-up is picked up at once, and a minimum width
  *            catches up when a wide card loads late: during build-up new
  *            cards are picked up at once instead of at the next 4 s pass.
  * v2.15.0 — a grid ignores cards it does not size: a hidden conditional card
@@ -803,6 +805,58 @@
     aufbauEnde = setTimeout(() => beobachter.disconnect(), 20000);
   };
 
+  // Damit das Raster schon im ERSTEN Bild stimmt und nicht erst, wenn der
+  // Helfer die Karte gesehen hat: die Spaltenregel der Karte selbst ergaenzen.
+  // Home Assistant rechnet die Spalten aus `--grid-card-column-count`, das es
+  // je Karte inline setzt — auf einem Handy also die Schreibtisch-Zahl, bis
+  // hier jemand eingreift. `hui-grid-card` ist eine Lit-Komponente: alle
+  // Instanzen teilen dieselben Stylesheet-Objekte, ein einziger Eingriff wirkt
+  // deshalb auf jede Karte, auch auf jede spaeter geladene — ohne dass ein
+  // Beobachter sie erst finden muesste. Die Regel gilt nur, solange der Helfer
+  // das Raster noch nicht angefasst hat (`data-aurora-cols`); danach gewinnt
+  // wieder die feinere Rechnung aus applyCols.
+  const grundregelEinbauen = () => {
+    const K = customElements.get("hui-grid-card");
+    if (!K || !K.elementStyles || K.auroraGrundregel) return;
+    const regel = "@media " + MOBILE + " { #root:not([data-aurora-cols]) { " +
+      "grid-template-columns: repeat(auto-fit, minmax(" + KACHEL_MIN_HANDY +
+      "px, 1fr)) !important; } }";
+    let gesetzt = false;
+    for (const blatt of K.elementStyles) {
+      const sh = blatt && blatt.styleSheet;
+      if (!sh || !sh.cssRules) continue;
+      let traegtRoot = false;
+      for (const r of sh.cssRules) if (/#root/.test(r.cssText)) traegtRoot = true;
+      if (!traegtRoot) continue;
+      try {
+        sh.insertRule(regel, sh.cssRules.length);
+        gesetzt = true;
+      } catch (e) {
+        /* Blatt nicht beschreibbar — dann greift der Rueckfall unten */
+      }
+      break;
+    }
+    if (!gesetzt) {
+      // Rueckfall: eigenes Blatt anhaengen. Lit adoptiert es dann in jede
+      // Karte, die danach gebaut wird.
+      try {
+        const eigen = new CSSStyleSheet();
+        eigen.replaceSync(regel);
+        K.elementStyles = [...K.elementStyles, eigen];
+        gesetzt = true;
+      } catch (e) {
+        /* dann bleibt es beim Nachziehen per JS */
+      }
+    }
+    if (gesetzt) K.auroraGrundregel = true;
+  };
+  try {
+    if (customElements.get("hui-grid-card")) grundregelEinbauen();
+    else customElements.whenDefined("hui-grid-card").then(grundregelEinbauen, () => {});
+  } catch (e) {
+    /* never break the frontend over eye candy */
+  }
+
   sweep();
   aufbauBeobachten();
   setInterval(sweep, 4000);
@@ -810,5 +864,5 @@
     setTimeout(sweep, 300);
     aufbauBeobachten();
   });
-  console.info("%c AURORA-EFFECTS %c v2.16.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.17.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
