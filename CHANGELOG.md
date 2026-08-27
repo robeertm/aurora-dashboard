@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.27.0
+
+- **The grid is right in the very first paint on a phone.** Home Assistant works
+  out a grid's columns from `--grid-card-column-count`, which it sets inline per
+  card — on a phone that is the desktop number until something intervenes, and
+  until 0.26.0 that something was a JavaScript pass that had to find the card
+  first. `hui-grid-card` is a Lit component, so every instance shares the same
+  stylesheet objects: the helper now adds one phone fallback rule to that shared
+  sheet, which applies to every card including all cards loaded later, with no
+  observer involved. The rule only holds while the helper has not touched the
+  grid (`#root:not([data-aurora-cols])`), so the finer column logic still wins
+  once it runs.
+- Measured on a 414 px viewport across three cold loads per installation: grids
+  narrower than 150 px per tile were visible for **0 ms** in five of six runs,
+  and for under 40 ms in the sixth. Before 0.26.0 this was 3617-3729 ms.
+
+---
+
 ## 0.26.0
 
 - **The layout is right from the first paint.** The helper ran once at load and
