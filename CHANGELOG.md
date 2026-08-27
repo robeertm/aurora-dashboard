@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.26.0
+
+- **The layout is right from the first paint.** The helper ran once at load and
+  then every four seconds, so while a dashboard built itself its cards stood in
+  the desktop grid — on a 414 px phone that meant six tiles side by side at
+  65 px each, corrected only when the next pass came round. Measured with the
+  previous build: **3617-3729 ms of wrong layout per grid**. A MutationObserver
+  now picks up new cards during build-up (throttled to one pass per 120 ms) and
+  switches itself off after twenty seconds of the view being open, so nothing
+  hangs on every DOM change during normal use. Measured now: **0-132 ms**.
+- **A minimum column width catches up when a wide card loads late.** It was
+  worked out once, when the grid was first seen — but a custom card such as the
+  clock loads later, so the grid kept the small minimum and put the clock beside
+  the tile block at 207 px on a phone. It is now re-checked until a wide card
+  turns up.
+
+---
+
 ## 0.25.0
 
 - **A grid no longer counts cards whose width it does not decide.** Two kinds

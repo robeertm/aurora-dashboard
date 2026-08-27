@@ -1,5 +1,8 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.16.0 — the layout is right from the first paint, and a minimum width
+ *            catches up when a wide card loads late: during build-up new
+ *            cards are picked up at once instead of at the next 4 s pass.
  * v2.15.0 — a grid ignores cards it does not size: a hidden conditional card
  *            no longer costs the row an empty column.
  * v2.14.0 — small screens: a tile keeps a readable width, and a tile whose
@@ -713,6 +716,14 @@
           if (ro) ro.observe(root);
           else applyCols(root, root.getBoundingClientRect().width);
         } else {
+          // Eine breite Karte (Uhr, Diagramm, stack-in-card) kann NACH dem
+          // Registrieren dazukommen — custom cards werden spaeter geladen. Dann
+          // stimmt die einmal gemerkte Mindestbreite nicht mehr: das Raster
+          // stellte Uhr und Kachelblock auf einem 414-px-Handy nebeneinander,
+          // die Uhr also auf 207 px. Solange die Mindestbreite noch die kleine
+          // ist, wird sie deshalb weiter nachgeprueft.
+          const info = baseCols.get(root);
+          if (info && info.min < 300 && deepHas(root, 4)) info.min = 300;
           // Kartenzahl kann sich geaendert haben (bedingte Karten, Nachladen).
           // Kostenlos: nutzt die gespeicherte Breite, liest kein Layout.
           applyCols(root, 0);
@@ -751,8 +762,53 @@
     }
   };
 
+  // Waehrend das Dashboard aufgebaut wird, reicht der 4-Sekunden-Takt nicht:
+  // die Karten stehen dann bis zu vier Sekunden lang im Schreibtisch-Raster, auf
+  // einem 414-px-Handy also z. B. sechs Kacheln nebeneinander (gemessen: bei
+  // 800 ms noch 6 Spalten, korrigiert erst bei 1200 ms — auf einem echten
+  // Telefon entsprechend spaeter). Deshalb hoert ein MutationObserver waehrend
+  // der Aufbauphase zu und laesst neue Karten sofort mitlaufen. Er wird nach
+  // sechs Sekunden Ruhe wieder abgeschaltet, damit im Betrieb nichts dauerhaft
+  // an jeder DOM-Aenderung haengt — ein Dashboard voller button-cards baut sich
+  // bei jeder Zustandsaenderung neu auf.
+  let bremse = 0;
+  let letzterLauf = 0;
+  const baldSweepen = () => {
+    if (bremse) return;
+    const wartet = Math.max(0, 120 - (performance.now() - letzterLauf));
+    bremse = setTimeout(() => {
+      bremse = 0;
+      letzterLauf = performance.now();
+      sweep();
+    }, wartet);
+  };
+
+  let aufbauEnde = 0;
+  const beobachter = typeof MutationObserver === "function"
+    ? new MutationObserver(baldSweepen)
+    : null;
+  const aufbauBeobachten = () => {
+    if (!beobachter) return;
+    clearTimeout(aufbauEnde);
+    try {
+      beobachter.observe(document.body, { childList: true, subtree: true });
+    } catch (e) {
+      return;
+    }
+    // 20 Sekunden: ein Dashboard laedt seine Karten in Wellen nach (custom
+    // cards, Diagramme, alles ausserhalb des Bildschirms). Mit sechs Sekunden
+    // fielen die spaeten Wellen wieder in den 4-Sekunden-Takt zurueck
+    // (gemessen: bis 4003 ms falsches Raster). Danach ist Schluss, damit im
+    // Betrieb nichts dauerhaft an jeder DOM-Aenderung haengt.
+    aufbauEnde = setTimeout(() => beobachter.disconnect(), 20000);
+  };
+
   sweep();
+  aufbauBeobachten();
   setInterval(sweep, 4000);
-  window.addEventListener("location-changed", () => setTimeout(sweep, 300));
-  console.info("%c AURORA-EFFECTS %c v2.13.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  window.addEventListener("location-changed", () => {
+    setTimeout(sweep, 300);
+    aufbauBeobachten();
+  });
+  console.info("%c AURORA-EFFECTS %c v2.16.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
