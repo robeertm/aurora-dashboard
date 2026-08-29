@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.28.0
+
+- **A lamp's icon now shows what the lamp is doing, and what it can do.** While a
+  light is on, its icon takes the lamp's own colour: the real RGB for a colour
+  lamp, and a warm-to-cool ramp for a white-ambiance one. The colour is
+  normalised to full brightness and mixed 35 % toward white, so a deep blue or a
+  dark red stays legible on dark glass and still reads as blue or red.
+- **Colour temperature is deliberately exaggerated.** 6500 K is almost pure white
+  in RGB and would be indistinguishable from 4000 K, so the ramp runs peach
+  (2000 K) through white (4000 K) to pale blue (6500 K). A lamp in white mode is
+  read from its Kelvin value even when it also reports an rgb_color, otherwise
+  every warm white would look like pale orange.
+- **Brightness is visible without reading the number.** The icon disc fills from
+  the bottom like a glass — the fill height *is* the brightness — and the icon's
+  glow radius scales with it (3 px dark, 12 px full). The card border and shadow
+  follow the same value.
+- **An unlit lamp still shows its capability**: a colour lamp gets a faint colour
+  wheel behind its icon, a white-ambiance lamp a warm-to-cool gradient, and a
+  plain on/off or dimmable lamp stays neutral.
+- Note for anyone extending this: the icon's `opacity` cannot carry the
+  brightness, because `aurora-breathe` animates that very property and a running
+  animation beats a static declaration. It was measured at 0.68 where 1.00 was
+  set. The glow radius is used instead.
+
+---
+
 ## 0.27.0
 
 - **The grid is right in the very first paint on a phone.** Home Assistant works
