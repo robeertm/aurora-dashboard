@@ -1,5 +1,7 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.18.0 — daily-bar values step aside on a phone: the labels over the bars
+ *            are hidden below 700 px, where 14 to 30 of them would overlap.
  * v2.17.0 — the grid is right in the FIRST paint: the card's own column rule
  *            gets a phone fallback, so no observer has to find it first.
  * v2.16.0 — build-up is picked up at once, and a minimum width
@@ -316,6 +318,16 @@
     }
     @media ${MOBILE} {
       .apexcharts-series[seriesName="scan"] path { animation: none; visibility: hidden; }
+    }
+    /* A daily-bar chart writes its value above every bar. On a phone a bar is
+       only a few pixels wide, and 14 to 30 bars of similar height stack their
+       labels on top of each other. There the shape is what counts: the total
+       stays in the card header, the single value in the tooltip.
+       apexcharts' own \`responsive\` option is NOT an alternative — it replaces
+       the whole dataLabels object including the formatter apexcharts-card
+       installs at runtime, and the card then throws and stays on its spinner. */
+    @media ${MOBILE} {
+      .apexcharts-datalabels { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
       .apexcharts-series[seriesName="scan"] path {

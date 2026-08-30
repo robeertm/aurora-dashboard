@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.29.0
+
+- **Daily-bar values step aside on a phone.** A daily-consumption chart writes
+  its value above every bar. On a narrow screen a bar is only a few pixels
+  wide, and 14 to 30 bars of similar height stack their labels on top of one
+  another. Below 700 px the labels are now hidden: the shape stays, the total
+  stays in the card header, and the single value is still in the tooltip.
+- Note for anyone tempted by ApexCharts' own `responsive` option: it replaces
+  the whole `dataLabels` object, including the formatter `apexcharts-card`
+  installs at runtime. The card then throws and never leaves its spinner.
+  Hiding the labels in CSS is the working route.
+
 ## 0.28.0
 
 - **A lamp's icon now shows what the lamp is doing, and what it can do.** While a
