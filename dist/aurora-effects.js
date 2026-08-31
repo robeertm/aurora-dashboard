@@ -1,5 +1,15 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.21.0 — rain and snow keep moving on a phone. Freezing them read as a
+ *            fault (motion for a moment, then still); the scene now halves
+ *            the number of drops on a small screen instead.
+ * v2.20.0 — snow gets the same treatment as rain: single flakes that
+ *            tumble down and settle, so .snowlane's pseudo elements join
+ *            the phone switch-off.
+ * v2.19.0 — real rain: the drop layer is no longer one gradient of slanted
+ *            lines but single drops on their own tracks, so the phone switch
+ *            has to name .rainlane's ::before and ::after — turning the
+ *            element off leaves pseudo-element animations running.
  * v2.18.0 — daily-bar values step aside on a phone: the labels over the bars
  *            are hidden below 700 px, where 14 to 30 of them would overlap.
  * v2.17.0 — the grid is right in the FIRST paint: the card's own column rule
@@ -195,15 +205,24 @@
        backdrop-filter either, so nothing behind them is re-blurred per frame.
        What stays off here are the particle swarms. Rain, snow, falling leaves
        and fireflies are not one element each -- in bad weather they are dozens,
-       each with its own animation, and a phone GPU is still a phone GPU. The
+       each with its own animation, and a phone GPU is still a phone GPU. Rain
+       drops carry their animation on ::before and ::after, so those pseudo
+       elements have to be named explicitly -- switching the element off does
+       not switch them off. The
        big, slow motions cost a handful of composited layers; the swarms scale
        with the weather. Note this is a headless measurement on desktop
        hardware, so it bounds the layout cost, not the GPU cost of a real
-       handset. */
+       handset.
+
+       Rain and snow are NOT frozen here any more. Freezing them looked like a
+       fault: the card animates on its first paint from its own styles, and the
+       motion died a moment later when this sheet was adopted -- read as "it
+       runs briefly and then hangs". They stay in motion and the scene halves
+       the number of drops on a phone instead, so the cost is bounded by count
+       rather than by switching the whole thing off. */
     @media ${MOBILE} {
       .sky { transform: translateZ(0); }
-      .rain, .snow, .leaf, .firefly, .flash,
-      .rain *, .snow *, .fogband { animation: none !important; }
+      .leaf, .firefly, .flash, .fogband { animation: none !important; }
     }
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; }
