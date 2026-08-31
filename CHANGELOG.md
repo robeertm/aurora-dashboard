@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.21.0 — real rain and snow
+
+- **Rain is drops, not lines.** The old layer was a single
+  `repeating-linear-gradient` of slanted stripes, shifted diagonally. Now each
+  drop falls on its own track and bursts where it lands: an invisible marker
+  sits at the impact point, the drop comes down to it as `::before`, the crown
+  sits on it as `::after`. Both share duration and delay, so the splash happens
+  exactly on impact — no timing code.
+- **Snow the same way**, with its own physics: flakes tumble (the sideways
+  offset lives in the keyframes) and *settle* instead of bursting.
+- **Near precipitation falls in front of the meadow**, far precipitation behind
+  the treeline. That is the depth cue the old flat layer could not give.
+- **Rain and snow bring clouds.** The count is no longer capped at 6 but at 13
+  when it is wet, wrapped over seven heights so the last ones do not slide off
+  the bottom.
+- **Snow makes a snow landscape** whatever the month; an explicit
+  `variables.season` still wins, because that is the preview switch.
+- **Phones keep the motion** and get half the drops. Freezing them read as a
+  fault: the card animates on its first paint and went still a moment later,
+  when the helper's stylesheet was adopted.
+- Only `transform` and `opacity` are animated. Measured: 2 elements versus 58,
+  same CPU, zero layout and zero style recalculation.
+
+
 ## 0.29.0
 
 - **Daily-bar values step aside on a phone.** A daily-consumption chart writes
