@@ -1671,8 +1671,24 @@ button_card_templates:
             return (s && s.attributes && s.attributes.friendly_name) ? s.attributes.friendly_name : (fb || id);
           };
           const num = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+
+          // The jump targets are built from the dashboard this card is rendered in,
+          // so they keep working whatever you called it when you installed it.
+          const DASH = '/' + (location.pathname.split('/')[1] || 'aurora-dashboard') + '/';
+          // "Living Room" -> room-living_room. A room without its own view gets no
+          // jump target at all — a missing button beats a wrong one.
+          const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+          const roomView = (name) =>
+            (V.rooms_without_view || []).includes(name) ? null : DASH + 'room-' + slug(name);
+
           const items = [];
-          const add = (rank, icon, text) => items.push({ rank, icon, text });
+          // detail = what opens when the row is tapped: {t title, s subtitle, w why,
+          // f [what you can do], n jump target, nl its label, e entity, i icon, c tone}
+          const TONE = ['#f38ba8', '#fab387', '#f9e2af', '#89b4fa'];
+          const add = (rank, icon, text, detail) => {
+            if (detail) { detail.i = detail.i || icon; detail.c = detail.c || TONE[rank]; }
+            items.push({ rank, icon, text, detail });
+          };
 
           // ── 1. Window open while the room is heating (red) ──────────────
           const openRooms = [];
@@ -1685,8 +1701,22 @@ button_card_templates:
               (c.attributes.hvac_action === 'heating' ||
                (num(c.attributes.temperature) !== null && num(c.attributes.current_temperature) !== null &&
                 num(c.attributes.temperature) > num(c.attributes.current_temperature) + 0.2));
-            if (heating) add(0, 'mdi:radiator-off', r.name + ': window open, heating running');
+            if (heating) {
+              const set = num(c.attributes.temperature), now = num(c.attributes.current_temperature);
+              add(0, 'mdi:radiator-off', r.name + ': window open, heating running', {
+                t: r.name + ': heating against an open window',
+                s: (set !== null && now !== null) ? ('Set ' + set.toFixed(1) + ' °C · now ' + now.toFixed(1) + ' °C') : null,
+                w: 'The thermostat is still working towards its setpoint and heats against the open air. ' +
+                   'That warmth goes straight outside, and because the sensor inside the valve reads the ' +
+                   'cooler air, it opens up even further. It cannot tell that a window is open.',
+                f: ['Close the window — the thermostat settles back down on its own.',
+                    'Airing for longer? Set the thermostat to "off" in the room view and back to "heat" afterwards.',
+                    'If this keeps happening in one room, an automation "window open → thermostat off" is worth it.'],
+                n: roomView(r.name), nl: 'To ' + r.name, e: r.window,
+              });
+            }
           });
+          const openWindowEntity = ((V.rooms || []).find((r) => S[r.window] && S[r.window].state === 'on') || {}).window;
 
           // ── 2. Window open while it is cold outside (orange) ────────────
           const out = num((S[V.outside] || {}).state);
@@ -1695,13 +1725,82 @@ button_card_templates:
             add(cold ? 1 : 3,
                 cold ? 'mdi:snowflake-alert' : 'mdi:window-open-variant',
                 (openRooms.length === 1 ? 'Window open: ' : openRooms.length + ' windows open: ') +
-                openRooms.join(', ') + (cold ? ' — ' + out.toFixed(1) + ' °C outside' : ''));
+                openRooms.join(', ') + (cold ? ' — ' + out.toFixed(1) + ' °C outside' : ''),
+                {
+                  t: openRooms.length === 1 ? 'A window is open' : openRooms.length + ' windows are open',
+                  s: openRooms.join(' · '),
+                  w: cold
+                    ? ('It is ' + out.toFixed(1) + ' °C outside. Below 15 °C a room on tilt cools down fast, ' +
+                       'and the walls cool with it — those cost far more energy to warm up again than the ' +
+                       'air you wanted to exchange.')
+                    : ('Just a note, not a problem: at ' + (out !== null ? out.toFixed(1) + ' °C' : 'this temperature') +
+                       ' outside, open windows cost you nothing.'),
+                  f: cold
+                    ? ['Open wide for a short burst instead of tilting for hours — five minutes exchanges all the air.',
+                       'Then close up: the walls stay warm and the room is back to temperature within minutes.',
+                       'The climate view shows how temperature and humidity are moving in every room.']
+                    : ['Nothing to do. The note disappears once every window is shut.'],
+                  n: DASH + 'klima', nl: 'To the climate view', e: openWindowEntity,
+                });
           }
 
           // ── 3. Device fault (red) ──────────────────────────────────────
+          //     Tell the kinds apart: a smoke alarm is not a "fault", and a jump
+          //     target is only set where a matching view really exists.
+          const faultKind = (id) => {
+            if (/smoke/i.test(id)) return {
+              head: 'Smoke alarm triggered', tone: 'Alarm', icon: 'mdi:smoke-detector-variant-alert',
+              w: 'A smoke detector reports smoke. This is the most urgent thing this dashboard knows about.',
+              f: ['Go and look. If there is a fire: get out and call your emergency number.',
+                  'False alarms are common — steam, dust from drilling, candle smoke. Air the room and reset the detector.',
+                  'If the same detector keeps crying wolf, its chamber is usually dusty or the battery is at its end.'],
+              n: null,
+            };
+            if (/leak|moisture|water/i.test(id)) return {
+              head: 'Water where none should be', tone: 'Alarm', icon: 'mdi:water-alert',
+              w: 'A water sensor got wet. Until somebody has checked, treat it as a leak.',
+              f: ['Go to where the sensor sits — usually a washing machine, a boiler or a heating connection.',
+                  'If water is running, shut the supply off before you do anything else.',
+                  'The alert clears by itself once everything is dry again.'],
+              n: null,
+            };
+            if (/washer|washing|dryer|dishwasher/i.test(id)) return {
+              head: null, tone: 'The appliance reports a fault', icon: 'mdi:alert-octagon',
+              w: 'The appliance has reported its error state. What exactly is wrong is written in plain ' +
+                 'words on the device itself — this note only says THAT something is.',
+              f: ['Tap "Open device" — the message is spelled out there.',
+                  'Usual suspects: door not properly shut, filter blocked, tap closed, container empty.',
+                  'Then switch it off and on once; if it stays, write the error code down.'],
+              n: null,
+            };
+            if (/rpi|docker|nvme|throttl|voltage|temp_limit|cpu|disk/i.test(id)) return {
+              head: null, tone: 'The server reports a problem', icon: 'mdi:server-network-off',
+              w: 'The machine Home Assistant runs on reports a problem with power, temperature or storage. ' +
+                 'Sooner or later that affects everything shown here.',
+              f: ['The system view puts temperature, voltage and the state of the disk side by side.',
+                  'Undervoltage or throttling almost always means a weak power supply or cable — not the machine.',
+                  'Take storage warnings seriously: check your backup first, then replace the disk.'],
+              n: DASH + 'system', nl: 'To the system view',
+            };
+            return {
+              head: null, tone: 'The device reports a fault', icon: 'mdi:alert-octagon',
+              w: 'The device reported an error state to Home Assistant. This note only says THAT something ' +
+                 'is wrong — the message in plain words sits on the device itself.',
+              f: ['Tap "Open device" and read the message there.',
+                  'Then power the device down once and start it again.',
+                  'If it persists, note the error code before you dig further.'],
+              n: null,
+            };
+          };
           (V.problems || []).forEach((id) => {
             const s = S[id];
-            if (s && s.state === 'on') add(0, 'mdi:alert-octagon', nm(id) + ' reports a fault');
+            if (!s || s.state !== 'on') return;
+            const k = faultKind(id);
+            add(0, k.icon, k.head ? k.head + ': ' + nm(id) : nm(id) + ' reports a fault', {
+              t: k.head || (nm(id) + ' reports a fault'),
+              s: k.head ? nm(id) : k.tone,
+              w: k.w, f: k.f, n: k.n, nl: k.nl, e: id,
+            });
           });
 
           // ── 4. Laundry finished (yellow) ───────────────────────────────
@@ -1710,24 +1809,52 @@ button_card_templates:
             if (!s) return;
             const st = String(s.state).toLowerCase();
             if (st.includes('end') || st.includes('finish') || st === 'programme_ended') {
-              add(2, 'mdi:washing-machine', nm(id) + ' has finished');
+              add(2, 'mdi:washing-machine', nm(id) + ' has finished', {
+                t: nm(id) + ' has finished',
+                s: 'Programme ended',
+                w: 'The programme is done. Laundry left in the drum smells musty after a few hours, ' +
+                   'especially in warm weather.',
+                f: ['Empty it.', 'Then leave the door ajar, or the seal grows mould.'],
+                n: null, e: id,
+              });
             }
           });
 
           // ── 5. Nobody home but lights on (yellow) ──────────────────────
           const away = (V.persons || []).length > 0 &&
                        (V.persons || []).every((p) => S[p] && S[p].state !== 'home');
+          const lightIgnore = V.light_ignore || [];
           const lightsOn = Object.values(S).filter((s) =>
-            s.entity_id.startsWith('light.') && s.state === 'on');
+            s.entity_id.startsWith('light.') && s.state === 'on' &&
+            !lightIgnore.includes(s.entity_id));
           if (away && lightsOn.length) {
             add(1, 'mdi:lightbulb-alert',
-                'Nobody home, but ' + lightsOn.length + ' light' + (lightsOn.length > 1 ? 's' : '') + ' still on');
+                'Nobody home, but ' + lightsOn.length + ' light' + (lightsOn.length > 1 ? 's' : '') + ' still on',
+                {
+                  t: 'Nobody home, and the lights are on',
+                  s: lightsOn.slice(0, 4).map((s) => nm(s.entity_id)).join(' · ') + (lightsOn.length > 4 ? ' …' : ''),
+                  w: 'Everyone is reported away, but ' + lightsOn.length + ' lights are still burning. ' +
+                     'That can be on purpose (presence simulation) — or simply forgotten.',
+                  f: ['The lights view shows every lamp that is on, and you can switch them off from there.',
+                      'To make it happen by itself: an automation "everyone away → lights off" with a few minutes of delay.',
+                      'If it is deliberate, add that lamp to this card\'s ignore list.'],
+                  n: DASH + 'licht', nl: 'To the lights view',
+                });
           }
 
           // ── 6. Unusually high power draw (yellow) ──────────────────────
           const p = num((S[V.power] || {}).state);
           if (p !== null && p > Number(V.power_limit)) {
-            add(2, 'mdi:flash-alert', 'Power draw unusually high: ' + Math.round(p) + ' W');
+            add(2, 'mdi:flash-alert', 'Power draw unusually high: ' + Math.round(p) + ' W', {
+              t: 'Power draw is above your threshold',
+              s: Math.round(p) + ' W now · threshold ' + V.power_limit + ' W',
+              w: 'The whole house is drawing more than ' + V.power_limit + ' W right now. That is not a fault — ' +
+                 'it just means more is running than usual, and it is normally one large appliance.',
+              f: ['The energy view shows which device is pulling the power right now.',
+                  'Usual causes: oven, kettle, water heater, wallbox, a washing machine in its heating step.',
+                  'If none of those is on, look at the trace — a steady value rather than a peak points at something stuck.'],
+              n: DASH + 'energie', nl: 'To the energy view', e: V.power,
+            });
           }
 
           // ── 7. Low batteries (yellow) ──────────────────────────────────
@@ -1742,7 +1869,18 @@ button_card_templates:
             const names = weak.slice(0, 2).map((s) => nm(s.entity_id).replace(/ Battery.*$/i, ''));
             add(2, 'mdi:battery-alert-variant',
                 (weak.length === 1 ? 'Low battery: ' : weak.length + ' low batteries: ') +
-                names.join(', ') + (weak.length > 2 ? ' …' : ''));
+                names.join(', ') + (weak.length > 2 ? ' …' : ''),
+                {
+                  t: weak.length === 1 ? 'A battery is getting weak' : weak.length + ' batteries are getting weak',
+                  s: weak.slice(0, 6).map((s) => nm(s.entity_id).replace(/ Battery.*$/i, '') + ' ' + s.state + ' %').join(' · '),
+                  w: 'These devices report ' + V.batt_limit + ' % or less. Radio sensors rarely die cleanly: ' +
+                     'they report less often, then not at all — and a window contact that stopped reporting ' +
+                     'looks exactly like a closed window on a dashboard.',
+                  f: ['The radio view lists every battery level side by side, sorted by charge.',
+                      'Buy the cells before the first one dies — then it is two minutes of work instead of a hunt.',
+                      'After a change it takes until the device next reports before the value is right again.'],
+                  n: DASH + 'radio', nl: 'To the radio view', e: weak[0].entity_id,
+                });
           }
 
           // ── 8. Updates (blue) ──────────────────────────────────────────
@@ -1752,15 +1890,32 @@ button_card_templates:
             add(3, 'mdi:package-up',
                 ups.length + ' update' + (ups.length > 1 ? 's' : '') + ' available: ' +
                 ups.slice(0, 2).map((s) => nm(s.entity_id).replace(/ Firmware.*| Update.*/i, '')).join(', ') +
-                (ups.length > 2 ? ' …' : ''));
+                (ups.length > 2 ? ' …' : ''),
+                {
+                  t: ups.length + (ups.length > 1 ? ' updates are waiting' : ' update is waiting'),
+                  s: ups.slice(0, 6).map((s) => nm(s.entity_id).replace(/ Firmware.*| Update.*/i, '')).join(' · '),
+                  w: 'Home Assistant reports newer versions. This is not a fault and nothing urgent — ' +
+                     'outside of security fixes, waiting is usually the better call.',
+                  f: ['Settings → Updates shows the release notes for every entry.',
+                      'Do not install a Core update on release day: the first fix release (x.y.2) usually lands within days.',
+                      'Only flash device firmware that matches the hardware revision — an offer that is too new can brick it.'],
+                  n: '/config/updates', nl: 'To the updates', e: ups[0].entity_id,
+                });
           }
 
           // ── 9. Holiday mode (blue, pure info) ──────────────────────────
           const hol = S[V.holiday];
-          if (hol && hol.state === 'on') add(3, 'mdi:beach', 'Holiday mode is active');
+          if (hol && hol.state === 'on') add(3, 'mdi:beach', 'Holiday mode is active', {
+            t: 'Holiday mode is running',
+            s: 'Information only, not a problem',
+            w: 'While it is on, the heating automations hold the rooms at a lowered temperature and some ' +
+               'presence automations are parked.',
+            f: ['Switch it off when you are back, or it stays cool.',
+                'The automations view shows which rules the mode is affecting.'],
+            n: DASH + 'automations', nl: 'To the automations', e: V.holiday,
+          });
 
           items.sort((a, b) => a.rank - b.rank);
-          const TONE = ['#f38ba8', '#fab387', '#f9e2af', '#89b4fa'];
 
           if (!items.length) {
             return `<div class="ampel ok">
@@ -1770,9 +1925,17 @@ button_card_templates:
             </div>`;
           }
           const worst = items[0].rank;
+          // The onclick MUST sit on the element: without it Safari does not produce a
+          // click for the delegated listener at all. The delegated listener runs in the
+          // capture phase and stops propagation, so exactly one of the two ever fires.
+          const attr = (d) => d ? ` data-aurora-detail="${JSON.stringify(d).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"` +
+            ` onclick="window.auroraDetail&&window.auroraDetail(this)" role="button" tabindex="0"` : '';
           const rows = items.slice(0, 6).map((it) =>
-            `<div class="row"><ha-icon icon="${it.icon}" style="color:${TONE[it.rank]}"></ha-icon>` +
-            `<span>${it.text}</span></div>`).join('');
+            `<div class="row${it.detail ? ' tap' : ''}"${attr(it.detail)}>` +
+            `<ha-icon icon="${it.icon}" style="color:${TONE[it.rank]}"></ha-icon>` +
+            `<span>${it.text}</span>` +
+            (it.detail ? `<ha-icon class="chev" icon="mdi:chevron-right"></ha-icon>` : '') +
+            `</div>`).join('');
           const more = items.length > 6 ? `<div class="row muted"><ha-icon icon="mdi:dots-horizontal"></ha-icon><span>and ${items.length - 6} more</span></div>` : '';
           return `<div class="ampel" style="--tone:${TONE[worst]}">
             <div class="badge"><ha-icon icon="mdi:alert-decagram"></ha-icon></div>
@@ -1841,6 +2004,144 @@ button_card_templates:
         .row { font-size: 12.5px; }
       }
 
+
+      /* A row that carries data-aurora-detail gets its own column for the chevron,
+         so the text does not jump when one row has no target. The hit area is a
+         little larger than the text — on a phone you miss it otherwise. */
+      .row.tap {
+        grid-template-columns: 22px 1fr 18px;
+        cursor: pointer;
+        /* Without `manipulation` the browser keeps a double-tap open, hesitates,
+           and sends pointercancel while it waits. */
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(205,214,244,.14);
+        margin: -3px -6px; padding: 3px 6px; border-radius: 9px;
+        transition: background .14s ease;
+      }
+      .row.tap:hover { background: rgba(205,214,244,.07); }
+      .row.tap:active { background: rgba(205,214,244,.13); }
+      .row.tap:focus-visible { outline: 2px solid var(--tone, #89b4fa); outline-offset: 1px; }
+      .row.tap .chev { color: #6c7086; --mdc-icon-size: 17px; }
+      .row.tap:hover .chev { color: #cdd6f4; }
+      /* Touch has no hover — the tone would stick after the tap. */
+      @media (hover: none) { .row.tap:hover { background: none; } .row.tap:hover .chev { color: #6c7086; } }
+
+      /* button-card sets `disabled` on the ha-card when tap_action is none
+         (source: `disabled: !this._cardClickable`), and that carries
+         `pointer-events: none` — with it, no tap ever reaches the rows. Give the
+         pointer events back; the card itself stays silent. */
+      ha-card.disabled { pointer-events: auto !important; cursor: default !important; }
+  # ─────────────────────────────────────────────────────────────────────────
+  #  aurora_view_title — the heading of a view, with a way back.
+  #  The chip on the right is marked `data-aurora-nav`; aurora-effects.js
+  #  turns that into a jump (pushState + location-changed, no reload). The
+  #  target is built from the dashboard this card is rendered in, so it keeps
+  #  working whatever you called it. Set `variables.back: false` on the view
+  #  that IS the overview — it should not offer a way to itself.
+  # ─────────────────────────────────────────────────────────────────────────
+  aurora_view_title:
+    template: aurora_base
+    show_icon: true
+    show_name: true
+    show_state: false
+    show_label: true
+    size: 30px
+    tap_action:
+      action: none
+    variables:
+      accent: "#cba6f7"
+    custom_fields:
+      b: |
+        [[[
+          if (variables.back === false) return '';
+          const dash = '/' + (location.pathname.split('/')[1] || 'aurora-dashboard');
+          const target = variables.back_target || (dash + '/home');
+          return '<div class="back" data-aurora-nav="' + target + '"' +
+            ' onclick="window.auroraNav&&window.auroraNav(this)" role="button" tabindex="0"' +
+            ' aria-label="Back to the overview">' +
+            '<ha-icon icon="mdi:chevron-left"></ha-icon><span>Overview</span></div>';
+        ]]]
+    styles:
+      grid:
+      - grid-template-areas: "'i n b' 'i l b'"
+      - grid-template-columns: 56px 1fr auto
+      - grid-template-rows: min-content min-content
+      card:
+      - padding: 10px 18px 14px 14px
+      - background: none
+      - border: none
+      - box-shadow: none
+      - border-radius: 0
+      img_cell:
+      - grid-area: i
+      - justify-self: start
+      - align-self: center
+      - width: 48px
+      - height: 48px
+      icon:
+      - color: |
+          [[[ return variables.accent; ]]]
+      - filter: |
+          [[[ return 'drop-shadow(0 0 12px ' + variables.accent + '99)'; ]]]
+      name:
+      - grid-area: n
+      - justify-self: start
+      - align-self: end
+      - font-size: clamp(22px, 4.4vw, 34px)
+      - font-weight: 800
+      - letter-spacing: -.01em
+      - line-height: 1.05
+      - color: "#cdd6f4"
+      - text-shadow: |
+          [[[ return '0 0 26px ' + variables.accent + '55'; ]]]
+      label:
+      - grid-area: l
+      - justify-self: start
+      - align-self: start
+      - margin-top: 3px
+      - font-family: "ui-monospace, 'SF Mono', Menlo, monospace"
+      - font-size: 10px
+      - font-weight: 700
+      - letter-spacing: .22em
+      - text-transform: uppercase
+      - color: |
+          [[[ return variables.accent; ]]]
+      - opacity: .75
+      custom_fields:
+        b:
+        - grid-area: b
+        - justify-self: end
+        - align-self: center
+        - padding-left: 10px
+    extra_styles: |
+      /* Back to the overview. Measured: the label still fits next to the
+         longest title at 320 px, so it stays on a phone; the chip only grows
+         taller on touch so it is easy to hit. */
+      .back {
+        display: inline-flex; align-items: center; gap: 1px;
+        padding: 6px 11px 6px 6px; border-radius: 11px;
+        background: rgba(205,214,244,.07);
+        border: 1px solid rgba(205,214,244,.10);
+        color: #a6adc8; cursor: pointer;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 10px; font-weight: 700; letter-spacing: .14em;
+        text-transform: uppercase; white-space: nowrap;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(205,214,244,.14);
+        transition: background .14s ease, color .14s ease, border-color .14s ease;
+      }
+      .back ha-icon { --mdc-icon-size: 16px; flex: 0 0 auto; }
+      .back:hover { background: rgba(205,214,244,.13); color: #cdd6f4;
+                    border-color: rgba(205,214,244,.18); }
+      .back:active { background: rgba(205,214,244,.18); }
+      .back:focus-visible { outline: 2px solid var(--tone, #89b4fa); outline-offset: 2px; }
+      @media (hover: none) { .back { padding: 9px 13px 9px 9px; }
+        .back:hover { background: rgba(205,214,244,.07); color: #a6adc8;
+                      border-color: rgba(205,214,244,.10); } }
+      /* tap_action: none puts `disabled` on the ha-card, and that carries
+         pointer-events: none — without this the chip cannot be tapped. */
+      ha-card.disabled { pointer-events: auto !important; cursor: default !important; }
+
   # ─────────────────────────────────────────────────────────────────────────
   #  aurora_skymode — switch for the sky scene.
   #  Tapping steps through: Auto → Day → Dusk → Night → Auto.
@@ -1900,6 +2201,17 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Overview
+      icon: mdi:view-dashboard-variant
+      label: Home · at a glance
+      variables:
+        accent: "#fab387"
+        # This IS the overview — no way back to itself.
+        back: false
       grid_options:
         columns: full
           # House traffic light: right at the top, because it is the only card
@@ -2514,6 +2826,15 @@ views:
       template: aurora_sky
       grid_options:
         columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Smart Home
+      icon: mdi:home-automation
+      label: Devices · scenes
+      variables:
+        accent: "#a6e3a1"
+      grid_options:
+        columns: full
     - type: grid
       grid_options:
         columns: full
@@ -2658,6 +2979,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: "Living Room"
+      icon: mdi:sofa
+      label: Room
+      variables:
+        accent: "#cba6f7"
       grid_options:
         columns: full
     - type: grid
@@ -2924,6 +3254,15 @@ views:
       template: aurora_sky
       grid_options:
         columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: "Kitchen"
+      icon: mdi:countertop
+      label: Room
+      variables:
+        accent: "#cba6f7"
+      grid_options:
+        columns: full
     - type: grid
       grid_options:
         columns: full
@@ -3186,6 +3525,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: "Bedroom"
+      icon: mdi:bed-king
+      label: Room
+      variables:
+        accent: "#cba6f7"
       grid_options:
         columns: full
     - type: grid
@@ -3452,6 +3800,15 @@ views:
       template: aurora_sky
       grid_options:
         columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: "Office"
+      icon: mdi:desk
+      label: Room
+      variables:
+        accent: "#cba6f7"
+      grid_options:
+        columns: full
     - type: grid
       grid_options:
         columns: full
@@ -3699,6 +4056,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: "Bathroom"
+      icon: mdi:shower
+      label: Room
+      variables:
+        accent: "#cba6f7"
       grid_options:
         columns: full
     - type: grid
@@ -3950,6 +4316,15 @@ views:
       template: aurora_sky
       grid_options:
         columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: "Hallway"
+      icon: mdi:coat-rack
+      label: Room
+      variables:
+        accent: "#cba6f7"
+      grid_options:
+        columns: full
     - type: grid
       grid_options:
         columns: full
@@ -4065,6 +4440,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Automations
+      icon: mdi:robot
+      label: Rules · scripts · helpers
+      variables:
+        accent: "#94e2d5"
       grid_options:
         columns: full
     - type: grid
@@ -4201,6 +4585,15 @@ views:
       template: aurora_sky
       grid_options:
         columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Lights
+      icon: mdi:lightbulb-group
+      label: Light · scenes
+      variables:
+        accent: "#f9e2af"
+      grid_options:
+        columns: full
     - type: heading
       heading: Lights
       heading_style: title
@@ -4281,6 +4674,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Climate
+      icon: mdi:thermometer
+      label: Warmth · air · humidity
+      variables:
+        accent: "#f38ba8"
       grid_options:
         columns: full
     - type: heading
@@ -4511,6 +4913,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Energy
+      icon: mdi:lightning-bolt
+      label: Power · consumption
+      variables:
+        accent: "#fab387"
       grid_options:
         columns: full
     - type: heading
@@ -4830,6 +5241,15 @@ views:
       template: aurora_sky
       grid_options:
         columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Network
+      icon: mdi:lan
+      label: Network · clients
+      variables:
+        accent: "#89b4fa"
+      grid_options:
+        columns: full
     - type: heading
       heading: WAN
       heading_style: title
@@ -5074,6 +5494,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Radio
+      icon: mdi:access-point
+      label: Radio · batteries · signal
+      variables:
+        accent: "#b4befe"
       grid_options:
         columns: full
     - type: grid
@@ -5332,6 +5761,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: System
+      icon: mdi:server
+      label: Host · storage · services
+      variables:
+        accent: "#89dceb"
       grid_options:
         columns: full
     - type: heading
@@ -5784,6 +6222,15 @@ views:
     cards:
     - type: custom:button-card
       template: aurora_sky
+      grid_options:
+        columns: full
+    - type: custom:button-card
+      template: aurora_view_title
+      name: Explorer
+      icon: mdi:compass
+      label: Everything by domain
+      variables:
+        accent: "#cba6f7"
       grid_options:
         columns: full
     - type: heading
