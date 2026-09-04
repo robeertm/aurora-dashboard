@@ -2310,7 +2310,6 @@ views:
           type: custom:clock-weather-card
           entity: weather.forecast_home
           sun_entity: sun.sun
-          locale: de
           time_format: 24
           forecast_rows: 4
           animated_icon: true
@@ -2322,7 +2321,6 @@ views:
           type: custom:clock-weather-card
           entity: weather.forecast_home
           sun_entity: sun.sun
-          locale: de
           time_format: 24
           forecast_rows: 4
           animated_icon: false
@@ -5090,7 +5088,7 @@ views:
           - type: custom:button-card
             template: aurora_metric
             entity: sensor.circuit_lights_power
-            name: Xmas lights
+            name: Lights
             icon: mdi:string-lights
             variables:
               accent: "#f9e2af"
@@ -5156,7 +5154,7 @@ views:
             show:
               legend_value: true
           - entity: sensor.circuit_lights_energy_today
-            name: Xmas lights
+            name: Lights
             color: "#f9e2af"
             show:
               legend_value: true

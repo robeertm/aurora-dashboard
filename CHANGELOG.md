@@ -5,6 +5,17 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.27.1
+
+- **The weather card is no longer forced into German.** `locale: de` sat hard-coded
+  in the template — twice — left over from the author's own instance. Without the
+  key the card follows your Home Assistant language.
+- **A circuit is called "Lights", not "Xmas lights".** Same kind of leftover, in
+  the energy view.
+- **Real screenshots.** They come from a throwaway instance with placeholder data:
+  every name, room and value in them is made up. Both findings above were found by
+  taking those screenshots and looking at them.
+
 ## 2.27.0
 
 - **The status card's rows open their explanation.** Every finding the card

@@ -3,4 +3,11 @@
 # private local instance (Robert) — never publish
 dashboard/aurora-robert.de.yaml
 docs/screenshots/*
+# Freigegeben: aus der Demo-Instanz mit Platzhalterdaten, keine echten Namen.
 !docs/screenshots/home.png
+!docs/screenshots/detail-sheet.png
+!docs/screenshots/climate.png
+!docs/screenshots/energy.png
+!docs/screenshots/system.png
+!docs/screenshots/phone.png
+!docs/screenshots/phone-detail.png
