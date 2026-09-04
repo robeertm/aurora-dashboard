@@ -1,5 +1,7 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.27.1 — no change to the helper itself; the version follows the dashboard,
+ *            which lost two leftovers from the author's own house.
  * v2.27.0 — the sheet speaks the language of the interface: its own labels
  *            (close, open device, what you can do) follow <html lang>, German
  *            for a German Home Assistant and English otherwise. The card only
@@ -1353,5 +1355,5 @@
     setTimeout(sweep, 300);
     aufbauBeobachten();
   });
-  console.info("%c AURORA-EFFECTS %c v2.27.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.27.1 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();

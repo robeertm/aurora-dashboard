@@ -9,6 +9,35 @@ sensor** in your installation, grouped by device class, with zero configuration.
 
 ![Overview](docs/screenshots/home.png)
 
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/detail-sheet.png" alt="A status row, opened"></td>
+<td width="50%"><img src="docs/screenshots/climate.png" alt="Climate view"></td>
+</tr>
+<tr>
+<td><em>Every row of the status card explains itself — what was found, why it
+matters, and what you can do about it.</em></td>
+<td><em>Room temperatures over 24 hours, thermostats underneath.</em></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/energy.png" alt="Energy view"></td>
+<td><img src="docs/screenshots/system.png" alt="System view"></td>
+</tr>
+<tr>
+<td><em>Power over the day, kWh per day, and where they went.</em></td>
+<td><em>Batteries, host metrics and what is waiting to be updated.</em></td>
+</tr>
+</table>
+
+<p align="center">
+<img src="docs/screenshots/phone.png" width="270" alt="On a phone">
+&nbsp;&nbsp;
+<img src="docs/screenshots/phone-detail.png" width="270" alt="A row opened on a phone">
+</p>
+
+<p align="center"><em>All screenshots come from a throwaway instance with
+placeholder data — every name, room and value in them is made up.</em></p>
+
 ## Highlights
 
 - 🌅 **A sky that follows the sun, the weather and the season** — three
