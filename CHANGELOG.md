@@ -1,6 +1,28 @@
 # Changelog
 
-## 0.31.0
+> **Versions follow `dist/aurora-effects.js` from 2.26.0 on.** The helper and
+> the dashboard were counted separately before (helper 2.x, repo 0.x), which
+> made it impossible to tell from a release which helper you were getting.
+> The previous release was 0.30.0; the next one is 2.26.0.
+
+## 2.27.0
+
+- **The status card's rows open their explanation.** Every finding the card
+  reports — window open while heating, a low battery, an unusual power draw —
+  can be tapped and says what it means, why it matters and what you can do,
+  with a button that jumps to the matching view or opens the device.
+- **Every view has a way back to the overview.** The new `aurora_view_title`
+  template puts the view's heading, its label and a back chip in one row; the
+  overview itself is marked `back: false` and does not offer a way to itself.
+  Both the chip and the row targets are built from the dashboard the card is
+  rendered in, so they keep working whatever you named it on install.
+- **The sheet speaks the language of the interface.** Its own labels (close,
+  open device, what you can do) follow `<html lang>` — German for a German
+  Home Assistant, English otherwise. The card only ever supplies its own texts.
+  Read at open time, not at load time: Home Assistant sets that attribute once
+  the frontend is up, which is after this module runs.
+
+## 2.26.0
 
 - **Any element can open an explanation.** Mark it with
   `data-aurora-detail='{"t":…}'` and the helper opens a sheet: what was found,

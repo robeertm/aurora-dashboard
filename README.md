@@ -74,6 +74,13 @@ sensor** in your installation, grouped by device class, with zero configuration.
   Home Assistant on *every* state change and can bring a busy instance down;
   Aurora never does that.
 
+- **The status card explains itself.** Every row it reports can be tapped: a
+  sheet says what was found, why it matters and what you can do about it, with
+  a button that jumps to the matching view or opens the device.
+- **A way back in every view.** Each view heading carries a chip back to the
+  overview, built from the dashboard's own path — so it works whatever you
+  called it.
+
 ## Requirements
 
 Home Assistant 2024.11+ (sections views with `grid_options`). Install these

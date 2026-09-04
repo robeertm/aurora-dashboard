@@ -1,5 +1,9 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.27.0 — the sheet speaks the language of the interface: its own labels
+ *            (close, open device, what you can do) follow <html lang>, German
+ *            for a German Home Assistant and English otherwise. The card only
+ *            ever supplies its own texts.
  * v2.26.0 — closing the sheet no longer sets off whatever is underneath it.
  *            A tap produces its mouse events LATER than the pointer ones, so
  *            removing the sheet during pointerup handed that trailing click to
@@ -932,6 +936,25 @@
   // nl=label for that button, e=entity for the more-info dialog,
   // c=accent colour, s=subtitle.
   const SHEET_ID = "aurora-detail-sheet";
+
+  // Die Beschriftungen, die das Blatt SELBST mitbringt. Alles andere kommt
+  // aus der Karte. Home Assistant setzt <html lang> auf die Sprache des
+  // Benutzers - danach richten wir uns, statt eine Sprache festzuschreiben.
+  const WORTE = {
+    de: { tun: "Was du tun kannst", zu: "Schließen", geraet: "Gerät öffnen", hin: "Hin da" },
+    en: { tun: "What you can do", zu: "Close", geraet: "Open device", hin: "Take me there" },
+  };
+  // 🔴 Erst beim Oeffnen nachsehen, nicht beim Laden: Home Assistant setzt
+  //    <html lang> erst, wenn die Oberflaeche hochgekommen ist - dieses Modul
+  //    laeuft davor. Einmal beim Laden gemerkt heisst: falsche Sprache.
+  const worte = () => {
+    let l = "";
+    try {
+      l = (document.documentElement.getAttribute("lang") ||
+           navigator.language || "").toLowerCase();
+    } catch (e) { /* dann eben Englisch */ }
+    return l.indexOf("de") === 0 ? WORTE.de : WORTE.en;
+  };
   const SHEET_CSS = `
     #${SHEET_ID}{position:fixed;inset:0;z-index:9999;display:grid;
       place-items:center;padding:16px;
@@ -1126,6 +1149,7 @@
 
   const openSheet = (d, mitFokus) => {
     entferneBlaetter();
+    const W = worte();
     const tone = d.c || "#89b4fa";
     const wrap = document.createElement("div");
     wrap.id = SHEET_ID;
@@ -1136,17 +1160,17 @@
           (d.i ? `<ha-icon icon="${escHtml(d.i)}" style="color:${escHtml(tone)}"></ha-icon>` : "") +
           `<div class="txt"><h2>${escHtml(d.t || "")}</h2>` +
           (d.s ? `<p class="sub">${escHtml(d.s)}</p>` : "") + `</div>` +
-          `<button class="x" data-close="1" aria-label="Schließen">✕</button>` +
+          `<button class="x" data-close="1" aria-label="${escHtml(W.zu)}">✕</button>` +
         `</div>` +
         (d.w ? `<p class="why">${escHtml(d.w)}</p>` : "") +
         (Array.isArray(d.f) && d.f.length
-          ? `<div class="fixh">Was du tun kannst</div><ol>` +
+          ? `<div class="fixh">${escHtml(W.tun)}</div><ol>` +
             d.f.map((x) => `<li>${escHtml(x)}</li>`).join("") + `</ol>`
           : "") +
         `<div class="btns">` +
-          (d.n ? `<button class="go" data-go="${escHtml(d.n)}">${escHtml(d.nl || "Hin da")}</button>` : "") +
-          (d.e ? `<button data-mi="${escHtml(d.e)}">Gerät öffnen</button>` : "") +
-          `<button data-close="1">Schließen</button>` +
+          (d.n ? `<button class="go" data-go="${escHtml(d.n)}">${escHtml(d.nl || W.hin)}</button>` : "") +
+          (d.e ? `<button data-mi="${escHtml(d.e)}">${escHtml(W.geraet)}</button>` : "") +
+          `<button data-close="1">${escHtml(W.zu)}</button>` +
         `</div>` +
       `</div>`;
 
@@ -1329,5 +1353,5 @@
     setTimeout(sweep, 300);
     aufbauBeobachten();
   });
-  console.info("%c AURORA-EFFECTS %c v2.26.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.27.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
