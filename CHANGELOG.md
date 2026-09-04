@@ -1,6 +1,37 @@
 # Changelog
 
-## v0.21.0 — real rain and snow
+## 0.31.0
+
+- **Any element can open an explanation.** Mark it with
+  `data-aurora-detail='{"t":…}'` and the helper opens a sheet: what was found,
+  why it matters, what to do about it, and buttons that jump to the right view
+  or open the device. The sheet is appended to `<body>`, never into the card —
+  a button-card re-renders whenever one of its trigger entities changes, which
+  would tear an open panel down mid-read.
+- **`data-aurora-nav="/path"` jumps there** instead, through Home Assistant's
+  own `pushState` + `location-changed`, so nothing reloads.
+- **Taps are read from the pointer chain, not from the synthesised click.**
+  Safari only produces a click for elements it considers clickable, and once an
+  overlay had opened and closed it stopped producing one at all — the row then
+  reacted exactly once per app start. `pointerdown`/`pointerup` plus
+  `touchstart`/`touchend` with a tap test (≤ 12 px of travel, ≤ 900 ms) takes
+  that guess out of the path. `pointercancel` is deliberately *not* treated as a
+  cancel: the browser sends it as soon as it keeps scrolling open, so acting on
+  it gives you a button that never fires. A swipe is sorted out by distance.
+- **Closing an overlay no longer sets off whatever is underneath it.** A touch
+  delivers its mouse events later than its pointer events, so removing the sheet
+  during `pointerup` handed the trailing `mousedown`/`mouseup`/`click` to the
+  card below — which then toggled. The sheet now stays on as an invisible shield
+  while it fades out and catches them itself. Measured with a card underneath:
+  one of each arrived before, none do now.
+- **Focus is never ripped out of the document.** A sheet that removed its own
+  focused element left the page with no focus at all, after which iOS stopped
+  delivering taps. Focus is now given only on a pointer/keyboard device, and
+  dropped before the element leaves.
+- An unreadable payload warns in the console instead of looking like nothing
+  happened.
+
+## 0.30.0
 
 - **Rain is drops, not lines.** The old layer was a single
   `repeating-linear-gradient` of slanted stripes, shifted diagonally. Now each

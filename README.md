@@ -204,6 +204,47 @@ series:
 The glow comes from ApexCharts' native `chart.dropShadow` — see any chart in the
 shipped YAML for the pattern.
 
+## Tappable rows and jump targets
+
+Any element the helper can see — including one produced by a button-card
+`custom_fields` template, inside the card's shadow root — becomes tappable by
+carrying a marker:
+
+```html
+<!-- opens a sheet explaining the finding -->
+<div data-aurora-detail='{"t":"A battery is getting weak",
+     "s":"Dimmer, 13 %","w":"Why this matters …",
+     "f":["First thing to do","Second thing"],
+     "n":"/my-dashboard/devices","nl":"To the devices view",
+     "e":"sensor.dimmer_battery","i":"mdi:battery-alert-variant","c":"#f9e2af"}'
+     onclick="window.auroraDetail&&window.auroraDetail(this)"
+     role="button" tabindex="0"> … </div>
+
+<!-- jumps straight to another view -->
+<div data-aurora-nav="/my-dashboard/home"
+     onclick="window.auroraNav&&window.auroraNav(this)"
+     role="button" tabindex="0"> … </div>
+```
+
+The payload keys are short because the whole object travels inside an HTML
+attribute: `t` title, `s` subtitle, `w` why, `f` list of steps, `n` navigation
+target, `nl` its button label, `e` entity for the more-info dialog, `i` icon,
+`c` accent colour. Everything but `t` is optional.
+
+Two things the card has to bring itself, both in its `extra_styles`:
+
+```css
+/* button-card puts `disabled` on the ha-card when tap_action is none,
+   and that carries pointer-events: none — give them back */
+ha-card.disabled { pointer-events: auto !important; cursor: default !important; }
+/* without this the browser keeps a double-tap open and hesitates */
+.my-row { touch-action: manipulation; }
+```
+
+The `onclick` attribute is not decoration — it is what tells Safari the element
+is clickable at all. Enter and Space work too, as long as the element carries
+`role="button"` and `tabindex="0"`.
+
 ## Performance notes
 
 Everything below was measured with Chrome's `Performance.getMetrics` over 15 s

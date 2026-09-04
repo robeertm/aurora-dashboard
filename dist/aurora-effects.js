@@ -1,5 +1,38 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.26.0 — closing the sheet no longer sets off whatever is underneath it.
+ *            A tap produces its mouse events LATER than the pointer ones, so
+ *            removing the sheet during pointerup handed that trailing click to
+ *            the card below - which then toggled. The sheet now stays on as an
+ *            invisible shield while it fades out, catches those events itself,
+ *            and only then leaves. Measured before and after: mousedown,
+ *            mouseup and click each arrived once below, now none do.
+ * v2.25.0 — the same tap layer also carries navigation: an element marked
+ *            `data-aurora-nav="/path"` jumps there. The view titles use it
+ *            for a "back to the overview" chip, so every tab has a way home
+ *            that does not depend on the tab bar being reachable.
+ * v2.24.0 — the sheet opens every time, not just once per app start: the
+ *            row is no longer opened by the synthesised `click` but by the
+ *            pointer sequence itself (pointerdown + pointerup, with a
+ *            tap-versus-swipe test), so WebKit's click synthesis is out of
+ *            the path. Closing no longer rips a FOCUSED element out of the
+ *            document - the documented way to leave iOS without a focused
+ *            document, after which taps stop arriving. The sheet also has
+ *            an ✕ that is always in reach, and a bad payload now warns in
+ *            the console instead of failing silently.
+ * v2.23.0 — the detail sheet reaches the phone: iOS only synthesises a click
+ *            for elements it considers clickable, and a listener on `document`
+ *            does not make one. The rows now carry an `onclick` that calls
+ *            `window.auroraDetail(this)`. The sheet is also a size smaller on
+ *            a phone, and box-sizing keeps it inside the screen - measured at
+ *            422 px wide on a 390 px screen before.
+ * v2.22.0 — the "x things need you" rows can be opened: any card may mark
+ *            an element with data-aurora-detail and one delegated listener
+ *            opens a sheet explaining the finding and what to do about it.
+ *            The sheet lives in <body>, not in the card - a button-card
+ *            re-renders on every trigger entity, which would tear an in-card
+ *            panel down while it is being read. Enter and Space work too,
+ *            because the rows carry role="button".
  * v2.21.0 — rain and snow keep moving on a phone. Freezing them read as a
  *            fault (motion for a moment, then still); the scene now halves
  *            the number of drops on a small screen instead.
@@ -888,6 +921,407 @@
     /* never break the frontend over eye candy */
   }
 
+  // ── Detail sheet ────────────────────────────────────────────────────
+  // Any card may mark an element with data-aurora-detail='{"t":…}'. One
+  // delegated listener opens a sheet that is appended to <body>, NOT into
+  // the card: a button-card re-renders whenever one of its trigger
+  // entities changes, which would tear an in-card panel down mid-read.
+  //
+  // Payload keys are short because the whole object travels inside an
+  // HTML attribute: t=title, w=why, f=[fix steps], n=navigation target,
+  // nl=label for that button, e=entity for the more-info dialog,
+  // c=accent colour, s=subtitle.
+  const SHEET_ID = "aurora-detail-sheet";
+  const SHEET_CSS = `
+    #${SHEET_ID}{position:fixed;inset:0;z-index:9999;display:grid;
+      place-items:center;padding:16px;
+      background:rgba(17,17,27,.62);backdrop-filter:blur(3px);
+      animation:aurora-sheet-in .18s ease-out both}
+    /* border-box, sonst kommt der Innenabstand auf die Breite OBEN DRAUF:
+       gemessen 422 px auf einem 390-px-Bildschirm, das Blatt stand seitlich
+       ueber. */
+    #${SHEET_ID} .sheet{width:min(560px,100%);box-sizing:border-box;
+      max-height:86vh;overflow:auto;
+      /* The sheet hangs in <body>, outside HA's shadow trees - without an
+         explicit stack it falls back to the browser default, which is a
+         serif face. Found by looking at a screenshot, not by a test. */
+      font-family:var(--primary-font-family,var(--paper-font-body1_-_font-family,
+        system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif));
+      background:#1e1e2e;color:#cdd6f4;border-radius:20px;
+      border:1px solid rgba(205,214,244,.14);
+      box-shadow:0 24px 60px rgba(0,0,0,.55);
+      padding:22px 22px 18px;
+      animation:aurora-sheet-rise .22s cubic-bezier(.2,.8,.3,1) both}
+    #${SHEET_ID} .hd{display:flex;gap:12px;align-items:flex-start;margin-bottom:6px}
+    #${SHEET_ID} .hd ha-icon{--mdc-icon-size:26px;flex:0 0 auto;margin-top:1px}
+    #${SHEET_ID} .hd .txt{flex:1 1 auto;min-width:0}
+    /* Ein Schliesskreuz, das immer in Reichweite ist: die Knopfreihe steht
+       unter dem Text und kann bei einem langen Hinweis weggescrollt sein. */
+    #${SHEET_ID} .x{flex:0 0 auto;margin:-6px -6px 0 0;padding:6px 9px;
+      line-height:1;font-size:1.05rem;border:0;background:none;color:#a6adc8;
+      border-radius:9px;cursor:pointer}
+    #${SHEET_ID} .x:hover{background:rgba(205,214,244,.1);color:#cdd6f4}
+    #${SHEET_ID} h2{margin:0;font-size:1.1rem;line-height:1.32;font-weight:700;
+      font-family:ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.005em}
+    #${SHEET_ID} .sub{margin:2px 0 0;font-size:.82rem;opacity:.62}
+    #${SHEET_ID} .why{margin:14px 0 0;font-size:.93rem;line-height:1.5;opacity:.9}
+    #${SHEET_ID} .fixh{margin:18px 0 8px;font-size:.74rem;letter-spacing:.09em;
+      text-transform:uppercase;opacity:.55}
+    #${SHEET_ID} ol{margin:0;padding-left:1.25em;font-size:.93rem;line-height:1.55}
+    #${SHEET_ID} ol li{margin:0 0 6px}
+    #${SHEET_ID} .btns{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px}
+    #${SHEET_ID} button{font:inherit;font-size:.9rem;font-weight:500;cursor:pointer;
+      box-sizing:border-box;touch-action:manipulation;
+      -webkit-tap-highlight-color:rgba(205,214,244,.18);
+      border-radius:12px;padding:10px 16px;border:1px solid rgba(205,214,244,.16);
+      background:rgba(205,214,244,.07);color:#cdd6f4;transition:background .15s}
+    #${SHEET_ID} button:hover{background:rgba(205,214,244,.15)}
+    #${SHEET_ID} button.go{background:var(--tone,#89b4fa);color:#11111b;
+      border-color:transparent;font-weight:600}
+    #${SHEET_ID} button.go:hover{filter:brightness(1.12)}
+    #${SHEET_ID} button:focus-visible{outline:2px solid #89b4fa;outline-offset:2px}
+    /* Ausblenden. Die Zeile animation:none ist noetig, weil die
+       Einblend-Animation mit fill-mode both ihren Endzustand festhaelt und
+       sonst jede Deckkraft hier ueberstimmt. Zeigerereignisse bleiben AN:
+       das unsichtbare Blatt ist in dieser Zeit der Schild, der den
+       nachlaufenden Klick abfaengt. (Kein Backtick in diesem Kommentar - er
+       steht in einem Template-Literal und wuerde es beenden.) */
+    #${SHEET_ID}.zu{animation:none;opacity:0;transition:opacity .2s ease;
+      pointer-events:auto}
+    #${SHEET_ID}.zu .sheet{animation:none;opacity:0;transform:translateY(8px);
+      transition:opacity .2s ease,transform .2s ease}
+    @media (prefers-reduced-motion:reduce){
+      #${SHEET_ID}.zu,#${SHEET_ID}.zu .sheet{transition:none}}
+    @keyframes aurora-sheet-in{from{opacity:0}to{opacity:1}}
+    @keyframes aurora-sheet-rise{from{opacity:0;transform:translateY(14px) scale(.98)}
+      to{opacity:1;transform:none}}
+    @media (prefers-reduced-motion:reduce){
+      #${SHEET_ID},#${SHEET_ID} .sheet{animation:none}}
+    /* Auf dem Telefon nimmt das Blatt sonst ein Drittel des Bildschirms ein.
+       Alles eine Stufe kleiner, weniger Rand, flachere Knoepfe. */
+    @media (max-width:700px){
+      #${SHEET_ID}{place-items:end center;padding:0}
+      #${SHEET_ID} .sheet{width:100%;max-height:78vh;border-radius:18px 18px 0 0;
+        padding:15px 15px calc(13px + env(safe-area-inset-bottom))}
+      #${SHEET_ID} .hd{gap:9px;margin-bottom:4px}
+      #${SHEET_ID} .hd ha-icon{--mdc-icon-size:21px}
+      #${SHEET_ID} .x{margin:-4px -4px 0 0;padding:5px 8px;font-size:1rem}
+      #${SHEET_ID} h2{font-size:.96rem;line-height:1.28}
+      #${SHEET_ID} .sub{font-size:.74rem}
+      #${SHEET_ID} .why{margin-top:10px;font-size:.84rem;line-height:1.42}
+      #${SHEET_ID} .fixh{margin:12px 0 5px;font-size:.67rem}
+      #${SHEET_ID} ol{font-size:.84rem;line-height:1.42;padding-left:1.15em}
+      #${SHEET_ID} ol li{margin-bottom:4px}
+      #${SHEET_ID} .btns{gap:7px;margin-top:13px}
+      #${SHEET_ID} button{padding:8px 13px;font-size:.83rem;border-radius:10px}}
+  `;
+
+  const escHtml = (s) =>
+    String(s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // HA's router listens for this pair; a plain <a href> would reload the app.
+  const navigateTo = (path) => {
+    try {
+      history.pushState(null, "", path);
+      window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+    } catch (e) {
+      location.href = path;
+    }
+  };
+
+  const openMoreInfo = (entityId) => {
+    try {
+      const root = document.querySelector("home-assistant");
+      if (!root) return;
+      root.dispatchEvent(new CustomEvent("hass-more-info", {
+        detail: { entityId }, bubbles: true, composed: true,
+      }));
+    } catch (e) {
+      /* the sheet stays open, the reader loses nothing */
+    }
+  };
+
+  // Ein Blatt zu schliessen heisst NICHT einfach `remove()`: liegt der Fokus
+  // in dem Element, das aus dem Dokument fliegt, bleibt das Dokument auf dem
+  // iPhone ohne Fokus zurueck - und danach kommt kein Tippen mehr an. Genau
+  // genau das war der Befund vom Geraet: "klappt einmal, dann erst wieder
+  // nach einem App-Neustart".
+  // Also: erst den Fokus herausnehmen, dann entfernen. Und ueber ALLE Knoten
+  // laufen, nicht nur ueber den ersten mit der Kennung.
+  // Fenster, in dem die aus einer Beruehrung nachgereichten Mausereignisse
+  // ankommen. Kuerzer als jede bewusste zweite Beruehrung, laenger als der
+  // Nachlauf des Browsers.
+  const GEIST_MS = 400;
+  // So lange bleibt das geschlossene Blatt unsichtbar liegen und faengt ab.
+  // Muss laenger sein als der Nachlauf des Browsers (gemessen: bis ~300 ms).
+  const SCHILD_MS = 350;
+  let letztesZu = 0;
+
+  // Hartes Entfernen - fuer den Fall, dass sofort ein neues Blatt kommt.
+  const entferneBlaetter = () => {
+    for (const n of document.querySelectorAll("#" + SHEET_ID)) {
+      const a = document.activeElement;
+      if (a && a !== document.body && n.contains(a) && a.blur) {
+        try { a.blur(); } catch (e) { /* Fokus ist Beiwerk */ }
+      }
+      n.remove();
+    }
+    document.removeEventListener("keydown", onSheetKey, true);
+  };
+
+  // `geist` = das Schliessen kam aus einer Zeiger-/Beruehrungsgeste, auf die
+  // der Browser noch Mausereignisse nachreicht. Nur dann sperren - nach
+  // Escape gibt es keinen Geisterklick, und eine Sperre wuerde dort nur den
+  // naechsten ehrlichen Klick fressen (gemessen: Escape, dann Klick = nichts).
+  // 🔴 NICHT sofort entfernen. Eine Beruehrung erzeugt ihre Mausereignisse
+  //    SPAETER als die Zeigerereignisse: wer das Blatt waehrend `pointerup`
+  //    aus dem Dokument nimmt, reicht `mousedown`/`mouseup`/`click` an die
+  //    Karte darunter weiter - und die schaltet dann ("schliesse ich das
+  //    Blatt, geht das darunterliegende Fenster auf").
+  //    Nachgemessen vorher: je 1x mousedown, mouseup, click unten. Jetzt: 0.
+  //    Das Blatt bleibt darum sichtbar ausgeblendet, aber weiter fangend
+  //    liegen und geht erst danach.
+  const closeSheet = (geist) => {
+    const nodes = document.querySelectorAll("#" + SHEET_ID);
+    if (geist && nodes.length) letztesZu = performance.now();
+    document.removeEventListener("keydown", onSheetKey, true);
+    for (const n of nodes) {
+      if (n.dataset.zu) continue;                 // blendet schon aus
+      const a = document.activeElement;
+      if (a && a !== document.body && n.contains(a) && a.blur) {
+        try { a.blur(); } catch (e) { /* Fokus ist Beiwerk, nie ein Grund zu scheitern */ }
+      }
+      n.dataset.zu = String(Date.now());
+      n.__getan = 1;                              // nimmt selbst nichts mehr an
+      n.classList.add("zu");
+      setTimeout(() => { try { n.remove(); } catch (e) { /* schon weg */ } }, SCHILD_MS);
+    }
+  };
+
+  // Sicherheitsnetz: im Hintergrund friert das Telefon Zeitgeber ein. Ein
+  // Schild, dessen Zeitgeber nie feuert, wuerde alles abfangen - genau die
+  // Art unsichtbares Overlay, hinter dem man den Fehler ewig sucht.
+  const schildeAufraeumen = () => {
+    const jetzt = Date.now();
+    for (const n of document.querySelectorAll("#" + SHEET_ID + "[data-zu]")) {
+      if (jetzt - Number(n.dataset.zu) > SCHILD_MS + 1000) n.remove();
+    }
+  };
+  setInterval(schildeAufraeumen, 2000);
+  document.addEventListener("visibilitychange", schildeAufraeumen);
+
+  function onSheetKey(ev) {
+    // Nach Escape gibt es keinen nachlaufenden Klick - also auch keinen Grund,
+    // die Seite 350 ms lang abzuschirmen. Sofort weg.
+    if (ev.key === "Escape") { ev.stopPropagation(); entferneBlaetter(); }
+  }
+
+  // Fokus ist eine Tastatur-Hilfe. Auf dem Telefon bringt er nichts, kann die
+  // Seite verspringen lassen - und ist die halbe Miete des Fehlers oben.
+  const zeigerGeraet = (() => {
+    try { return window.matchMedia("(hover: hover) and (pointer: fine)").matches; }
+    catch (e) { return false; }
+  })();
+
+  const openSheet = (d, mitFokus) => {
+    entferneBlaetter();
+    const tone = d.c || "#89b4fa";
+    const wrap = document.createElement("div");
+    wrap.id = SHEET_ID;
+    wrap.innerHTML =
+      `<style>${SHEET_CSS}</style>` +
+      `<div class="sheet" role="dialog" aria-modal="true" style="--tone:${escHtml(tone)}">` +
+        `<div class="hd">` +
+          (d.i ? `<ha-icon icon="${escHtml(d.i)}" style="color:${escHtml(tone)}"></ha-icon>` : "") +
+          `<div class="txt"><h2>${escHtml(d.t || "")}</h2>` +
+          (d.s ? `<p class="sub">${escHtml(d.s)}</p>` : "") + `</div>` +
+          `<button class="x" data-close="1" aria-label="Schließen">✕</button>` +
+        `</div>` +
+        (d.w ? `<p class="why">${escHtml(d.w)}</p>` : "") +
+        (Array.isArray(d.f) && d.f.length
+          ? `<div class="fixh">Was du tun kannst</div><ol>` +
+            d.f.map((x) => `<li>${escHtml(x)}</li>`).join("") + `</ol>`
+          : "") +
+        `<div class="btns">` +
+          (d.n ? `<button class="go" data-go="${escHtml(d.n)}">${escHtml(d.nl || "Hin da")}</button>` : "") +
+          (d.e ? `<button data-mi="${escHtml(d.e)}">Gerät öffnen</button>` : "") +
+          `<button data-close="1">Schließen</button>` +
+        `</div>` +
+      `</div>`;
+
+    // Auch hier zaehlt der Zeiger, nicht der Klick: der Hintergrund ist ein
+    // schlichtes div, und dafuer erzeugt WebKit nicht verlaesslich einen Klick.
+    // `getan` sorgt dafuer, dass ein nachlaufender Klick nichts doppelt macht.
+    const wirken = (ev) => {
+      if (wrap.__getan) return;
+      // 🔴 Geisterklick: das Blatt geht bei `pointerup` auf, und der Klick, den
+      //    der Browser aus derselben Beruehrung NACHTRAEGLICH erzeugt, faellt
+      //    dann schon auf den frisch entstandenen Hintergrund - der schliesst
+      //    es im selben Wimpernschlag wieder. Ergebnis: es blitzt nur kurz auf.
+      //    Gemessen im Ereignisprotokoll: pointerup [ZEILE] -> click [DIV].
+      if (performance.now() - wrap.__geboren < GEIST_MS) return;
+      const t = ev.target;
+      const b = t && t.closest ? t.closest("button") : null;
+      if (!b) {
+        // Nur der Hintergrund schliesst - ein Tippen auf den Text nicht.
+        if (t === wrap || (t && t.id === SHEET_ID)) { wrap.__getan = 1; closeSheet(true); }
+        return;
+      }
+      wrap.__getan = 1;
+      if (b.dataset.close) { closeSheet(true); return; }
+      if (b.dataset.mi) { closeSheet(true); openMoreInfo(b.dataset.mi); return; }
+      if (b.dataset.go) { closeSheet(true); navigateTo(b.dataset.go); }
+    };
+    wrap.addEventListener("pointerup", wirken);
+    wrap.addEventListener("click", wirken);
+
+    wrap.__geboren = performance.now();
+    document.body.appendChild(wrap);
+    document.addEventListener("keydown", onSheetKey, true);
+    if (mitFokus || zeigerGeraet) {
+      const first = wrap.querySelector("button.go") || wrap.querySelector("button.x");
+      if (first) first.focus();
+    }
+  };
+
+  // Capture-Phase + composedPath: die markierte Zeile liegt im Schatten-DOM
+  // der Karte, wo ein gewoehnlicher Horcher am document sie nie zu sehen bekommt.
+  const markedIn = (ev) => {
+    const path = ev.composedPath ? ev.composedPath() : [];
+    for (const el of path) {
+      if (el && el.dataset && (el.dataset.auroraDetail || el.dataset.auroraNav)) return el;
+      if (el === document) break;
+    }
+    return null;
+  };
+
+  // EIN Eingang fuer alle Wege (Zeiger, Klick, Tastatur, `onclick`-Attribut).
+  // Liegt schon ein Blatt oben, passiert nichts - so kann derselbe Tipp nicht
+  // ueber zwei Wege doppelt oeffnen.
+  const openFrom = (el, mitFokus) => {
+    if (document.getElementById(SHEET_ID)) return false;
+    // Gerade erst zugemacht? Dann ist das hier der Geisterklick derselben
+    // Beruehrung und kein neuer Wunsch.
+    if (performance.now() - letztesZu < GEIST_MS) return false;
+    let payload;
+    try {
+      payload = JSON.parse(el.dataset.auroraDetail);
+    } catch (e) {
+      // 🔴 Ein stiller catch macht aus einem Fehler ein Nichts-passiert.
+      console.warn("[aurora] Detail-Nutzlast unlesbar:", e, el.dataset.auroraDetail);
+      return false;
+    }
+    openSheet(payload, mitFokus);
+    return true;
+  };
+
+  // Zwei Markierungen, ein Weg: `data-aurora-nav` springt, `data-aurora-detail`
+  // klappt auf. Alles andere - Zeigerkette, Geisterklick-Sperre, Tastatur -
+  // gilt fuer beide gleich.
+  let letzteNav = 0;
+  const actOn = (el, mitFokus) => {
+    const ziel = el.dataset.auroraNav;
+    if (ziel) {
+      // Derselbe Tipp darf nicht zweimal in die Geschichte schreiben.
+      if (performance.now() - letzteNav < GEIST_MS) return false;
+      letzteNav = performance.now();
+      closeSheet();
+      navigateTo(ziel);
+      return true;
+    }
+    return openFrom(el, mitFokus);
+  };
+
+  // ── Antippen ueber die Zeigerkette, nicht ueber den Klick ────────────────
+  // WebKit erzeugt einen `click` nur fuer Elemente, die es fuer anklickbar
+  // haelt - und selbst mit `onclick` blieb es auf dem iPhone beim ersten Mal.
+  // Darum werten wir pointerdown/pointerup selbst aus. Ein Tippen ist kurz und
+  // bleibt fast auf der Stelle; alles andere ist Wischen und wird verworfen -
+  // sonst oeffnet jedes Scrollen, das auf einer Zeile beginnt, das Blatt.
+  const TAP_SLOP = 12;     // px
+  const TAP_MS = 900;      // laenger ist Halten
+  const tip = { s: null, weg: 0 };
+
+  const tipAn = (el, x, y) => { tip.s = { el, x, y, t: Date.now() }; tip.weg = 0; };
+  const tipZieht = (x, y) => {
+    if (!tip.s) return;
+    tip.weg = Math.max(tip.weg, Math.abs(x - tip.s.x), Math.abs(y - tip.s.y));
+  };
+  const tipAus = (ev) => {
+    const s = tip.s;
+    if (!s || markedIn(ev) !== s.el) return;
+    tip.s = null;
+    if (Date.now() - s.t > TAP_MS) return;     // gehalten, kein Tippen
+    if (tip.weg > TAP_SLOP) return;            // gewischt, also gescrollt
+    ev.stopPropagation();
+    actOn(s.el, false);
+  };
+
+  document.addEventListener("pointerdown", (ev) => {
+    const el = markedIn(ev);
+    if (el) tipAn(el, ev.clientX, ev.clientY); else tip.s = null;
+  }, true);
+  document.addEventListener("pointermove", (ev) => tipZieht(ev.clientX, ev.clientY), true);
+  document.addEventListener("pointerup", tipAus, true);
+  // 🔴 `pointercancel` NICHT als Abbruch werten: der Browser schickt es, sobald
+  //    er sich das Scrollen offenhaelt - bei einem gewoehnlichen Tippen auf eine
+  //    Zeile ohne `touch-action: manipulation` also fast immer. Wer hier den
+  //    Merker loescht, hat einen Knopf gebaut, der nie ausloest (gemessen).
+  //    Die Beruehrungsereignisse laufen weiter und entscheiden; gewischt wird
+  //    ueber die Strecke aussortiert, nicht ueber den Abbruch.
+  document.addEventListener("touchstart", (ev) => {
+    const el = markedIn(ev);
+    const t = ev.touches && ev.touches[0];
+    if (el && t) tipAn(el, t.clientX, t.clientY);
+  }, true);
+  document.addEventListener("touchmove", (ev) => {
+    const t = ev.touches && ev.touches[0];
+    if (t) tipZieht(t.clientX, t.clientY);
+  }, true);
+  document.addEventListener("touchend", tipAus, true);
+  document.addEventListener("touchcancel", () => { tip.s = null; }, true);
+
+  // Der Klick bleibt als zweiter Weg stehen (Maus, Tastatur-Enter, aeltere
+  // Browser ohne Zeigerereignisse). `openFrom` verhindert das Doppelte.
+  const handleDetail = (ev, mitFokus) => {
+    const hit = markedIn(ev);
+    if (!hit) return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    actOn(hit, mitFokus);
+  };
+  document.addEventListener("click", (ev) => handleDetail(ev, false), true);
+  // Die Zeilen tragen role="button", also muessen Enter und Leertaste wirken -
+  // sonst verspricht die Beschriftung etwas, das die Tastatur nicht einloest.
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter" && ev.key !== " " && ev.key !== "Spacebar") return;
+    if (!markedIn(ev)) return;
+    handleDetail(ev, true);
+  }, true);
+
+  // Oeffentlicher Eingang fuer das `onclick`-Attribut an der Zeile. Das
+  // Attribut bleibt: es ist fuer WebKit das Signal "dieses Element ist
+  // anklickbar" und sorgt fuer die Tipp-Rueckmeldung.
+  window.auroraDetail = (elOrData) => {
+    try {
+      if (elOrData && elOrData.dataset &&
+          (elOrData.dataset.auroraDetail || elOrData.dataset.auroraNav)) {
+        actOn(elOrData, false);
+        return;
+      }
+      if (elOrData && typeof elOrData === "object" &&
+          !document.getElementById(SHEET_ID)) openSheet(elOrData, false);
+    } catch (e) {
+      console.warn("[aurora] Detailblatt liess sich nicht oeffnen:", e);
+    }
+  };
+
+  // Eigener Name fuer den Sprung - im Kartentext liest sich `auroraNav`
+  // richtiger als `auroraDetail`, es ist aber derselbe Eingang.
+  window.auroraNav = (el) => window.auroraDetail(el);
+
+
   sweep();
   aufbauBeobachten();
   setInterval(sweep, 4000);
@@ -895,5 +1329,5 @@
     setTimeout(sweep, 300);
     aufbauBeobachten();
   });
-  console.info("%c AURORA-EFFECTS %c v2.17.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.26.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
