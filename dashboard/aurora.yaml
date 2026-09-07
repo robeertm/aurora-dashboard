@@ -98,6 +98,34 @@ button_card_templates:
       - color: "#a6adc8"
       - margin-top: 2px
 
+  # Same chip, small enough for two side by side on a phone. Its own template
+  # so the 20-odd chips elsewhere keep their size.
+  aurora_chip_kompakt:
+    template: aurora_chip
+    size: 18px
+    styles:
+      card:
+      - height: 54px
+      - padding: 8px 10px
+      grid:
+      - grid-template-columns: 34px 1fr
+      img_cell:
+      - width: 30px
+      - height: 30px
+      - border-radius: 9px
+      name:
+      - font-size: 16px
+      label:
+      - font-size: 9px
+      - letter-spacing: .06em
+      - margin-top: 1px
+    extra_styles: |
+      @media (max-width: 620px) {
+        ha-card { height: 50px !important; padding: 6px 8px !important; }
+        #name   { font-size: 15px !important; }
+        #label  { font-size: 8.5px !important; letter-spacing: .04em !important; }
+      }
+
   aurora_metric:
     template: aurora_base
     show_icon: true
@@ -1049,51 +1077,228 @@ button_card_templates:
 
   aurora_person:
     template: aurora_base
+    # Both on: button-card only draws the icon when there is NO entity_picture.
+    # So a household with avatars gets its photos, one without gets the icon —
+    # nobody has to change a line.
     show_entity_picture: true
+    show_icon: true
     show_name: true
     show_state: true
+    show_label: true
+    size: 26px
+    # button-card 7: once `update_timer` is set it REPLACES the entity update,
+    # it does not add to it. Keep it short or an arrival shows up late.
+    # It is needed because the card's look depends on elapsed time, and
+    # `last_changed` is exactly what does not change while time passes.
+    update_timer: 10s
     tap_action:
       action: more-info
+    icon: |
+      [[[
+        const st = entity ? entity.state : 'unknown';
+        if (st !== 'home' && st !== 'not_home') return 'mdi:help-circle-outline';
+        return st === 'home' ? 'mdi:home-account' : 'mdi:walk';
+      ]]]
     state_display: |
       [[[
-        if (entity.state === 'home') return 'Home';
-        if (entity.state === 'not_home') return 'Away';
-        return entity.state;
+        const st = entity ? entity.state : 'unknown';
+        if (st === 'home')     return 'Home';
+        if (st === 'not_home') return 'Away';
+        if (st === 'unknown' || st === 'unavailable') return 'Unknown';
+        return st;
+      ]]]
+    label: |
+      [[[
+        const st = entity ? entity.state : 'unknown';
+        if (st !== 'home' && st !== 'not_home') return '';
+        const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;
+        if (min < 2)  return 'just now';
+        if (min < 60) return 'for ' + Math.round(min) + ' min';
+        const h = min / 60;
+        if (h < 24)   return 'for ' + (h < 10 ? h.toFixed(1) : Math.round(h)) + ' h';
+        const d = Math.floor(h / 24);
+        return 'for ' + d + (d === 1 ? ' day' : ' days');
       ]]]
     styles:
       grid:
-      - grid-template-areas: "'i' 'n' 's'"
-      - grid-template-rows: 1fr min-content min-content
+      - grid-template-areas: "'i' 'n' 's' 'l'"
+      - grid-template-rows: min-content min-content min-content min-content
+      - align-content: center
+      - gap: "0"
       card:
-      - height: 132px
-      - padding: 14px 8px
+      - height: 104px
+      - padding: 10px 6px
+      # Four steps per direction. The step carries COLOUR and AMPLITUDE, the
+      # beat is the same for every card — different speeds side by side read
+      # as noise, not as information.
+      - --aur-farbe: |
+          [[[
+            const st = entity ? entity.state : 'unknown';
+            const bek = (st === 'home' || st === 'not_home');
+            if (!bek) return '#6c7086';
+            const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;
+            const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;
+            return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']
+                                  : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];
+          ]]]
+      - --aur-lo: |
+          [[[
+            const e = entity, st = e ? e.state : 'unknown';
+            const min = (st === 'home' || st === 'not_home')
+              ? (Date.now() - new Date(e.last_changed).getTime()) / 60000 : 1e9;
+            return String([0.18, 0.15, 0.13, 0.11][min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3]);
+          ]]]
+      - --aur-hi: |
+          [[[
+            const e = entity, st = e ? e.state : 'unknown';
+            const min = (st === 'home' || st === 'not_home')
+              ? (Date.now() - new Date(e.last_changed).getTime()) / 60000 : 1e9;
+            return String([0.62, 0.54, 0.46, 0.38][min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3]);
+          ]]]
+      # Peak for "reduce motion": same beat, flatter swing.
+      - --aur-mid: |
+          [[[
+            const e = entity, st = e ? e.state : 'unknown';
+            const min = (st === 'home' || st === 'not_home')
+              ? (Date.now() - new Date(e.last_changed).getTime()) / 60000 : 1e9;
+            const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;
+            const lo = [0.18, 0.15, 0.13, 0.11][s], hi = [0.62, 0.54, 0.46, 0.38][s];
+            return (lo + 0.5 * (hi - lo)).toFixed(3);
+          ]]]
+      - --aur-kante: |
+          [[[
+            const st = entity ? entity.state : 'unknown';
+            const bek = (st === 'home' || st === 'not_home');
+            if (!bek) return 'color-mix(in srgb, #6c7086 95%, transparent)';
+            const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;
+            const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;
+            const c = (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']
+                                     : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];
+            return 'color-mix(in srgb, ' + c + ' 95%, transparent)';
+          ]]]
+      # A CONSTANT string, like aurora_window. A value recomputed on every
+      # render restarts the animation; the cards are created in the same frame
+      # and therefore run in step anyway (measured: 0 ms apart).
+      - --aurora-person-anim: |
+          [[[
+            const st = entity ? entity.state : 'unknown';
+            return (st === 'home' || st === 'not_home')
+              ? 'aurora-person-puls 3s ease-in-out infinite' : 'none';
+          ]]]
+      - border: |
+          [[[
+            const st = entity ? entity.state : 'unknown';
+            const bek = (st === 'home' || st === 'not_home');
+            const min = bek ? (Date.now() - new Date(entity.last_changed).getTime()) / 60000 : 1e9;
+            const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;
+            const c = !bek ? '#6c7086'
+              : (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']
+                               : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];
+            return '1px solid color-mix(in srgb, ' + c + ' 40%, transparent)';
+          ]]]
       entity_picture:
-      - width: 58px
-      - height: 58px
+      - width: 28px
+      - height: 28px
       - border-radius: 50%
-      - border: "2px solid #585b70"
-      - transition: all .3s ease
+      - border: |
+          [[[
+            const st = entity ? entity.state : 'unknown';
+            const bek = (st === 'home' || st === 'not_home');
+            const min = bek ? (Date.now() - new Date(entity.last_changed).getTime()) / 60000 : 1e9;
+            const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;
+            return '2px solid ' + (!bek ? '#6c7086'
+              : (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']
+                               : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s]);
+          ]]]
+      # The image cell needs its OWN size: button-card positions the icon
+      # absolutely, so without a height the cell collapses to 2 px and the
+      # icon becomes a dot.
+      img_cell:
+      - width: 28px
+      - height: 28px
+      - align-self: center
+      - justify-self: center
+      - margin-bottom: 2px
+      icon:
+      - color: |
+          [[[
+            const st = entity ? entity.state : 'unknown';
+            const bek = (st === 'home' || st === 'not_home');
+            if (!bek) return '#6c7086';
+            const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;
+            const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;
+            return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']
+                                  : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];
+          ]]]
       name:
-      - font-size: 13px
-      - margin-top: 8px
+      - font-size: 17px
+      - font-weight: 700
+      - color: "#cdd6f4"
+      - line-height: 1.15
+      - margin-top: 4px
       state:
-      - font-size: 10.5px
-      - color: "#a6adc8"
-      - letter-spacing: .06em
+      - font-size: 12px
+      - font-weight: 700
+      - letter-spacing: .08em
       - text-transform: uppercase
-    state:
-    - value: home
-      styles:
-        entity_picture:
-        - border: "2px solid #a6e3a1"
-        - box-shadow: 0 0 18px -2px rgba(166,227,161,0.55)
-        state:
-        - color: "#a6e3a1"
-    - value: not_home
-      styles:
-        entity_picture:
-        - filter: grayscale(60%)
+      - margin-top: 3px
+      - color: |
+          [[[
+            const st = entity ? entity.state : 'unknown';
+            const bek = (st === 'home' || st === 'not_home');
+            if (!bek) return '#6c7086';
+            const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;
+            const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;
+            return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']
+                                  : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];
+          ]]]
+      label:
+      - font-size: 10px
+      - color: "#9399b2"
+      - letter-spacing: .02em
+      - margin-top: 2px
+    # A pseudo-element on `ha-card` is NEVER painted: ha-card is a shadow host
+    # and a host's pseudo-element is not slottable. `#container` lives inside
+    # button-card's own shadow root, is a plain div, and paints.
+    # Only `opacity` is animated: it runs on the compositor. Animating
+    # box-shadow or background repaints the whole card every frame, which
+    # stutters on a phone next to the animated sky.
+    extra_styles: |
+      #container { position: relative; }
+      #container::before {
+        content: "";
+        position: absolute;
+        inset: -10px -6px;
+        border-radius: var(--ha-card-border-radius, 18px);
+        background: var(--aur-farbe, #6c7086);
+        border: 1px solid var(--aur-kante, transparent);
+        opacity: var(--aur-lo, .12);
+        z-index: -1;
+        pointer-events: none;
+        animation: var(--aurora-person-anim, none);
+      }
+      @keyframes aurora-person-puls {
+        0%, 100% { opacity: var(--aur-lo, .12); }
+        50%      { opacity: var(--aur-hi, .46); }
+      }
+      /* "Reduce motion" may switch off decoration, but this pulse carries
+         information. Same beat and phase, half the swing — only the
+         animation NAME is swapped. */
+      @keyframes aurora-person-ruhig {
+        0%, 100% { opacity: var(--aur-lo, .12); }
+        50%      { opacity: var(--aur-mid, .28); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #container::before { animation-name: aurora-person-ruhig; }
+      }
 
+      @media (max-width: 620px) {
+        ha-card { height: 92px !important; padding: 8px 4px !important; }
+        #container::before { inset: -8px -4px !important; }
+        #name   { font-size: 15px !important; margin-top: 3px !important; }
+        #state  { font-size: 11px !important; letter-spacing: .06em !important; }
+        #label  { font-size: 9px !important; }
+      }
   aurora_window:
     template: aurora_base
     show_icon: true
@@ -2324,173 +2529,179 @@ views:
           time_format: 24
           forecast_rows: 4
           animated_icon: false
-      - type: grid
-        columns: 2
-        square: false
+      - type: vertical-stack
         cards:
-        - type: custom:button-card
-          template: aurora_chip
-          icon: mdi:lightbulb-group
-          label: Lights on
-          name: |
-            [[[
-              return String(Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s =>
-                s.entity_id.startsWith('light.') && s.state === 'on').length);
-            ]]]
-          tap_action:
-            action: navigate
-            navigation_path: /aurora-home/licht
-          styles:
-            icon:
-            - color: |
-                [[[
-                  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s =>
-                    s.entity_id.startsWith('light.') && s.state === 'on').length;
-                  return n > 0 ? '#f9e2af' : '#585b70';
-                ]]]
-        - type: custom:button-card
-          template: aurora_chip
-          icon: mdi:window-open-variant
-          label: Windows open
-          name: |
-            [[[
-              return String(Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
-                s.entity_id.startsWith('binary_sensor.') &&
-                ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
-                s.state === 'on').length);
-            ]]]
-          tap_action:
-            action: navigate
-            navigation_path: /aurora-home/klima
-          styles:
-            icon:
-            - color: |
-                [[[
-                  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
-                    s.entity_id.startsWith('binary_sensor.') &&
-                    ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
-                    s.state === 'on').length;
-                  return n > 0 ? '#fab387' : '#585b70';
-                ]]]
-            - animation: |
-                [[[
-                  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
-                    s.entity_id.startsWith('binary_sensor.') &&
-                    ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
-                    s.state === 'on').length;
-                  return n > 0 ? 'aurora-pulse 1.8s ease-in-out infinite' : 'none';
-                ]]]
-        - type: custom:button-card
-          template: aurora_chip
-          icon: mdi:account-group
-          label: At home
-          name: |
-            [[[
-              return String(Object.keys(hass.states).filter(_i=>_i.startsWith('person.')).map(_i=>hass.states[_i]).filter(s =>
-                s.entity_id.startsWith('person.') && s.state === 'home').length);
-            ]]]
-          styles:
-            icon:
-            - color: "#a6e3a1"
-        - type: custom:button-card
-          template: aurora_chip
-          icon: mdi:battery-alert-variant-outline
-          label: Batteries ≤ 20 %
-          name: |
-            [[[
-              return String(Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
-                s.entity_id.startsWith('sensor.') &&
-                s.attributes.device_class === 'battery' &&
-                parseFloat(s.state) <= 20).length);
-            ]]]
-          tap_action:
-            action: navigate
-            navigation_path: /aurora-home/system
-          styles:
-            icon:
-            - color: |
-                [[[
-                  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
-                    s.entity_id.startsWith('sensor.') &&
-                    s.attributes.device_class === 'battery' &&
-                    parseFloat(s.state) <= 20).length;
-                  return n > 0 ? '#f38ba8' : '#585b70';
-                ]]]
-            - animation: |
-                [[[
-                  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
-                    s.entity_id.startsWith('sensor.') &&
-                    s.attributes.device_class === 'battery' &&
-                    parseFloat(s.state) <= 20).length;
-                  return n > 0 ? 'aurora-pulse 1.2s ease-in-out infinite' : 'none';
-                ]]]
-        - type: custom:button-card
-          template: aurora_chip
-          icon: mdi:package-up
-          label: Updates
-          name: |
-            [[[
-              return String(Object.keys(hass.states).filter(_i=>_i.startsWith('update.')).map(_i=>hass.states[_i]).filter(s =>
-                s.entity_id.startsWith('update.') && s.state === 'on').length);
-            ]]]
-          tap_action:
-            action: navigate
-            navigation_path: /aurora-home/system
-          styles:
-            icon:
-            - color: |
-                [[[
-                  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('update.')).map(_i=>hass.states[_i]).filter(s =>
-                    s.entity_id.startsWith('update.') && s.state === 'on').length;
-                  return n > 0 ? '#89b4fa' : '#585b70';
-                ]]]
-        - type: custom:button-card
-          template: aurora_chip
-          icon: mdi:music
-          label: Media playing
-          name: |
-            [[[
-              return String(Object.keys(hass.states).filter(_i=>_i.startsWith('media_player.')).map(_i=>hass.states[_i]).filter(s =>
-                s.entity_id.startsWith('media_player.') && s.state === 'playing').length);
-            ]]]
-          styles:
-            icon:
-            - color: |
-                [[[
-                  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('media_player.')).map(_i=>hass.states[_i]).filter(s =>
-                    s.entity_id.startsWith('media_player.') && s.state === 'playing').length;
-                  return n > 0 ? '#cba6f7' : '#585b70';
-                ]]]
-        - type: custom:button-card
-          template: aurora_chip
-          icon: mdi:toggle-switch
-          label: Switches on
-          name: |
-            [[[
-              return String(Object.keys(hass.states).filter(_i=>_i.startsWith('switch.')).map(_i=>hass.states[_i]).filter(s =>
-                s.entity_id.startsWith('switch.') && s.state === 'on').length);
-            ]]]
-          styles:
-            icon:
-            - color: "#a6e3a1"
-        - type: custom:button-card
-          template: aurora_chip
-          icon: mdi:home-thermometer
-          label: Ø indoor
-          name: |
-            [[[
-              const vals = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.room_temp_')).map(_i=>hass.states[_i])
-                .filter(s => s.entity_id.startsWith('sensor.room_temp_'))
-                .map(s => parseFloat(s.state)).filter(v => !isNaN(v));
-              if (!vals.length) return '–';
-              return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) + ' °C';
-            ]]]
-          tap_action:
-            action: navigate
-            navigation_path: /aurora-home/klima
-          styles:
-            icon:
-            - color: "#94e2d5"
+        - type: horizontal-stack
+          cards:
+          - type: custom:button-card
+            template: aurora_chip_kompakt
+            icon: mdi:lightbulb-group
+            label: Lights on
+            name: |
+              [[[
+                return String(Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s =>
+                  s.entity_id.startsWith('light.') && s.state === 'on').length);
+              ]]]
+            tap_action:
+              action: navigate
+              navigation_path: /aurora-home/licht
+            styles:
+              icon:
+              - color: |
+                  [[[
+                    const n = Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s =>
+                      s.entity_id.startsWith('light.') && s.state === 'on').length;
+                    return n > 0 ? '#f9e2af' : '#585b70';
+                  ]]]
+          - type: custom:button-card
+            template: aurora_chip_kompakt
+            icon: mdi:window-open-variant
+            label: Windows open
+            name: |
+              [[[
+                return String(Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
+                  s.entity_id.startsWith('binary_sensor.') &&
+                  ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
+                  s.state === 'on').length);
+              ]]]
+            tap_action:
+              action: navigate
+              navigation_path: /aurora-home/klima
+            styles:
+              icon:
+              - color: |
+                  [[[
+                    const n = Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
+                      s.entity_id.startsWith('binary_sensor.') &&
+                      ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
+                      s.state === 'on').length;
+                    return n > 0 ? '#fab387' : '#585b70';
+                  ]]]
+              - animation: |
+                  [[[
+                    const n = Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>
+                      s.entity_id.startsWith('binary_sensor.') &&
+                      ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&
+                      s.state === 'on').length;
+                    return n > 0 ? 'aurora-pulse 1.8s ease-in-out infinite' : 'none';
+                  ]]]
+        - type: horizontal-stack
+          cards:
+          - type: custom:button-card
+            template: aurora_chip_kompakt
+            icon: mdi:account-group
+            label: At home
+            name: |
+              [[[
+                return String(Object.keys(hass.states).filter(_i=>_i.startsWith('person.')).map(_i=>hass.states[_i]).filter(s =>
+                  s.entity_id.startsWith('person.') && s.state === 'home').length);
+              ]]]
+            styles:
+              icon:
+              - color: "#a6e3a1"
+          - type: custom:button-card
+            template: aurora_chip_kompakt
+            icon: mdi:battery-alert-variant-outline
+            label: Batteries ≤ 20 %
+            name: |
+              [[[
+                return String(Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
+                  s.entity_id.startsWith('sensor.') &&
+                  s.attributes.device_class === 'battery' &&
+                  parseFloat(s.state) <= 20).length);
+              ]]]
+            tap_action:
+              action: navigate
+              navigation_path: /aurora-home/system
+            styles:
+              icon:
+              - color: |
+                  [[[
+                    const n = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
+                      s.entity_id.startsWith('sensor.') &&
+                      s.attributes.device_class === 'battery' &&
+                      parseFloat(s.state) <= 20).length;
+                    return n > 0 ? '#f38ba8' : '#585b70';
+                  ]]]
+              - animation: |
+                  [[[
+                    const n = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>
+                      s.entity_id.startsWith('sensor.') &&
+                      s.attributes.device_class === 'battery' &&
+                      parseFloat(s.state) <= 20).length;
+                    return n > 0 ? 'aurora-pulse 1.2s ease-in-out infinite' : 'none';
+                  ]]]
+        - type: horizontal-stack
+          cards:
+          - type: custom:button-card
+            template: aurora_chip_kompakt
+            icon: mdi:package-up
+            label: Updates
+            name: |
+              [[[
+                return String(Object.keys(hass.states).filter(_i=>_i.startsWith('update.')).map(_i=>hass.states[_i]).filter(s =>
+                  s.entity_id.startsWith('update.') && s.state === 'on').length);
+              ]]]
+            tap_action:
+              action: navigate
+              navigation_path: /aurora-home/system
+            styles:
+              icon:
+              - color: |
+                  [[[
+                    const n = Object.keys(hass.states).filter(_i=>_i.startsWith('update.')).map(_i=>hass.states[_i]).filter(s =>
+                      s.entity_id.startsWith('update.') && s.state === 'on').length;
+                    return n > 0 ? '#89b4fa' : '#585b70';
+                  ]]]
+          - type: custom:button-card
+            template: aurora_chip_kompakt
+            icon: mdi:music
+            label: Media playing
+            name: |
+              [[[
+                return String(Object.keys(hass.states).filter(_i=>_i.startsWith('media_player.')).map(_i=>hass.states[_i]).filter(s =>
+                  s.entity_id.startsWith('media_player.') && s.state === 'playing').length);
+              ]]]
+            styles:
+              icon:
+              - color: |
+                  [[[
+                    const n = Object.keys(hass.states).filter(_i=>_i.startsWith('media_player.')).map(_i=>hass.states[_i]).filter(s =>
+                      s.entity_id.startsWith('media_player.') && s.state === 'playing').length;
+                    return n > 0 ? '#cba6f7' : '#585b70';
+                  ]]]
+        - type: horizontal-stack
+          cards:
+          - type: custom:button-card
+            template: aurora_chip_kompakt
+            icon: mdi:toggle-switch
+            label: Switches on
+            name: |
+              [[[
+                return String(Object.keys(hass.states).filter(_i=>_i.startsWith('switch.')).map(_i=>hass.states[_i]).filter(s =>
+                  s.entity_id.startsWith('switch.') && s.state === 'on').length);
+              ]]]
+            styles:
+              icon:
+              - color: "#a6e3a1"
+          - type: custom:button-card
+            template: aurora_chip_kompakt
+            icon: mdi:home-thermometer
+            label: Ø indoor
+            name: |
+              [[[
+                const vals = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.room_temp_')).map(_i=>hass.states[_i])
+                  .filter(s => s.entity_id.startsWith('sensor.room_temp_'))
+                  .map(s => parseFloat(s.state)).filter(v => !isNaN(v));
+                if (!vals.length) return '–';
+                return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) + ' °C';
+              ]]]
+            tap_action:
+              action: navigate
+              navigation_path: /aurora-home/klima
+            styles:
+              icon:
+              - color: "#94e2d5"
     - type: vertical-stack
       cards:
       - type: custom:auto-entities

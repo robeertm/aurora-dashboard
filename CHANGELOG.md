@@ -5,6 +5,45 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.28.0
+
+- **The presence card says how long — and breathes while it says it.** Name and
+  state are noticeably larger, and a third line gives the exact figure: *just
+  now*, *for 40 min*, *for 5.0 h*, *for 3 days*. The card's colour steps with
+  that time — green at home, red away, vivid right after a change and calm once
+  it has settled — and the whole tile pulses in that colour. The step carries
+  colour and amplitude; the beat is the same for every card, because different
+  speeds side by side read as noise rather than information.
+- **The empty image row is gone.** The card asked for an `entity_picture` and
+  left a 38 px row blank when a person had none. It now shows an icon there
+  instead, and still shows the photo when there is one — button-card draws the
+  icon only when no picture exists, so both cases work without a setting.
+- **Two chips per row on a phone.** The overview's chip block put one chip per
+  row on a narrow screen and ten of them filled 732 px. They now sit two abreast
+  in a slightly shorter tile, which halves the block. Nothing changes on a
+  desktop: the chips stay exactly where they were.
+- **Three per row would have been worse.** Measured, not guessed: at three the
+  tiles drop to 133 px and a longer label is cut off. So it is always two, and
+  an odd one out gets its own full-width row rather than leaving a hole.
+
+### Under the hood, in case you build on this
+
+- A pseudo-element on `ha-card` is **never painted** — `ha-card` is a shadow host
+  and a host's pseudo-element is not slottable. Measured on a running dashboard:
+  moving the fill from 10 % to 60 % opacity changed the painted pixel by 3 of
+  255 there, and by 161 on `#container::before` inside button-card's own shadow
+  root. Compute-time styles look perfectly healthy either way.
+- Only `opacity` is animated. `box-shadow` and `background-color` repaint the
+  whole card every frame on the main thread, which stutters on a phone next to
+  the animated sky.
+- The animation string is **constant**. A value recomputed on every render
+  restarts the animation; the cards are created in the same frame and run in
+  step anyway (measured 0 ms apart across three cards).
+- `update_timer` in button-card 7 **replaces** the entity update rather than
+  adding to it, so it is kept short — otherwise an arrival would show up late.
+- `prefers-reduced-motion` keeps the pulse, at half the swing and the same beat.
+  The setting may switch off decoration; this pulse carries information.
+
 ## 2.27.1
 
 - **The weather card is no longer forced into German.** `locale: de` sat hard-coded

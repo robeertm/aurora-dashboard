@@ -1,5 +1,10 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.28.0 — the presence card says how long, and breathes while it does. Name and
+ *            state are bigger, an icon fills the row the missing avatar left
+ *            empty, and a colour that steps with elapsed time — green at home,
+ *            red away — pulses on ONE compositor property. The overview's chip
+ *            block now holds two chips per row on a phone instead of one.
  * v2.27.1 — no change to the helper itself; the version follows the dashboard,
  *            which lost two leftovers from the author's own house.
  * v2.27.0 — the sheet speaks the language of the interface: its own labels
@@ -1355,5 +1360,5 @@
     setTimeout(sweep, 300);
     aufbauBeobachten();
   });
-  console.info("%c AURORA-EFFECTS %c v2.27.1 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.28.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();
