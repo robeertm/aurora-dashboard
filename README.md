@@ -38,6 +38,29 @@ matters, and what you can do about it.</em></td>
 <p align="center"><em>All screenshots come from a throwaway instance with
 placeholder data — every name, room and value in them is made up.</em></p>
 
+> ### ⚠️ Please read before installing
+>
+> **This project is written with AI assistance.** The dashboard configuration,
+> the card templates and this README are largely AI-generated and reviewed by a
+> human, not the other way round. Treat it as a hobby project, not as audited
+> software.
+>
+> **It is provided "as is", with no warranty and no liability of any kind** —
+> for errors, for a broken dashboard, for wrong readings, or for anything that
+> follows from using it. **You use it at your own risk.**
+>
+> Two things deserve saying plainly:
+>
+> - **The cards act on your real home.** Buttons here call Home Assistant
+>   services: they switch lights, sockets and other devices. An entity id that
+>   does not match your setup will operate something you did not intend — check
+>   every id against your own system before trusting a card.
+> - **Back up your Lovelace configuration first.** Applying this replaces
+>   dashboard views. Keep a copy of what you had so you can go back.
+>
+> Not affiliated with, endorsed by, or supported by Home Assistant or Nabu Casa.
+
+
 ## Highlights
 
 - 🌅 **A sky that follows the sun, the weather and the season** — three
