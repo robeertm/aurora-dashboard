@@ -1,10 +1,34 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
- * v2.28.0 — the presence card says how long, and breathes while it does. Name and
- *            state are bigger, an icon fills the row the missing avatar left
- *            empty, and a colour that steps with elapsed time — green at home,
- *            red away — pulses on ONE compositor property. The overview's chip
- *            block now holds two chips per row on a phone instead of one.
+ * v2.32.0 — the trend lines are drawn thinner. The stroke width lives
+ *            here, not on the card: this sheet sets `path.line`, and CSS beats
+ *            the `line_width` a mini-graph-card asks for, so a card wanting a
+ *            thinner line never got one. 1.4 -> 1, the halo around the curve
+ *            turned down with it (2.5 px at .45 -> 1.4 px at .26) and the
+ *            background grid from .11 to .07, so a one-pixel line is not read
+ *            against a cage.
+ *
+ * v2.31.0 — the sparkline shows a SHAPE again: its y-scale follows the data
+ *            range with a little headroom instead of being anchored at zero.
+ *            Anchored at zero, a series idling between 2.3 and 2.4 % filled the
+ *            whole box and read as a solid block. A flat series now draws as a
+ *            centred horizontal line, which says exactly what it should.
+ * v2.30.0 — plots. `window.auroraSpark(values, colour)` draws one sparkline
+ *            and is used by BOTH the tiles in the dashboard and the sheet, so
+ *            the same series cannot be drawn two different ways. The sheet
+ *            takes a `plots` list of {n,u,c,d} and shows each with its current
+ *            value and its min/max. The y-scale has a floor: without it a
+ *            series idling between 0.00 and 0.02 % fills the whole tile.
+ * v2.29.0 — the sheet fits the phone: iOS counts its dynamic toolbar out of
+ *            `vh`, so a 78vh sheet reached past the bottom of the screen and
+ *            the last row sat under the edge. Now `dvh` (with vh as the older
+ *            fallback), more room under the safe area, and a button row that
+ *            sticks to the bottom so "close" is never scrolled away.
+ * v2.28.0 — the sheet can show plain FACTS, not only advice: `kv` is a list
+ *            of [label, value] pairs rendered as a two-column table under its
+ *            own heading. `f` stays what it was — a list of ACTIONS under
+ *            "what you can do" — so container CPU/RAM/net no longer has to
+ *            masquerade as a to-do list.
  * v2.27.1 — no change to the helper itself; the version follows the dashboard,
  *            which lost two leftovers from the author's own house.
  * v2.27.0 — the sheet speaks the language of the interface: its own labels
@@ -415,13 +439,13 @@
   `;
 
   const MINI = `
-    .graph__container__svg svg { filter: drop-shadow(0 0 2.5px rgba(180,190,254,0.45)); }
-    path.line { stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+    .graph__container__svg svg { filter: drop-shadow(0 0 1.4px rgba(180,190,254,0.26)); }
+    path.line { stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
     .graph__legend { font-size: 11px; letter-spacing: .02em; opacity: .85; }
     .graph__container__svg {
       background-image:
-        repeating-linear-gradient(to right, rgba(180,190,254,.11) 0 1px, transparent 1px 25%),
-        repeating-linear-gradient(to top,   rgba(180,190,254,.11) 0 1px, transparent 1px 25%);
+        repeating-linear-gradient(to right, rgba(180,190,254,.07) 0 1px, transparent 1px 25%),
+        repeating-linear-gradient(to top,   rgba(180,190,254,.07) 0 1px, transparent 1px 25%);
       background-position: left bottom;
     }
     .graph__labels.--secondary, .graph__labels { font-size: 10px !important; opacity: .75; }
@@ -948,8 +972,10 @@
   // aus der Karte. Home Assistant setzt <html lang> auf die Sprache des
   // Benutzers - danach richten wir uns, statt eine Sprache festzuschreiben.
   const WORTE = {
-    de: { tun: "Was du tun kannst", zu: "Schließen", geraet: "Gerät öffnen", hin: "Hin da" },
-    en: { tun: "What you can do", zu: "Close", geraet: "Open device", hin: "Take me there" },
+    de: { tun: "Was du tun kannst", zu: "Schließen", geraet: "Gerät öffnen", hin: "Hin da",
+          werte: "Kennzahlen", verlauf: "Verlauf der letzten Zeit" },
+    en: { tun: "What you can do", zu: "Close", geraet: "Open device", hin: "Take me there",
+          werte: "Details", verlauf: "Recent history" },
   };
   // 🔴 Erst beim Oeffnen nachsehen, nicht beim Laden: Home Assistant setzt
   //    <html lang> erst, wenn die Oberflaeche hochgekommen ist - dieses Modul
@@ -962,6 +988,59 @@
     } catch (e) { /* dann eben Englisch */ }
     return l.indexOf("de") === 0 ? WORTE.de : WORTE.en;
   };
+  // ── Sparkline ──────────────────────────────────────────────────────────
+  // EINE Zeichenfunktion fuer beides: die Kachel im Dashboard und das Blatt.
+  // Sie liegt hier und nicht im Karten-JS, weil eine zweite Kopie im
+  // Dashboard-YAML sofort auseinanderlaeuft. Die Karten rufen
+  // window.auroraSpark(...) und zeichnen nichts, wenn der Helfer fehlt.
+  //
+  // Die Y-Skala hat einen Boden (`floor`): ohne ihn blaest eine Reihe, die
+  // zwischen 0,00 und 0,02 % pendelt, das Rauschen auf volle Kachelhoehe auf
+  // und ein Leerlauf-Container sieht aus wie eine Lastspitze.
+  const auroraSpark = (werte, farbe, opt) => {
+    opt = opt || {};
+    const h = opt.h || 26, boden = opt.floor == null ? 1 : opt.floor;
+    const d = (werte || []).filter((v) => typeof v === "number" && isFinite(v));
+    if (d.length < 2) return "";
+    // 🔴 Die Skala haengt am WERTEBEREICH, nicht an der Null. Bei Null verankert
+    //    fuellt eine Reihe, die zwischen 2,3 und 2,4 % pendelt, die ganze
+    //    Flaeche - man sieht einen Block statt einer Kurve. Eine Sparkline
+    //    zeigt die FORM; den Absolutwert nennen Beschriftung und min/max.
+    //    Eine flache Reihe landet damit als waagerechte Linie in der Mitte,
+    //    was genau das Richtige aussagt: hier aendert sich nichts.
+    const lo0 = Math.min(...d), hi0 = Math.max(...d);
+    const bereich = hi0 - lo0;
+    const luft = bereich > 0 ? bereich * 0.22
+                             : Math.max(Math.abs(hi0) * 0.12, boden * 0.5, 0.5);
+    const min = lo0 - luft, max = hi0 + luft;
+    const spanne = (max - min) || 1;
+    const n = d.length;
+    const px = (i) => (n === 1 ? 0 : (i / (n - 1)) * 100);
+    const py = (v) => h - ((v - min) / spanne) * (h - 2) - 1;
+    let linie = "", flaeche = "M0," + h.toFixed(1);
+    d.forEach((v, i) => {
+      const x = px(i).toFixed(2), y = py(v).toFixed(2);
+      linie += (i ? " " : "") + x + "," + y;
+      flaeche += " L" + x + "," + y;
+    });
+    flaeche += " L100," + h.toFixed(1) + " Z";
+    const id = "g" + Math.random().toString(36).slice(2, 9);
+    return (
+      '<svg class="aspark" viewBox="0 0 100 ' + h + '" preserveAspectRatio="none"' +
+      ' aria-hidden="true" focusable="false">' +
+        '<defs><linearGradient id="' + id + '" x1="0" x2="0" y1="0" y2="1">' +
+          '<stop offset="0%" stop-color="' + farbe + '" stop-opacity=".26"/>' +
+          '<stop offset="100%" stop-color="' + farbe + '" stop-opacity="0"/>' +
+        '</linearGradient></defs>' +
+        '<path d="' + flaeche + '" fill="url(#' + id + ')"/>' +
+        '<polyline points="' + linie + '" fill="none" stroke="' + farbe + '"' +
+        ' stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"' +
+        ' vector-effect="non-scaling-stroke"/>' +
+      "</svg>"
+    );
+  };
+  try { window.auroraSpark = auroraSpark; } catch (e) { /* egal */ }
+
   const SHEET_CSS = `
     #${SHEET_ID}{position:fixed;inset:0;z-index:9999;display:grid;
       place-items:center;padding:16px;
@@ -971,7 +1050,7 @@
        gemessen 422 px auf einem 390-px-Bildschirm, das Blatt stand seitlich
        ueber. */
     #${SHEET_ID} .sheet{width:min(560px,100%);box-sizing:border-box;
-      max-height:86vh;overflow:auto;
+      max-height:86vh;max-height:86dvh;overflow-y:auto;overscroll-behavior:contain;
       /* The sheet hangs in <body>, outside HA's shadow trees - without an
          explicit stack it falls back to the browser default, which is a
          serif face. Found by looking at a screenshot, not by a test. */
@@ -995,6 +1074,24 @@
       font-family:ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.005em}
     #${SHEET_ID} .sub{margin:2px 0 0;font-size:.82rem;opacity:.62}
     #${SHEET_ID} .why{margin:14px 0 0;font-size:.93rem;line-height:1.5;opacity:.9}
+    /* Die Knopfzeile bleibt stehen, wenn der Inhalt laenger ist als das Blatt -
+       sonst muss man erst ans Ende scrollen, um schliessen zu koennen. */
+    #${SHEET_ID} .btns{position:sticky;bottom:-1px;margin-top:16px;
+      padding-top:12px;background:linear-gradient(to top,#1e1e2e 62%,rgba(30,30,46,0))}
+    /* Kennzahlen: zwei Spalten, Werte rechtsbuendig mit Tabellenziffern, damit
+       CPU/RAM/Netz untereinander vergleichbar bleiben. */
+    #${SHEET_ID} .pl{margin:10px 0 0}
+    #${SHEET_ID} .plh{display:flex;justify-content:space-between;align-items:baseline;
+      font-size:.76rem;opacity:.66;margin-bottom:2px}
+    #${SHEET_ID} .plh b{font-size:.86rem;opacity:1;font-variant-numeric:tabular-nums}
+    #${SHEET_ID} .aspark{display:block;width:100%;height:44px}
+    #${SHEET_ID} .plf{display:flex;justify-content:space-between;
+      font-size:.66rem;opacity:.42;font-variant-numeric:tabular-nums;margin-top:1px}
+    #${SHEET_ID} .kv{margin:10px 0 0;display:grid;grid-template-columns:auto 1fr;
+      gap:5px 14px;font-size:.86rem}
+    #${SHEET_ID} .kv dt{opacity:.6;white-space:nowrap}
+    #${SHEET_ID} .kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;
+      overflow-wrap:anywhere}
     #${SHEET_ID} .fixh{margin:18px 0 8px;font-size:.74rem;letter-spacing:.09em;
       text-transform:uppercase;opacity:.55}
     #${SHEET_ID} ol{margin:0;padding-left:1.25em;font-size:.93rem;line-height:1.55}
@@ -1031,14 +1128,20 @@
        Alles eine Stufe kleiner, weniger Rand, flachere Knoepfe. */
     @media (max-width:700px){
       #${SHEET_ID}{place-items:end center;padding:0}
-      #${SHEET_ID} .sheet{width:100%;max-height:78vh;border-radius:18px 18px 0 0;
-        padding:15px 15px calc(13px + env(safe-area-inset-bottom))}
+      /* 🔴 vh ist auf iOS die Hoehe OHNE die dynamische Leiste - ein Blatt mit
+         78vh reicht dort unter den Bildschirmrand, und die letzte Zeile klebt
+         unten fest. dvh misst, was wirklich sichtbar ist; vh bleibt als
+         Rueckfall fuer aeltere Browser davor stehen. */
+      #${SHEET_ID} .sheet{width:100%;max-height:78vh;max-height:82dvh;
+        border-radius:18px 18px 0 0;
+        padding:15px 15px calc(15px + env(safe-area-inset-bottom))}
       #${SHEET_ID} .hd{gap:9px;margin-bottom:4px}
       #${SHEET_ID} .hd ha-icon{--mdc-icon-size:21px}
       #${SHEET_ID} .x{margin:-4px -4px 0 0;padding:5px 8px;font-size:1rem}
       #${SHEET_ID} h2{font-size:.96rem;line-height:1.28}
       #${SHEET_ID} .sub{font-size:.74rem}
       #${SHEET_ID} .why{margin-top:10px;font-size:.84rem;line-height:1.42}
+      #${SHEET_ID} .kv{font-size:.78rem;gap:4px 10px}
       #${SHEET_ID} .fixh{margin:12px 0 5px;font-size:.67rem}
       #${SHEET_ID} ol{font-size:.84rem;line-height:1.42;padding-left:1.15em}
       #${SHEET_ID} ol li{margin-bottom:4px}
@@ -1170,6 +1273,26 @@
           `<button class="x" data-close="1" aria-label="${escHtml(W.zu)}">✕</button>` +
         `</div>` +
         (d.w ? `<p class="why">${escHtml(d.w)}</p>` : "") +
+        (Array.isArray(d.plots) && d.plots.length
+          ? `<div class="fixh">${escHtml(W.verlauf)}</div>` +
+            d.plots.map((p) => {
+              const rows = (p.d || []).filter((v) => typeof v === "number");
+              if (rows.length < 2) return "";
+              const jetzt = rows[rows.length - 1];
+              const lo = Math.min(...rows), hi = Math.max(...rows);
+              const nk = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1));
+              return `<div class="pl"><div class="plh"><span>${escHtml(p.n || "")}</span>` +
+                     `<b style="color:${escHtml(p.c || tone)}">${escHtml(nk(jetzt))} ${escHtml(p.u || "")}</b></div>` +
+                     auroraSpark(rows, p.c || tone, { h: 26, floor: p.floor }) +
+                     `<div class="plf"><span>min ${escHtml(nk(lo))}</span>` +
+                     `<span>max ${escHtml(nk(hi))}</span></div></div>`;
+            }).join("")
+          : "") +
+        (Array.isArray(d.kv) && d.kv.length
+          ? `<div class="fixh">${escHtml(W.werte)}</div><dl class="kv">` +
+            d.kv.map((r) => `<dt>${escHtml(r[0])}</dt><dd>${escHtml(r[1])}</dd>`).join("") +
+            `</dl>`
+          : "") +
         (Array.isArray(d.f) && d.f.length
           ? `<div class="fixh">${escHtml(W.tun)}</div><ol>` +
             d.f.map((x) => `<li>${escHtml(x)}</li>`).join("") + `</ol>`
@@ -1360,5 +1483,5 @@
     setTimeout(sweep, 300);
     aufbauBeobachten();
   });
-  console.info("%c AURORA-EFFECTS %c v2.28.0 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v2.27.1 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();

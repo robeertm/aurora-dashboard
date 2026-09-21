@@ -5,6 +5,41 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.32.0
+
+- **The trend lines are drawn thinner.** The stroke width of every
+  `mini-graph-card` curve lives in the helper, not on the card: the sheet sets
+  `path.line`, and CSS beats the `line_width` a card asks for — so a card
+  asking for a thinner line never got one. The stroke goes from 1.4 to 1, the
+  halo around the curve is turned down with it (2.5 px at .45 → 1.4 px at .26)
+  and the background grid from .11 to .07, so a one-pixel line is not read
+  against a cage. Every chart in the bundled dashboard asks for the same
+  thinner line as well, and the `apexcharts-card` line series with it.
+
+## 2.31.0
+
+- **The sparkline shows a shape again.** Its y-scale follows the data range
+  with a little headroom instead of being anchored at zero: a series idling
+  between 2.3 and 2.4 % filled the whole box and read as a solid block. A flat
+  series now draws as a centred horizontal line.
+
+## 2.30.0
+
+- **Plots.** `window.auroraSpark(values, colour)` draws one sparkline and is
+  used by both the dashboard tiles and the detail sheet, so the same series
+  cannot be drawn two different ways. The sheet takes a `plots` list of
+  `{n,u,c,d}` and shows each with its current value and its min/max. The
+  y-scale has a floor — without it a series idling between 0.00 and 0.02 %
+  fills the whole tile.
+
+## 2.29.0
+
+- **The sheet fits the phone.** iOS counts its dynamic toolbar out of `vh`, so
+  a 78vh sheet reached past the bottom of the screen and the last row sat under
+  the edge. Now `dvh` (with `vh` as the older fallback), more room under the
+  safe area, and a button row that sticks to the bottom so "close" is never
+  scrolled away.
+
 ## 2.28.0
 
 - **The presence card says how long — and breathes while it says it.** Name and
