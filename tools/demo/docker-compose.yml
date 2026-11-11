@@ -1,0 +1,28 @@
+# Throwaway Home Assistant for README screenshots. Isolated on purpose:
+#  - `inner` is an internal network: the HA container has no route out
+#  - the only door is a socat relay published on 127.0.0.1 (never 0.0.0.0)
+#  - no host networking, no devices, no Bluetooth/mDNS, no discovery
+name: aurora-demo
+services:
+  ha:
+    # pinned by digest so the pictures come out the same every time
+    image: ghcr.io/home-assistant/home-assistant@sha256:6785d1eca68747a524c156faae1b139ed415c07357386ae6fe17291986e59e82
+    volumes:
+      - ./run/config:/config
+    networks: [inner]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1536m
+    restart: "no"
+    environment:
+      TZ: Europe/Rome
+  relay:
+    image: alpine/socat:1.8.1.3
+    command: TCP-LISTEN:8123,fork,reuseaddr TCP:ha:8123
+    ports: ["127.0.0.1:18523:8123"]
+    networks: [inner, outer]
+    depends_on: [ha]
+    restart: "no"
+networks:
+  inner:
+    internal: true
+  outer: {}

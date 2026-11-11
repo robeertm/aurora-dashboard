@@ -11,7 +11,15 @@ docs/screenshots/*
 !docs/screenshots/system.png
 !docs/screenshots/phone.png
 !docs/screenshots/phone-detail.png
+!docs/screenshots/lights.png
+!docs/screenshots/radio.png
 
 # backups and local copies of private instances — never publish
 *.bak*
 dashboard/aurora-robert*
+
+# demo instance: downloaded cards, generated config, raw screenshots
+tools/demo/cache/
+tools/demo/run/
+tools/demo/out/
+__pycache__/

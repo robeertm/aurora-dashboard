@@ -27,6 +27,15 @@ matters, and what you can do about it.</em></td>
 <td><em>Power over the day, kWh per day, and where they went.</em></td>
 <td><em>Batteries, host metrics and what is waiting to be updated.</em></td>
 </tr>
+<tr>
+<td><img src="docs/screenshots/lights.png" alt="Lights view with 24-hour colour strips"></td>
+<td><img src="docs/screenshots/radio.png" alt="Radio view"></td>
+</tr>
+<tr>
+<td><em>Every lamp, and a 24-hour colour strip for each one (the strips come
+from a small generator outside this repository).</em></td>
+<td><em>Bluetooth scanners, signal strength and its history.</em></td>
+</tr>
 </table>
 
 <p align="center">
@@ -36,7 +45,8 @@ matters, and what you can do about it.</em></td>
 </p>
 
 <p align="center"><em>All screenshots come from a throwaway instance with
-placeholder data — every name, room and value in them is made up.</em></p>
+placeholder data — every name, room and value in them is made up. The
+instance can be rebuilt with <code>tools/demo/demo.sh</code>.</em></p>
 
 > ### ⚠️ Please read before installing
 >

@@ -5,6 +5,23 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.34.1
+
+Documentation and pictures only; `dist/aurora-effects.js` is byte-for-byte the
+2.34.0 file.
+
+- **The README pictures show the current dashboard.** They dated from before
+  2.28 and did not show the presence cards, the thinner trend lines or the
+  24-hour strips. All of them are retaken at 1440 px wide and phone width, and
+  two views are added: lights with their colour strips, and radio.
+- **The pictures can be retaken.** `tools/demo/` builds a throwaway Home
+  Assistant in Docker with invented entities and history, reachable only on
+  `127.0.0.1` with no route to the internet or the local network, takes the
+  screenshots in WebKit and compares them with the stored ones
+  (`compare.py`). Nothing in it reads a real installation.
+- **The example light tiles said `AN`/`AUS`.** The tile of the bundled
+  dashboard hard-coded German state words; it now says `ON`/`OFF`.
+
 ## 2.34.0
 
 - **The strip readout says what the lamp was doing.** Under the pointer you now
