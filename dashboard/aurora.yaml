@@ -741,9 +741,9 @@ button_card_templates:
     size: 22px
     tap_action:
       action: more-info
-    state_display: "[[[\n  const v = parseFloat(entity.state);\n  return isNaN(v) ? '—' : Math.round(v) + ' dBm';\n]]]\n"
-    icon: "[[[\n  const v = parseFloat(entity.state);\n  if (isNaN(v)) return 'mdi:signal-off';\n  return v >= -60 ? 'mdi:signal-cellular-3' : v >= -75 ? 'mdi:signal-cellular-2' : 'mdi:signal-cellular-1';\n]]]\n"
-    name: "[[[\n  return (entity.attributes.friendly_name || entity.entity_id)\n    .replace(/ Signal strength$/, '');\n]]]\n"
+    state_display: "[[[\n  const v = parseFloat(entity?.state);\n  return isNaN(v) ? '—' : Math.round(v) + ' dBm';\n]]]\n"
+    icon: "[[[\n  const v = parseFloat(entity?.state);\n  if (isNaN(v)) return 'mdi:signal-off';\n  return v >= -60 ? 'mdi:signal-cellular-3' : v >= -75 ? 'mdi:signal-cellular-2' : 'mdi:signal-cellular-1';\n]]]\n"
+    name: "[[[\n  return (entity?.attributes?.friendly_name || entity?.entity_id || '—')\n    .replace(/ Signal strength$/, '');\n]]]\n"
     styles:
       grid:
       - grid-template-areas: '''i s'' ''i n'''
@@ -752,15 +752,15 @@ button_card_templates:
       - height: 62px
       - padding: 8px 12px
       icon:
-      - color: "[[[\n  const v = parseFloat(entity.state);\n  if (isNaN(v)) return '#585b70';\n  return v >= -60 ? '#a6e3a1' : v >= -75 ? '#f9e2af' : '#f38ba8';\n]]]\n"
-      - animation: "[[[\n  return parseFloat(entity.state) < -85 ? 'aurora-pulse 1.4s ease-in-out infinite' : 'none';\n]]]\n"
+      - color: "[[[\n  const v = parseFloat(entity?.state);\n  if (isNaN(v)) return '#585b70';\n  return v >= -60 ? '#a6e3a1' : v >= -75 ? '#f9e2af' : '#f38ba8';\n]]]\n"
+      - animation: "[[[\n  return parseFloat(entity?.state) < -85 ? 'aurora-pulse 1.4s ease-in-out infinite' : 'none';\n]]]\n"
       state:
       - justify-self: start
       - align-self: end
       - font-size: 15px
       - font-weight: 700
       - font-family: ui-monospace, 'SF Mono', Menlo, monospace
-      - color: "[[[\n  const v = parseFloat(entity.state);\n  if (isNaN(v)) return '#585b70';\n  return v >= -60 ? '#a6e3a1' : v >= -75 ? '#f9e2af' : '#f38ba8';\n]]]\n"
+      - color: "[[[\n  const v = parseFloat(entity?.state);\n  if (isNaN(v)) return '#585b70';\n  return v >= -60 ? '#a6e3a1' : v >= -75 ? '#f9e2af' : '#f38ba8';\n]]]\n"
       name:
       - justify-self: start
       - align-self: start

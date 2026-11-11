@@ -5,6 +5,17 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.35.1
+
+Dashboard only; `dist/aurora-effects.js` is byte-for-byte the 2.35.0 file.
+
+- **The signal tile no longer breaks when its entity is missing.** The
+  `aurora_signal` template read `entity.state` and
+  `entity.attributes.friendly_name` directly, so a signal sensor that was
+  disabled or removed turned the tile into a template error card. It now
+  reads `entity?.state` and falls back to a dash for the name, a crossed-out
+  signal icon and grey. Tiles whose entity exists look exactly as before.
+
 ## 2.35.0
 
 - The "now" tick on the history-graph axis is translated through the helper's
