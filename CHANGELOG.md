@@ -5,6 +5,34 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.34.0
+
+- **The strip readout says what the lamp was doing.** Under the pointer you now
+  get the brightness in per cent, the colour temperature or hue/saturation, and
+  a swatch of the actual light colour — not only the time. None of that can be
+  read back out of the strip: it is drawn already dimmed by brightness, rounded
+  to steps of three, with equal neighbours merged, and inside an `<img>` nothing
+  can read a pixel anyway. A generator therefore writes the values beside the
+  strips (`werte.json`, keyed by file name) and the helper looks up the support
+  point in effect at that moment. The reading follows the card's own label
+  exactly (per cent, then kelvin, else hue/saturation), so two views of one
+  lamp cannot disagree. Before the first recorded point it says so instead of
+  inventing a value; where the file is missing, the time still works.
+
+## 2.33.0
+
+- **A 24-hour colour strip can be read and opened.** A strip is a plain image,
+  so neither a hover readout nor a zoom can live in the file; both now come from
+  the helper, hung on one marker (`data-aurora-spur`). Moving the pointer across
+  a strip shows a crosshair with the clock time under it; a tap opens the strip
+  large, with a real hour axis and a per-lamp legend. The time is never guessed
+  from `Date.now()`: a strip covers [drawn - 24 h, drawn], so the right edge is
+  read from the file itself (`data-jetzt`) or from `lichtspur.json`, and with
+  neither no time is shown at all. The large view reuses the detail sheet's id,
+  so escape, the ghost-click shield and the frozen-overlay sweeper apply to it.
+  The strips themselves are produced outside this repository; without them the
+  helper does nothing new.
+
 ## 2.32.0
 
 - **The trend lines are drawn thinner.** The stroke width of every

@@ -1,5 +1,31 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.34.0 — the readout under the pointer says what the lamp was DOING, not
+ *            only when: brightness in per cent, the colour temperature or
+ *            hue/saturation, and a swatch of the actual light colour. None of
+ *            that can be read back out of the strip — it draws the colour
+ *            already dimmed by brightness and rounded to steps of three, then
+ *            merges equal neighbours, and inside an <img> nothing can read a
+ *            pixel anyway. The generator therefore writes the values beside
+ *            the strips (`werte.json`, keyed by file name), and the helper
+ *            looks up the support point in effect at that moment. The reading
+ *            follows the card's own label exactly — per cent, then kelvin,
+ *            else hue/saturation — so two views of one lamp cannot disagree.
+ *            Before the first recorded point it says so instead of inventing
+ *            a value, and where the file is missing the time still works.
+ * v2.33.0 — a 24-hour colour strip can be read and opened. A strip is a plain
+ *            image: inside an <img> nothing runs, so neither a hover readout
+ *            nor a zoom can live in the file. Both now come from here, hung on
+ *            one marker (`data-aurora-spur`): moving the pointer across a strip
+ *            shows a crosshair with the clock time under it, and a tap opens
+ *            the strip large, with a real hour axis and a per-lamp legend.
+ *            The time is never guessed from `Date.now()`: a strip covers
+ *            [drawn − 24 h, drawn], and where the files are shipped to another
+ *            house that is minutes in the past. The right edge is read from the
+ *            file itself (`data-jetzt`) or from `lichtspur.json`; with neither,
+ *            no time is shown at all. The large view reuses the detail sheet's
+ *            id, so escape, the ghost-click shield and the frozen-overlay
+ *            sweeper apply to it without a line of their own.
  * v2.32.0 — the trend lines are drawn thinner. The stroke width lives
  *            here, not on the card: this sheet sets `path.line`, and CSS beats
  *            the `line_width` a mini-graph-card asks for, so a card wanting a
@@ -114,6 +140,10 @@
  * No card-mod required. © 2026 Robert Manuwald — use only, see LICENSE.
  */
 (() => {
+  // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
+  // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
+  const AE_VERSION = "2.34.0";
+
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
   // snapshot of everything behind it, at 3x device pixels) and a full-screen
@@ -973,9 +1003,25 @@
   // Benutzers - danach richten wir uns, statt eine Sprache festzuschreiben.
   const WORTE = {
     de: { tun: "Was du tun kannst", zu: "Schließen", geraet: "Gerät öffnen", hin: "Hin da",
-          werte: "Kennzahlen", verlauf: "Verlauf der letzten Zeit" },
+          werte: "Kennzahlen", verlauf: "Verlauf der letzten Zeit",
+          spur24: "Farbe und Helligkeit der letzten 24 Stunden",
+          spurhin: "Zeiger über den Streifen: Uhrzeit, Helligkeit, Lichtfarbe",
+          spurleg: "Dunkelblau = aus · fast schwarz = keine Aufzeichnung · "
+                   + "grau = Lampe war nicht erreichbar · helle Linie = Mitternacht.",
+          gezeichnet: "gezeichnet", heute: "heute", gestern: "gestern",
+          aus: "aus", an: "an", keineaufz: "keine Aufzeichnung",
+          keinfenster: "Zeitfenster unbekannt — keine Uhrzeit angezeigt",
+          keinbild: "Streifen nicht erreichbar" },
     en: { tun: "What you can do", zu: "Close", geraet: "Open device", hin: "Take me there",
-          werte: "Details", verlauf: "Recent history" },
+          werte: "Details", verlauf: "Recent history",
+          spur24: "Colour and brightness of the last 24 hours",
+          spurhin: "Pointer across the strip: time, brightness, light colour",
+          spurleg: "Dark blue = off · near black = nothing recorded · "
+                   + "grey = lamp was unreachable · bright line = midnight.",
+          gezeichnet: "drawn", heute: "today", gestern: "yesterday",
+          aus: "off", an: "on", keineaufz: "nothing recorded",
+          keinfenster: "time window unknown — no time shown",
+          keinbild: "strip unreachable" },
   };
   // 🔴 Erst beim Oeffnen nachsehen, nicht beim Laden: Home Assistant setzt
   //    <html lang> erst, wenn die Oberflaeche hochgekommen ist - dieses Modul
@@ -1201,6 +1247,7 @@
       n.remove();
     }
     document.removeEventListener("keydown", onSheetKey, true);
+    spurWeg();                      // weiter unten definiert, hier erst gerufen
   };
 
   // `geist` = das Schliessen kam aus einer Zeiger-/Beruehrungsgeste, auf die
@@ -1218,6 +1265,7 @@
   const closeSheet = (geist) => {
     const nodes = document.querySelectorAll("#" + SHEET_ID);
     if (geist && nodes.length) letztesZu = performance.now();
+    spurWeg();
     document.removeEventListener("keydown", onSheetKey, true);
     for (const n of nodes) {
       if (n.dataset.zu) continue;                 // blendet schon aus
@@ -1256,6 +1304,33 @@
     try { return window.matchMedia("(hover: hover) and (pointer: fine)").matches; }
     catch (e) { return false; }
   })();
+
+  // Der Klickwaechter EINES Overlays - geteilt vom Ratblatt und vom grossen
+  // Streifen, damit es nicht zwei Fassungen gibt, die auseinanderlaufen.
+  //
+  // Auch hier zaehlt der Zeiger, nicht der Klick: der Hintergrund ist ein
+  // schlichtes div, und dafuer erzeugt WebKit nicht verlaesslich einen Klick.
+  // `getan` sorgt dafuer, dass ein nachlaufender Klick nichts doppelt macht.
+  const blattWirken = (wrap) => (ev) => {
+    if (wrap.__getan) return;
+    // 🔴 Geisterklick: das Blatt geht bei `pointerup` auf, und der Klick, den
+    //    der Browser aus derselben Beruehrung NACHTRAEGLICH erzeugt, faellt
+    //    dann schon auf den frisch entstandenen Hintergrund - der schliesst
+    //    es im selben Wimpernschlag wieder. Ergebnis: es blitzt nur kurz auf.
+    //    Gemessen im Ereignisprotokoll: pointerup [ZEILE] -> click [DIV].
+    if (performance.now() - wrap.__geboren < GEIST_MS) return;
+    const t = ev.target;
+    const b = t && t.closest ? t.closest("button") : null;
+    if (!b) {
+      // Nur der Hintergrund schliesst - ein Tippen auf den Inhalt nicht.
+      if (t === wrap || (t && t.id === SHEET_ID)) { wrap.__getan = 1; closeSheet(true); }
+      return;
+    }
+    wrap.__getan = 1;
+    if (b.dataset.close) { closeSheet(true); return; }
+    if (b.dataset.mi) { closeSheet(true); openMoreInfo(b.dataset.mi); return; }
+    if (b.dataset.go) { closeSheet(true); navigateTo(b.dataset.go); }
+  };
 
   const openSheet = (d, mitFokus) => {
     entferneBlaetter();
@@ -1304,29 +1379,7 @@
         `</div>` +
       `</div>`;
 
-    // Auch hier zaehlt der Zeiger, nicht der Klick: der Hintergrund ist ein
-    // schlichtes div, und dafuer erzeugt WebKit nicht verlaesslich einen Klick.
-    // `getan` sorgt dafuer, dass ein nachlaufender Klick nichts doppelt macht.
-    const wirken = (ev) => {
-      if (wrap.__getan) return;
-      // 🔴 Geisterklick: das Blatt geht bei `pointerup` auf, und der Klick, den
-      //    der Browser aus derselben Beruehrung NACHTRAEGLICH erzeugt, faellt
-      //    dann schon auf den frisch entstandenen Hintergrund - der schliesst
-      //    es im selben Wimpernschlag wieder. Ergebnis: es blitzt nur kurz auf.
-      //    Gemessen im Ereignisprotokoll: pointerup [ZEILE] -> click [DIV].
-      if (performance.now() - wrap.__geboren < GEIST_MS) return;
-      const t = ev.target;
-      const b = t && t.closest ? t.closest("button") : null;
-      if (!b) {
-        // Nur der Hintergrund schliesst - ein Tippen auf den Text nicht.
-        if (t === wrap || (t && t.id === SHEET_ID)) { wrap.__getan = 1; closeSheet(true); }
-        return;
-      }
-      wrap.__getan = 1;
-      if (b.dataset.close) { closeSheet(true); return; }
-      if (b.dataset.mi) { closeSheet(true); openMoreInfo(b.dataset.mi); return; }
-      if (b.dataset.go) { closeSheet(true); navigateTo(b.dataset.go); }
-    };
+    const wirken = blattWirken(wrap);
     wrap.addEventListener("pointerup", wirken);
     wrap.addEventListener("click", wirken);
 
@@ -1339,12 +1392,375 @@
     }
   };
 
+  // ── Lichtspur: der 24-Stunden-Farbstreifen ───────────────────────────────
+  // Ein Streifen ist ein reines Bild. In einem <img> laeuft nichts: kein
+  // Skript, kein <title>, kein Hover — und weil der Balken mit
+  // preserveAspectRatio="none" auf die Kartenbreite gezogen wird, darf auch
+  // kein Text darin stehen. Uhrzeit unter dem Zeiger und Vergroessern muessen
+  // deshalb von AUSSEN kommen. Beides haengt an einer Markierung:
+  //
+  //     data-aurora-spur="<dateiname ohne .svg>"
+  //     data-spur-name="<Anzeigename>"  data-spur-entity="<entity_id>"
+  //
+  // 🔴 Die Uhrzeit wird NICHT aus Date.now() geraten. Ein Streifen zeigt das
+  //    Fenster [Zeichenzeit − 24 h, Zeichenzeit]; gezeichnet wird alle 60 s,
+  //    und im zweiten Haus liegen zwischen Zeichnen und Ankommen noch bis zu
+  //    zwei Minuten Versand. Wer "jetzt" an den rechten Rand schreibt, liegt
+  //    dort um Minuten daneben. Der rechte Rand steht darum IM Bild
+  //    (data-jetzt) und in lichtspur.json. Fehlt beides, zeigt die Anzeige
+  //    GAR KEINE Uhrzeit — lieber nichts als eine erfundene. Das ist dieselbe
+  //    Linie, auf der der Streifen selbst die Zeit vor seiner ersten
+  //    Stuetzstelle schwarz laesst.
+  const SPUR_ORT = "/local/lichtspur/";
+  const SPUR_TIP = "aurora-spur-tip";
+  const SPUR_FENSTER = 24 * 3600 * 1000;          // nur der Rueckfall
+
+  // Ein gemeinsamer Stand fuer alle Streifen: sie werden in EINEM Durchgang
+  // gezeichnet, also haben sie auch denselben rechten Rand. Ein Abruf, nicht
+  // einer je Karte — und hoechstens alle 30 s einer.
+  //
+  // `werte.json` bringt neben dem Fenster auch die Stuetzstellen je Lampe mit.
+  // `lichtspur.json` ist der Rueckfall: aelter, ohne Werte, aber mit dem
+  // Fenster — dann steht die Uhrzeit da und sonst nichts.
+  const spurStand = { wert: null, geholt: 0, laeuft: false };
+  const spurVersuch = (liste) => {
+    if (!liste.length) return Promise.resolve();
+    const datei = liste[0];
+    return fetch(SPUR_ORT + datei, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j || !j.jetzt) return spurVersuch(liste.slice(1));
+        spurStand.wert = { t: j.jetzt * 1000, f: (j.fenster_s || 86400) * 1000,
+                           l: j.lampen || null };
+      })
+      .catch(() => spurVersuch(liste.slice(1)));
+  };
+  const spurFenster = () => {
+    if (!spurStand.laeuft &&
+        (!spurStand.wert || performance.now() - spurStand.geholt > 30000)) {
+      spurStand.laeuft = true;
+      spurVersuch(["werte.json", "lichtspur.json"])
+        .catch(() => { /* kein Stand = keine Uhrzeit, kein Fehler im Bild */ })
+        .then(() => { spurStand.laeuft = false; spurStand.geholt = performance.now(); });
+    }
+    return spurStand.wert;
+  };
+
+  // Die Stuetzstelle, die zum Zeitpunkt t GILT — die letzte mit ts <= t; eine
+  // Stuetzstelle gilt bis zur naechsten.
+  //   undefined = fuer diese Lampe liegen gar keine Werte vor
+  //   null      = t liegt VOR der ersten Aufzeichnung (der schwarze Teil)
+  const spurPunkt = (slug, t) => {
+    const w = spurStand.wert;
+    const p = w && w.l && w.l[slug];
+    if (!p || !p.length) return undefined;
+    const s = t / 1000;
+    if (s < p[0][0]) return null;
+    let lo = 0, hi = p.length - 1;
+    while (lo < hi) {
+      const m = (lo + hi + 1) >> 1;
+      if (p[m][0] <= s) lo = m; else hi = m - 1;
+    }
+    return p[lo];
+  };
+
+  // 🔴 Dieselbe Lesart wie die Beschriftung der Karte (Vorlage
+  //    `aurora_lichtspur`): Prozent, dann Kelvin, sonst Farbton/Saettigung.
+  //    Zwei Anzeigen derselben Lampe duerfen nicht verschieden rechnen.
+  const spurText = (p) => {
+    const W = worte();
+    if (p === undefined) return null;
+    if (p === null) return { t: W.keineaufz, leise: true };
+    if (p[1] !== "on") return { t: p[1] === "off" ? W.aus : p[1], leise: true };
+    const teile = [];
+    if (p[2] != null) teile.push(Math.round(p[2] / 2.55) + " %");
+    if (p[3]) teile.push(p[3] + " K");
+    else if (p[4] != null) teile.push(Math.round(p[4]) + "° / " + Math.round(p[5]) + " %");
+    // Der Farbtupfer zeigt die REINE Lichtfarbe. Der Streifen daneben zeigt
+    // sie abgedunkelt — die Helligkeit steht ja als Zahl dabei.
+    const c = /^[0-9a-f]{6}$/i.test(String(p[6] || "")) ? "#" + p[6] : null;
+    return { t: teile.length ? teile.join(" · ") : W.an, c: c };
+  };
+
+  const zwei = (n) => (n < 10 ? "0" : "") + n;
+  const spurUhr = (ms) => {
+    const d = new Date(ms);
+    return zwei(d.getHours()) + ":" + zwei(d.getMinutes());
+  };
+  const tagAnfang = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const spurTag = (ms) => {
+    const W = worte();
+    const tage = Math.round((tagAnfang(new Date()) - tagAnfang(new Date(ms))) / 86400000);
+    if (tage <= 0) return W.heute;
+    if (tage === 1) return W.gestern;
+    try { return new Date(ms).toLocaleDateString(); } catch (e) { return ""; }
+  };
+
+  // Die Anzeige unter dem Zeiger haengt in <body>, nicht in der Karte: eine
+  // button-card zeichnet sich bei jeder Aenderung ihrer Entitaet neu und
+  // risse alles mit, was in ihr liegt — dieselbe Begruendung wie beim Blatt.
+  const SPUR_TIP_CSS = `
+    #${SPUR_TIP}{position:fixed;inset:0;z-index:10000;pointer-events:none;
+      font-family:var(--primary-font-family,system-ui,-apple-system,"Segoe UI",
+        Roboto,"Helvetica Neue",Arial,sans-serif)}
+    /* 🔴 Heller Kern zwischen zwei dunklen Flanken. Eine einzelne helle Linie
+       verschwindet auf dem cremeweissen Abschnitt einer hellen Lampe, eine
+       einzelne dunkle im fast schwarzen „keine Aufzeichnung". Das Paar traegt
+       ueber den ganzen Streifen. (Am Bild gefunden, nicht im Quelltext.) */
+    #${SPUR_TIP} .li{position:absolute;width:1px;background:#f5e0dc;
+      box-shadow:-1px 0 0 0 rgba(17,17,27,.92),1px 0 0 0 rgba(17,17,27,.92)}
+    #${SPUR_TIP} .et{position:absolute;white-space:nowrap;background:#11111b;
+      color:#cdd6f4;border:1px solid rgba(205,214,244,.24);border-radius:8px;
+      padding:4px 9px;font-size:11px;line-height:1.35;text-align:center;
+      font-variant-numeric:tabular-nums;
+      box-shadow:0 6px 18px rgba(0,0,0,.45)}
+    #${SPUR_TIP} .et .z{display:block}
+    #${SPUR_TIP} .et .z b{color:#f9e2af;font-weight:600;letter-spacing:.02em}
+    #${SPUR_TIP} .et .z i{font-style:normal;color:#9399b2;margin-left:6px}
+    #${SPUR_TIP} .et .w{display:block;margin-top:1px;font-size:10px;
+      color:#a6adc8}
+    #${SPUR_TIP} .et .w.leise{color:#7f849c}
+    /* Der Farbtupfer bekommt aussen einen hellen und innen einen dunklen
+       Rand — sonst verschwindet ein fast schwarzer Ton im Kasten und ein
+       cremeweisser an seinem Rand. */
+    #${SPUR_TIP} .et .pk{display:inline-block;width:8px;height:8px;
+      border-radius:2px;margin-right:6px;vertical-align:-1px;
+      border:1px solid rgba(17,17,27,.75);
+      box-shadow:0 0 0 1px rgba(205,214,244,.3)}
+  `;
+
+  let spurTipEl = null;
+  const spurTipHolen = () => {
+    if (spurTipEl && spurTipEl.isConnected) return spurTipEl;
+    spurTipEl = document.createElement("div");
+    spurTipEl.id = SPUR_TIP;
+    // Sichtbarkeit ueber den Stilwert am Element, nicht ueber [hidden]: eine
+    // Regel mit #id schlaegt das Attribut, und dann haengt eine Anzeige da,
+    // die niemand mehr wegbekommt.
+    spurTipEl.style.display = "none";
+    spurTipEl.innerHTML = "<style>" + SPUR_TIP_CSS + "</style>" +
+      '<div class="li"></div><div class="et"></div>';
+    document.body.appendChild(spurTipEl);
+    return spurTipEl;
+  };
+  const spurWeg = () => { if (spurTipEl) spurTipEl.style.display = "none"; };
+
+  const spurZeigen = (el, x) => {
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return spurWeg();
+    const meta = spurFenster();
+    // Das grosse Bild bringt sein Fenster selbst mit (es hat das SVG gelesen);
+    // die kleine Karte nimmt den gemeinsamen Stand.
+    const t1 = Number(el.dataset.spurT) || (meta && meta.t) || 0;
+    const fen = Number(el.dataset.spurF) || (meta && meta.f) || SPUR_FENSTER;
+    if (!t1) return spurWeg();
+    const xk = Math.max(r.left, Math.min(r.right, x));
+    const t = t1 - (1 - (xk - r.left) / r.width) * fen;
+    const tip = spurTipHolen();
+    const li = tip.querySelector(".li");
+    const et = tip.querySelector(".et");
+    li.style.left = xk + "px";
+    li.style.top = (r.top - 4) + "px";
+    li.style.height = (r.height + 8) + "px";
+    const wert = spurText(spurPunkt(el.dataset.auroraSpur, t));
+    et.innerHTML =
+      '<span class="z"><b>' + escHtml(spurUhr(t)) + '</b><i>' +
+      escHtml(spurTag(t)) + "</i></span>" +
+      (wert
+        ? '<span class="w' + (wert.leise ? " leise" : "") + '">' +
+          (wert.c ? '<span class="pk" style="background:' + wert.c + '"></span>' : "") +
+          escHtml(wert.t) + "</span>"
+        : "");
+    // Ueber dem Streifen — ausser er klebt schon am oberen Rand. Mit der
+    // zweiten Zeile braucht die Anzeige mehr Platz als vorher.
+    const oben = r.top > 46;
+    et.style.top = (oben ? r.top - 7 : r.bottom + 7) + "px";
+    et.style.transform = oben ? "translate(-50%,-100%)" : "translate(-50%,0)";
+    et.style.left = Math.max(48, Math.min(window.innerWidth - 48, xk)) + "px";
+    tip.style.display = "block";
+  };
+
+  // Dieselbe Technik wie bei den antippbaren Zeilen: Capture-Phase und
+  // composedPath, sonst bleibt der Streifen im Schatten-DOM der Karte unsichtbar.
+  const spurIn = (ev) => {
+    const path = ev.composedPath ? ev.composedPath() : [];
+    for (const el of path) {
+      if (el && el.dataset && el.dataset.auroraSpur) return el;
+      if (el === document) break;
+    }
+    return null;
+  };
+
+  document.addEventListener("pointermove", (ev) => {
+    const el = spurIn(ev);
+    if (!el) return spurWeg();
+    // 🔴 Ein Finger faehrt nicht "darueber". Auf der Karte waere jedes
+    //    Wischen ein Aufblitzen der Anzeige; im grossen Bild ist das Ziehen
+    //    dagegen die ausdrueckliche Geste, dort zaehlt sie.
+    if (ev.pointerType === "touch" && !(el.closest && el.closest("#" + SHEET_ID))) {
+      return spurWeg();
+    }
+    spurZeigen(el, ev.clientX);
+  }, true);
+  document.addEventListener("pointerleave", spurWeg, true);
+  document.addEventListener("pointercancel", spurWeg, true);
+  document.addEventListener("pointerup", (ev) => {
+    if (ev.pointerType === "touch") spurWeg();
+  }, true);
+  // Beim Scrollen wandert der Streifen unter der Anzeige weg — dann stimmt sie
+  // nicht mehr und muss verschwinden, nicht nachziehen.
+  document.addEventListener("scroll", spurWeg, true);
+  window.addEventListener("resize", spurWeg);
+  window.addEventListener("blur", spurWeg);
+  document.addEventListener("visibilitychange", spurWeg);
+
+  // ── Das grosse Bild ──────────────────────────────────────────────────────
+  // Es benutzt dieselbe Kennung wie das Detailblatt (SHEET_ID). Damit gelten
+  // ohne eine Zeile Zusatz: Escape, der Schild gegen den nachlaufenden Klick,
+  // das Aufraeumen eingefrorener Overlays und die Sperre gegen doppeltes
+  // Oeffnen. Ein zweites Overlay-Konzept waere eine zweite Baustelle.
+  const SPUR_BLATT_CSS = `
+    #${SHEET_ID} .sheet.spur{width:min(1080px,100%)}
+    #${SHEET_ID} .spurbild{height:132px;margin-top:14px;border-radius:10px;
+      overflow:hidden;background:#0b0b12;cursor:crosshair;
+      border:1px solid rgba(147,153,178,.22);
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+      touch-action:pan-y}
+    #${SHEET_ID} .spurbild svg{display:block;width:100%;height:100%}
+    #${SHEET_ID} .spurachse{position:relative;height:15px;margin-top:7px;
+      font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;
+      letter-spacing:.04em;color:#7f849c}
+    #${SHEET_ID} .spurachse .tk{position:absolute;top:0;
+      transform:translateX(-50%);white-space:nowrap}
+    #${SHEET_ID} .spurachse .tk.mn{color:#cba6f7;font-weight:600}
+    #${SHEET_ID} .spurachse .tk.li{transform:none;left:0}
+    #${SHEET_ID} .spurachse .tk.re{transform:translateX(-100%)}
+    #${SHEET_ID} .spurachse .kein{position:static;transform:none;color:#f38ba8}
+    #${SHEET_ID} .spurfuss{display:flex;justify-content:space-between;gap:12px;
+      margin-top:11px;font-size:.72rem;color:#7f849c}
+    #${SHEET_ID} .spurleg{margin-top:9px;font-size:.78rem;line-height:1.5;
+      color:#9399b2}
+    @media (hover:none){#${SHEET_ID} .spurfuss .hin{display:none}}
+    @media (max-width:700px){
+      #${SHEET_ID} .spurbild{height:104px;margin-top:11px}
+      #${SHEET_ID} .spurfuss{flex-direction:column;gap:2px}
+      #${SHEET_ID} .spurleg{font-size:.74rem}}
+  `;
+
+  // Die Achse traegt jetzt ECHTE Uhrzeiten, keine "vor 18 h" mehr — das geht
+  // erst, seit das Fenster genau bekannt ist. Gerechnet wird ueber Date, nicht
+  // ueber Millisekunden-Arithmetik: an einem Zeitumstellungstag ist ein Tag
+  // nicht 24 h lang, und dann saessen die Marken daneben.
+  const spurAchse = (t0, t1, breit) => {
+    const schritt = breit < 620 ? 6 : 3;
+    const d = new Date(t0);
+    d.setMinutes(0, 0, 0);
+    if (d.getTime() < t0) d.setHours(d.getHours() + 1);
+    let schutz = 0;
+    while (d.getHours() % schritt !== 0 && schutz++ < 24) d.setHours(d.getHours() + 1);
+    const spanne = t1 - t0;
+    const aus = [];
+    while (d.getTime() <= t1 && aus.length < 32) {
+      const p = ((d.getTime() - t0) / spanne) * 100;
+      const rand = p < 3 ? " li" : (p > 97 ? " re" : "");
+      aus.push('<span class="tk' + (d.getHours() === 0 ? " mn" : "") + rand +
+               '" style="left:' + p.toFixed(3) + '%">' + zwei(d.getHours()) + ":00</span>");
+      d.setHours(d.getHours() + schritt);
+    }
+    return aus.join("");
+  };
+
+  const spurLaden = (wrap, slug) => {
+    const bild = wrap.querySelector(".spurbild");
+    const achse = wrap.querySelector(".spurachse");
+    const stand = wrap.querySelector(".spurstand");
+    const W = worte();
+    fetch(SPUR_ORT + slug + ".svg?m=" + Math.floor(Date.now() / 60000),
+          { cache: "no-store" })
+      .then((r) => (r.ok ? r.text() : null))
+      .then((txt) => {
+        if (!bild.isConnected) return;
+        // Eigene Datei, eigener Ursprung — trotzdem nur einbauen, was wie der
+        // erwartete Balken aussieht.
+        if (!txt || txt.slice(0, 200).indexOf("<svg") < 0 || txt.indexOf("<script") >= 0) {
+          achse.innerHTML = '<span class="kein">' + escHtml(W.keinbild) + "</span>";
+          return;
+        }
+        const mj = /data-jetzt="(\d+)"/.exec(txt);
+        const mf = /data-fenster="(\d+)"/.exec(txt);
+        const meta = spurFenster();
+        const t1 = mj ? Number(mj[1]) * 1000 : (meta && meta.t) || 0;
+        const fen = mf ? Number(mf[1]) * 1000 : (meta && meta.f) || SPUR_FENSTER;
+        bild.innerHTML = txt;
+        if (!t1) {
+          achse.innerHTML = '<span class="kein">' + escHtml(W.keinfenster) + "</span>";
+          return;
+        }
+        bild.dataset.spurT = String(t1);
+        bild.dataset.spurF = String(fen);
+        achse.innerHTML = spurAchse(t1 - fen, t1,
+                                    bild.getBoundingClientRect().width || 900);
+        if (stand) stand.textContent = W.gezeichnet + " " + spurUhr(t1);
+      })
+      .catch(() => {
+        if (bild.isConnected) {
+          achse.innerHTML = '<span class="kein">' + escHtml(W.keinbild) + "</span>";
+        }
+      });
+  };
+
+  const openSpur = (el) => {
+    if (document.getElementById(SHEET_ID)) return false;
+    if (performance.now() - letztesZu < GEIST_MS) return false;
+    const slug = el.dataset.auroraSpur;
+    if (!slug || !/^[a-z0-9_-]+$/i.test(slug)) return false;
+    const name = el.dataset.spurName || slug;
+    const ent = el.dataset.spurEntity || "";
+    const W = worte();
+    const wrap = document.createElement("div");
+    wrap.id = SHEET_ID;
+    wrap.innerHTML =
+      "<style>" + SHEET_CSS + SPUR_BLATT_CSS + "</style>" +
+      '<div class="sheet spur" role="dialog" aria-modal="true" style="--tone:#cba6f7">' +
+        '<div class="hd">' +
+          '<ha-icon icon="mdi:gradient-horizontal" style="color:#cba6f7"></ha-icon>' +
+          '<div class="txt"><h2>' + escHtml(name) + "</h2>" +
+          '<p class="sub">' + escHtml(W.spur24) + "</p></div>" +
+          '<button class="x" data-close="1" aria-label="' + escHtml(W.zu) + '">✕</button>' +
+        "</div>" +
+        '<div class="spurbild" data-aurora-spur="' + escHtml(slug) + '"' +
+        ' data-spur-name="' + escHtml(name) + '"></div>' +
+        '<div class="spurachse"></div>' +
+        '<div class="spurfuss"><span class="spurstand"></span>' +
+        '<span class="hin">' + escHtml(W.spurhin) + "</span></div>" +
+        '<p class="spurleg">' + escHtml(W.spurleg) + "</p>" +
+        '<div class="btns">' +
+          (ent ? '<button data-mi="' + escHtml(ent) + '">' + escHtml(W.geraet) + "</button>" : "") +
+          '<button data-close="1">' + escHtml(W.zu) + "</button>" +
+        "</div>" +
+      "</div>";
+
+    const wirken = blattWirken(wrap);
+    wrap.addEventListener("pointerup", wirken);
+    wrap.addEventListener("click", wirken);
+    wrap.__geboren = performance.now();
+    document.body.appendChild(wrap);
+    document.addEventListener("keydown", onSheetKey, true);
+    if (zeigerGeraet) {
+      const first = wrap.querySelector("button.x");
+      if (first) first.focus();
+    }
+    spurLaden(wrap, slug);
+    return true;
+  };
+
   // Capture-Phase + composedPath: die markierte Zeile liegt im Schatten-DOM
   // der Karte, wo ein gewoehnlicher Horcher am document sie nie zu sehen bekommt.
   const markedIn = (ev) => {
     const path = ev.composedPath ? ev.composedPath() : [];
     for (const el of path) {
-      if (el && el.dataset && (el.dataset.auroraDetail || el.dataset.auroraNav)) return el;
+      if (el && el.dataset &&
+          (el.dataset.auroraDetail || el.dataset.auroraNav || el.dataset.auroraSpur)) return el;
       if (el === document) break;
     }
     return null;
@@ -1384,6 +1800,7 @@
       navigateTo(ziel);
       return true;
     }
+    if (el.dataset.auroraSpur) return openSpur(el);
     return openFrom(el, mitFokus);
   };
 
@@ -1460,7 +1877,8 @@
   window.auroraDetail = (elOrData) => {
     try {
       if (elOrData && elOrData.dataset &&
-          (elOrData.dataset.auroraDetail || elOrData.dataset.auroraNav)) {
+          (elOrData.dataset.auroraDetail || elOrData.dataset.auroraNav ||
+           elOrData.dataset.auroraSpur)) {
         actOn(elOrData, false);
         return;
       }
@@ -1475,6 +1893,11 @@
   // richtiger als `auroraDetail`, es ist aber derselbe Eingang.
   window.auroraNav = (el) => window.auroraDetail(el);
 
+  // Eigener Name fuer den Streifen. Das onclick-Attribut an der Karte bleibt:
+  // fuer WebKit ist es das Signal "dieses Element ist anklickbar" — ohne das
+  // kommt auf dem iPhone beim ersten Mal nichts an.
+  window.auroraSpur = (el) => window.auroraDetail(el);
+
 
   sweep();
   aufbauBeobachten();
@@ -1483,5 +1906,5 @@
     setTimeout(sweep, 300);
     aufbauBeobachten();
   });
-  console.info("%c AURORA-EFFECTS %c v2.27.1 ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v" + AE_VERSION + " ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();

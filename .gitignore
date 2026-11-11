@@ -1,6 +1,6 @@
 .DS_Store
 *.log
-# private local instance (Robert) — never publish
+# private local instance — never publish
 dashboard/aurora-robert.de.yaml
 docs/screenshots/*
 # Freigegeben: aus der Demo-Instanz mit Platzhalterdaten, keine echten Namen.
@@ -11,3 +11,7 @@ docs/screenshots/*
 !docs/screenshots/system.png
 !docs/screenshots/phone.png
 !docs/screenshots/phone-detail.png
+
+# backups and local copies of private instances — never publish
+*.bak*
+dashboard/aurora-robert*
