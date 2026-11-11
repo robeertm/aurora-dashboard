@@ -5,6 +5,19 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.35.2
+
+Helper only; the dashboard files are unchanged.
+
+- **Wide grids that a filter fills no longer end on a lone card.** The signal
+  tiles of the radio view are fed by a filter, so their count changes at will:
+  six tiles in a five-column grid left one tile alone in a second row. For
+  grids of four or more columns the helper now keeps the number of rows the
+  grid needs but spreads the cards evenly over them (6 become 3+3, 8 become
+  4+4, 7 become 4+3). It never uses more columns than before, so no card gets
+  narrower. Grids with three or fewer columns and single-row grids look as
+  before, and a single leftover card still spans the full width.
+
 ## 2.35.1
 
 Dashboard only; `dist/aurora-effects.js` is byte-for-byte the 2.35.0 file.

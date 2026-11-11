@@ -1,5 +1,8 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.35.2 — wide grids that a filter fills (BLE signal tiles) no longer
+ *            leave one card alone in a second row: the cards spread evenly over the rows the grid needs (6 -> 3+3, 8 -> 4+4). A
+ *            single leftover card still spans the full width, as before.
  * v2.35.0 — the "now" tick on the history-graph axis comes from the same
  *            two-language word table as every other label of the helper (it was
  *            the one German word left hard-coded, so an English dashboard
@@ -146,7 +149,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.35.0";
+  const AE_VERSION = "2.35.2";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
@@ -697,7 +700,8 @@
     // Raster, in dem HA jede Breite selbst vergibt: Spaltenzahl unveraendert.
     const n = frei.length || info.cols;
     const min = istHandy() ? Math.max(info.min, KACHEL_MIN_HANDY) : info.min;
-    const cols = Math.max(1, Math.min(info.cols, n, Math.floor(info.w / min)));
+    let cols = Math.max(1, Math.min(info.cols, n, Math.floor(info.w / min)));
+    cols = gleichmaessig(cols, n);
     if (root.dataset.auroraCols !== String(cols)) {
       root.dataset.auroraCols = String(cols);
       root.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
@@ -732,6 +736,17 @@
       frei.push(el);
     }
     return frei;
+  };
+
+  // Wide grids (4+ columns) fed by a filter change their card count at will:
+  // 6 cards in 5 columns left one card alone across the whole second row. Keep
+  // the number of rows the grid needs anyway, but spread the cards over them
+  // evenly (6 -> 3+3, 8 -> 4+4, 7 -> 4+3). Never more columns than before, so
+  // no card gets narrower. Grids with 3 or fewer columns keep their old look.
+  const gleichmaessig = (cols, n) => {
+    if (cols < 4 || n <= cols) return cols;
+    const zeilen = Math.ceil(n / cols);
+    return Math.ceil(n / zeilen);
   };
 
   const fuelleLetzteZeile = (root, cols, frei) => {
