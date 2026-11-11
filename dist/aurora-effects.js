@@ -1,5 +1,9 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.35.0 — the "now" tick on the history-graph axis comes from the same
+ *            two-language word table as every other label of the helper (it was
+ *            the one German word left hard-coded, so an English dashboard
+ *            showed "jetzt").
  * v2.34.0 — the readout under the pointer says what the lamp was DOING, not
  *            only when: brightness in per cent, the colour temperature or
  *            hue/saturation, and a swatch of the actual light colour. None of
@@ -142,7 +146,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.34.0";
+  const AE_VERSION = "2.35.0";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
@@ -532,7 +536,7 @@
   // re-checked on the regular sweep, because the card rebuilds its own DOM.
   const xLabel = (h, frac) => {
     const back = h * (1 - frac);
-    if (back <= 0.01) return "jetzt";
+    if (back <= 0.01) return worte().jetzt;
     if (h > 48) {
       const d = back / 24;
       return "−" + (d >= 10 ? Math.round(d) : d.toFixed(d % 1 ? 1 : 0)) + " d";
@@ -1002,7 +1006,7 @@
   // aus der Karte. Home Assistant setzt <html lang> auf die Sprache des
   // Benutzers - danach richten wir uns, statt eine Sprache festzuschreiben.
   const WORTE = {
-    de: { tun: "Was du tun kannst", zu: "Schließen", geraet: "Gerät öffnen", hin: "Hin da",
+    de: { jetzt: "jetzt", tun: "Was du tun kannst", zu: "Schließen", geraet: "Gerät öffnen", hin: "Hin da",
           werte: "Kennzahlen", verlauf: "Verlauf der letzten Zeit",
           spur24: "Farbe und Helligkeit der letzten 24 Stunden",
           spurhin: "Zeiger über den Streifen: Uhrzeit, Helligkeit, Lichtfarbe",
@@ -1012,7 +1016,7 @@
           aus: "aus", an: "an", keineaufz: "keine Aufzeichnung",
           keinfenster: "Zeitfenster unbekannt — keine Uhrzeit angezeigt",
           keinbild: "Streifen nicht erreichbar" },
-    en: { tun: "What you can do", zu: "Close", geraet: "Open device", hin: "Take me there",
+    en: { jetzt: "now", tun: "What you can do", zu: "Close", geraet: "Open device", hin: "Take me there",
           werte: "Details", verlauf: "Recent history",
           spur24: "Colour and brightness of the last 24 hours",
           spurhin: "Pointer across the strip: time, brightness, light colour",

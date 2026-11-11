@@ -5,6 +5,15 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.35.0
+
+- The "now" tick on the history-graph axis is translated through the helper's
+  word table (German and English) instead of being hard-coded in German. It
+  was the last hard-coded visible word in the helper.
+- README pictures retaken; the System picture now shows the charts.
+- Example dashboard: `time_format` of the weather clock card is now a string
+  (`"24"`), as version 3.x of that card requires; the number was ignored.
+
 ## 2.34.1
 
 Documentation and pictures only; `dist/aurora-effects.js` is byte-for-byte the

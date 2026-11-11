@@ -1059,7 +1059,7 @@ views:
           type: custom:clock-weather-card
           entity: weather.forecast_home
           sun_entity: sun.sun
-          time_format: 24
+          time_format: "24"
           forecast_rows: 4
           animated_icon: true
       - type: conditional
@@ -1070,7 +1070,7 @@ views:
           type: custom:clock-weather-card
           entity: weather.forecast_home
           sun_entity: sun.sun
-          time_format: 24
+          time_format: "24"
           forecast_rows: 4
           animated_icon: false
       - type: vertical-stack

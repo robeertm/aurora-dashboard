@@ -183,6 +183,12 @@ def shoot_cmd():
             for name, path in views:
                 page.goto("%s/aurora-home/%s" % (BASE, path))
                 settle(page, 9000)
+                if name == "system":
+                    # the charts sit below the first screen: bring the Server heading to the top
+                    page.evaluate("""() => { const f = (n) => { if (n.nodeType === 1 && n.textContent && n.children.length === 0 && n.textContent.trim() === 'Server / Raspberry Pi') return n; const k = (n.shadowRoot ? [...n.shadowRoot.children] : []).concat([...(n.children || [])]); for (const c of k) { const r = f(c); if (r) return r; } return null; }; const e = f(document.body); if (e) e.scrollIntoView({block: 'start'}); }""")
+                    page.mouse.move(700, 500)
+                    page.mouse.wheel(0, -80)
+                    page.wait_for_timeout(2500)
                 page.screenshot(path=os.path.join(OUT, name + ".png"))
                 print("shot", name)
                 if name == "home":
