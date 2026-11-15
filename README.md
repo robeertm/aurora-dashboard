@@ -125,7 +125,9 @@ instance can be rebuilt with <code>tools/demo/demo.sh</code>.</em></p>
   `signal_strength` sensor auto-discovered as a traffic-light dBm tile
   (pulses red when weak), and RSSI history charts.
 - 🧊 **Real glass** — cards get a strong backdrop blur plus a diagonal light
-  sheen and top-edge highlight, injected by the effects helper.
+  sheen and top-edge highlight, injected by the effects helper. (Firefox, Safari
+  and phones get the same glass with a more opaque card colour instead of the
+  blur — see *Performance*.)
 - 🔭 **Sensor Explorer** — *every* sensor and binary sensor in your install,
   grouped by device class, sorted, auto-discovered. Nothing falls through.
 - ⚡ **Live counter chips** — lights on, windows open, updates pending, people
@@ -168,7 +170,8 @@ the bundled `dist/aurora-effects.js` (a small dependency-free helper).
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=robeertm&repository=aurora-dashboard&category=plugin)
 
 This adds the repo to HACS and installs `aurora-effects.js` including the
-dashboard resource — one click, then "Download".
+dashboard resource — one click, then "Download". After that, create the `sky_mode`
+helper (see *The sky switch* below); the sky buttons need it.
 
 **Theme + dashboard in one command** — SSH into Home Assistant and run this
 inside `/config`:
@@ -187,7 +190,10 @@ the two remaining UI steps.
    `frontend.reload_themes` action.
 2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
-   resource: `/local/aurora-effects/aurora-effects.js` (type *module*).
+   resource: `/local/aurora-effects/aurora-effects.js?v=2.36.0` (type *module*).
+   **When you update the file, change the number after `?v=`** (any new value
+   works): the browser keeps a resource without a version, and Firefox did so
+   even after a hard reload.
 3. **Dashboard** — create a new dashboard and paste `dashboard/aurora.yaml`
    into its raw configuration editor. Set the *Aurora* theme on **every** view
    (the shipped YAML already does). A view that misses `theme: Aurora` falls
@@ -234,7 +240,8 @@ input_select:
 On **Auto** the scene follows `sun.sun`: above 6° elevation is Day, down to
 −8° is Dusk, below that Night. A row of four labelled buttons sits under the
 status card on the Overview and Phone views — the active one lights up.
-Nothing else is wired to the helper: no automation, no template sensor.
+Nothing else is wired to the helper: no automation, no template sensor. If
+the helper is missing, the buttons have nothing to write to and do nothing.
 
 The weather comes from the entity named in the sky template's `weather`
 variable (`weather.forecast_home` by default) — it reads the condition,
@@ -347,6 +354,16 @@ of idle time on a real installation (1450 entities), not guessed.
   lighter **mini-graph-card** for the per-room trends and keeps apexcharts for
   the analysis views, where the charts *are* the content: **160 s → 4.7 s**,
   4 fps → 53 fps.
+- **Firefox gets the glass without the blur.** With the animated sky behind
+  them, every blurred card is recomputed on every frame. Measured on desktop
+  Firefox (2560 px, 166 Hz): ~92 % GPU load as shipped, ~21–25 % with the
+  per-card blur off and every animation still running — the blur alone was
+  about 70 % of the load. Firefox therefore keeps the sheen and the edge light
+  but gets a more opaque card colour instead of the blur; Chrome, Edge and
+  Safari are unchanged. Two optional theme variables override this in any
+  browser: `aurora-glass-blur` (`none`, or a filter such as
+  `blur(18px) saturate(1.45)` to bring the blur back in Firefox) and
+  `aurora-glass-solid` (the card colour used where the blur is off).
 - **Phones need less, not smaller.** Under 700 px this dashboard drops the
   per-card backdrop blur (each blurred card is a compositing layer plus a
   backdrop snapshot, at 3× device pixels), freezes the sky's motion while

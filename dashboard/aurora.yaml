@@ -115,7 +115,7 @@ button_card_templates:
     variables:
       accent: '#89b4fa'
       accent_bg: rgba(137,180,250,0.10)
-    state_display: "[[[\n  const st = entity ? entity.state : null;\n  if (st === null || st === undefined) return '—';\n  if (entity.attributes.device_class === 'timestamp') {\n    const d = new Date(st);\n    return isNaN(d) ? st : d.toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'});\n  }\n  if (st === 'unknown' || st === 'unavailable' || st === 'none') return '—';\n  const v = parseFloat(st);\n  if (isNaN(v)) {\n    // let HA translate enum states (appliance programs etc.)\n    try { return hass.formatEntityState(entity); } catch (e) { return st; }\n  }\n  const a = Math.abs(v);\n  const dec = a >= 100 ? 0 : a >= 10 ? 1 : 2;\n  const u = entity.attributes.unit_of_measurement;\n  return parseFloat(v.toFixed(dec)) + (u ? ' ' + u : '');\n]]]\n"
+    state_display: "[[[\n  const st = entity ? entity.state : null;\n  if (st === null || st === undefined) return '—';\n  if (entity?.attributes.device_class === 'timestamp') {\n    const d = new Date(st);\n    return isNaN(d) ? st : d.toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'});\n  }\n  if (st === 'unknown' || st === 'unavailable' || st === 'none') return '—';\n  const v = parseFloat(st);\n  if (isNaN(v)) {\n    // let HA translate enum states (appliance programs etc.)\n    try { return hass.formatEntityState(entity); } catch (e) { return st; }\n  }\n  const a = Math.abs(v);\n  const dec = a >= 100 ? 0 : a >= 10 ? 1 : 2;\n  const u = entity?.attributes.unit_of_measurement;\n  return parseFloat(v.toFixed(dec)) + (u ? ' ' + u : '');\n]]]\n"
     styles:
       grid:
       - grid-template-areas: '''i s'' ''i n'''
@@ -282,7 +282,7 @@ button_card_templates:
     - input_select.sky_mode
     - weather.forecast_home
     custom_fields:
-      scene: "[[[\n  const V = variables;\n  const S = states;\n  // ── Szene bestimmen ────────────────────────────────────────────\n  const sel = S['input_select.aurora_himmel'];\n  let mode = sel ? sel.state : 'Automatik';\n  const sun  = S['sun.sun'];\n  const elev = sun ? Number(sun.attributes.elevation) : -30;\n  const azi  = sun ? Number(sun.attributes.azimuth)   : 180;\n  if (mode === 'Automatik' || !['Tag','Dämmerung','Nacht'].includes(mode)) {\n    mode = elev > 6 ? 'Tag' : (elev > -8 ? 'Dämmerung' : 'Nacht');\n  }\n\n  // ── Wetter am Ort ─────────────────────────────────────────────\n  const w    = S[V.weather];\n  const cond = w ? String(w.state) : 'partlycloudy';\n  const att  = w ? w.attributes : {};\n  const cover = att.cloud_coverage != null ? Number(att.cloud_coverage)\n              : (cond === 'sunny' || cond === 'clear-night') ? 5\n              : cond === 'cloudy' ? 90 : 50;\n  const wind = Number(att.wind_speed) || 8;\n  const rain  = ['rainy','pouring','lightning-rainy','snowy-rainy','hail'].includes(cond);\n  const heavy = ['pouring','lightning-rainy','hail'].includes(cond);\n  const snow  = ['snowy','snowy-rainy'].includes(cond);\n  const fog   = ['fog','exceptional'].includes(cond);\n  const storm = ['lightning','lightning-rainy'].includes(cond);\n  const clear = ['sunny','clear-night'].includes(cond);\n  // Wolkenzahl folgt der Bedeckung, Tempo dem echten Wind. Bei Regen oder\n  // Schnee zieht deutlich mehr durchs Bild - dort, wo es herkommt, ist der\n  // Himmel eben voll.\n  // Auf dem Handy laeuft die Bewegung WEITER - nur mit halb so vielen\n  // Tropfen. Der Aufwand haengt an der Anzahl, nicht daran, ob sich etwas\n  // bewegt; ein Einfrieren sah aus wie ein Fehler.\n  const handy = !!(window.matchMedia && window.matchMedia('(max-width: 700px)').matches);\n  const wenigerAufKlein = (n) => handy ? Math.max(4, Math.round(n / 2)) : n;\n  const nass    = rain || snow;\n  const nClouds = Math.max(0, Math.min(nass ? 13 : 6,\n                  Math.round(cover / (nass ? 8 : 17)) + (nass ? 4 : 0)));\n  const sail    = Math.max(80, Math.round(430 - wind * 9));\n\n  // ── Jahreszeit (Nordhalbkugel) ────────────────────────────────\n  const m = new Date().getMonth();\n  const season = ['spring','summer','autumn','winter'].includes(V.season) ? V.season\n               : (m >= 2 && m <= 4) ? 'spring'\n               : (m >= 5 && m <= 7) ? 'summer'\n               : (m >= 8 && m <= 10) ? 'autumn' : 'winter';\n\n  // ── Bausteine ─────────────────────────────────────────────────\n  // Wenn es schneit, liegt Schnee - egal welcher Monat. Eine ausdrueckliche\n  // Vorgabe in variables.season behaelt Vorrang (sie dient dem Ausprobieren).\n  const bodenSaison = (snow && !['spring','summer','autumn','winter'].includes(V.season))\n                    ? 'winter' : season;\n  const clouds = (cls) => {\n    let out = '';\n    for (let i = 0; i < nClouds; i++) {\n      // 13 Wolken x 9 % waeren 117 % - die letzten waeren unter dem Bild.\n      // Deshalb umlaufend auf sieben Hoehen, leicht versetzt.\n      const top   = 6 + (i % 7) * 8 + (i > 6 ? 4 : 0);\n      const scale = (i % 3 === 0) ? 1.25 : (i % 3 === 1) ? 1 : .8;\n      const dur   = Math.round(sail * (1 + i * 0.22));\n      const delay = -Math.round(dur * (i * 0.31 % 1));\n      out += `<div class=\"cloud ${cls}\" style=\"top:${top}%;`\n           + `width:${Math.round(230 * scale)}px;height:${Math.round(78 * scale)}px;`\n           + `animation-duration:${dur}s;animation-delay:${delay}s;`\n           + `opacity:${(clear ? .26 : rain || cond === 'cloudy' ? .62 : .42).toFixed(2)}\"></div>`;\n    }\n    return out;\n  };\n  // Naher Regen gehoert VOR die Wiese, ferner dahinter. weatherFx() legt den\n    // nahen hier ab; die Vorlage liest ihn direkt nach dem Boden wieder aus.\n    // (Vorlagen werden von links nach rechts ausgewertet - der Wert steht dann.)\n    // Neigung von Regen und Schnee folgt dem echten Wind.\n    const boeen = Math.max(.35, Math.min(1.6, (wind || 8) / 12));\n    let nahFx = '';\n    const weatherFx = () => {\n    let out = '';\n    const rainLanes = (n, weit) => {\n          let out = '';\n          // 97 ist teilerfremd zu 100 - die Bahnen streuen sich damit von selbst,\n          // ohne Zufall (der bei jedem Neuzeichnen ein anderes Bild ergaebe).\n          for (let i = 0; i < n; i++) {\n            const x    = (i * 97 + (weit ? 41 : 13)) % 100;\n            const land = weit ? 23 + (i * 7) % 5 : 4 + (i * 11) % 22;\n            const nah  = weit ? 0 : 1 - land / 30;\n            const dur  = (weit ? 1.35 : .70) + ((i * 13) % 9) / 36 - nah * .18;\n            out += '<i class=\"rainlane' + (weit ? ' far' : '') + '\" style=\"'\n                 + 'left:' + x + '%;bottom:' + land + '%;'\n                 + '--w:'  + (weit ? 1.5 : 2.1 + nah * 1.7).toFixed(1) + 'px;'\n                 + '--h:'  + (weit ? 8 : 10 + nah * 9).toFixed(0) + 'px;'\n                 + '--sw:' + (10 + nah * 14).toFixed(0) + 'px;'\n                 + '--o:'  + (weit ? .38 : .55 + nah * .4).toFixed(2) + ';'\n                 + '--d:'  + (dur / (heavy ? 1.45 : 1)).toFixed(2) + 's;'\n                 + '--t:'  + (-(i * 0.37) % dur).toFixed(2) + 's;'\n                 + '--fall:' + (106 - land) + 'vh;'\n                 + '--dx:' + Math.round((weit ? 26 : 44) * boeen + (i % 3) * 4) + 'px\"></i>';\n          }\n          return out;\n        };\n        if (rain) { out += rainLanes(wenigerAufKlein(heavy ? 24 : 16), true);\n                   nahFx += rainLanes(wenigerAufKlein(heavy ? 34 : 20), false); }\n    const snowLanes = (n, weit) => {\n          let out = '';\n          for (let i = 0; i < n; i++) {\n            const x    = (i * 89 + (weit ? 29 : 7)) % 100;\n            const land = weit ? 23 + (i * 5) % 5 : 3 + (i * 13) % 23;\n            const nah  = weit ? 0 : 1 - land / 30;\n            const dur  = (weit ? 13 : 8.5) + ((i * 17) % 11) / 2;\n            out += '<i class=\"snowlane' + (weit ? ' far' : '') + '\" style=\"'\n                 + 'left:' + x + '%;bottom:' + land + '%;'\n                 + '--w:'  + (weit ? 3.4 : 4.6 + nah * 3.4).toFixed(1) + 'px;'\n                 + '--sw:' + (9 + nah * 11).toFixed(0) + 'px;'\n                 + '--o:'  + (weit ? .5 : .72 + nah * .26).toFixed(2) + ';'\n                 + '--d:'  + dur.toFixed(2) + 's;'\n                 + '--t:'  + (-(i * 1.7) % dur).toFixed(2) + 's;'\n                 + '--fall:' + (106 - land) + 'vh;'\n                 + '--dx:' + Math.round((weit ? 22 : 38) * (1 + boeen)) + 'px\"></i>';\n          }\n          return out;\n        };\n        if (snow) { out += snowLanes(wenigerAufKlein(24), true); nahFx += snowLanes(wenigerAufKlein(30), false); }\n    if (fog)   out += '<div class=\"fogband f1\"></div><div class=\"fogband f2\"></div>';\n    if (storm) out += '<div class=\"flash\"></div>';\n    return out;\n  };\n  const ground = (variant) => {\n    let extra = '';\n    if (bodenSaison === 'autumn' && variant !== 'night') {\n      extra = '<div class=\"leaf l1\"></div><div class=\"leaf l2\"></div><div class=\"leaf l3\"></div>';\n    }\n    if (bodenSaison === 'summer' && variant === 'night') {\n      extra = '<div class=\"firefly f1\"></div><div class=\"firefly f2\"></div>'\n            + '<div class=\"firefly f3\"></div><div class=\"firefly f4\"></div>';\n    }\n    return `<div class=\"ground ${bodenSaison} ${variant}\">\n      <div class=\"treeline\"></div>\n      <div class=\"meadow\"></div>\n      <div class=\"flowers\"></div>\n      <div class=\"grass\"></div>\n      ${extra}\n    </div>`;\n  };\n\n  // ── Mond: echte Bahn + echte Phase ────────────────────────────\n  // Vereinfachte Mondposition (Meeus, Genauigkeit ~0,3° — reicht fuer ein Bild)\n  // und der beleuchtete Anteil, gezeichnet als Lune. Standort kommt aus HA.\n  const moonHTML = () => {\n    const D = Math.PI / 180;\n    const lat = (hass.config && hass.config.latitude) || 50;\n    const lon = (hass.config && hass.config.longitude) || 10;\n    const d = Date.now() / 86400000 + 2440587.5 - 2451545.0;\n    const L = (218.316 + 13.176396 * d) * D;\n    const M = (134.963 + 13.064993 * d) * D;\n    const F = (93.272 + 13.229350 * d) * D;\n    const lam = L + 6.289 * D * Math.sin(M);\n    const bet = 5.128 * D * Math.sin(F);\n    const eps = 23.4397 * D;\n    const ra = Math.atan2(Math.sin(lam) * Math.cos(eps) - Math.tan(bet) * Math.sin(eps), Math.cos(lam));\n    const dec = Math.asin(Math.sin(bet) * Math.cos(eps) + Math.cos(bet) * Math.sin(eps) * Math.sin(lam));\n    const phi = lat * D;\n    const th = (280.16 + 360.9856235 * d) * D + lon * D;\n    const H = th - ra;\n    const alt = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H)) / D;\n    let az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi)) / D + 180;\n    az = (az + 360) % 360;\n    // Sonne (grob) fuer die Phase\n    const Ms = (357.5291 + 0.98560028 * d) * D;\n    const Ls = (280.459 + 0.98564736 * d) * D + (1.9148 * Math.sin(Ms) + 0.0200 * Math.sin(2 * Ms)) * D;\n    const elong = Math.acos(Math.cos(bet) * Math.cos(lam - Ls));\n    const k = (1 - Math.cos(elong)) / 2;                 // beleuchteter Anteil 0..1\n    const waxing = Math.sin(lam - Ls) > 0;               // zunehmend?\n    if (alt < -3) return '';                              // unter dem Horizont\n    const mx = Math.max(2, Math.min(92, ((az - 60) / 240) * 90 + 2));\n    const my = Math.max(4, Math.min(78, 74 - (Math.max(alt, -3) / 55) * 68));\n    const r = 46, rx = (r * Math.abs(1 - 2 * k)).toFixed(1);\n    const s1 = waxing ? 1 : 0;\n    const s2 = (k > 0.5) ? (waxing ? 1 : 0) : (waxing ? 0 : 1);\n    const lit = `M0,${-r} A${r},${r} 0 0,${s1} 0,${r} A${rx},${r} 0 0,${s2} 0,${-r} Z`;\n    const dim = Math.min(1, Math.max(0.25, 0.35 + k))\n              * Math.max(0.8, 1 - cover / 400);   // schmale Sichel + Wolken daempfen\n    const NAMES = ['Neumond','zunehmende Sichel','erstes Viertel','zunehmender Mond',\n                   'Vollmond','abnehmender Mond','letztes Viertel','abnehmende Sichel'];\n    const idx = k < 0.04 ? 0 : k > 0.96 ? 4\n              : (Math.abs(k - 0.5) < 0.06 ? (waxing ? 2 : 6) : (k < 0.5 ? (waxing ? 1 : 7) : (waxing ? 3 : 5)));\n    return `<div class=\"moonwrap\" style=\"left:${mx.toFixed(1)}%;top:${my.toFixed(1)}%;opacity:${dim.toFixed(2)}\"\n                 title=\"${NAMES[idx]} · ${Math.round(k * 100)} % beleuchtet\">\n      <svg viewBox=\"-52 -52 104 104\" class=\"moondisc\">\n        <defs>\n          <radialGradient id=\"mg\" cx=\"38%\" cy=\"34%\" r=\"72%\">\n            <stop offset=\"0%\" stop-color=\"#fffdf2\"/>\n            <stop offset=\"62%\" stop-color=\"#f2ead4\"/>\n            <stop offset=\"100%\" stop-color=\"#d9cfb4\"/>\n          </radialGradient>\n          <clipPath id=\"mclip\"><path d=\"${lit}\"/></clipPath>\n        </defs>\n        <circle r=\"46\" fill=\"rgba(205,214,244,.07)\"/>\n        <g clip-path=\"url(#mclip)\">\n          <circle r=\"46\" fill=\"url(#mg)\"/>\n          <circle cx=\"-14\" cy=\"-12\" r=\"8\"  fill=\"rgba(140,132,110,.30)\"/>\n          <circle cx=\"12\"  cy=\"6\"   r=\"11\" fill=\"rgba(140,132,110,.24)\"/>\n          <circle cx=\"-6\"  cy=\"20\"  r=\"6\"  fill=\"rgba(140,132,110,.26)\"/>\n          <circle cx=\"20\"  cy=\"-20\" r=\"5\"  fill=\"rgba(140,132,110,.22)\"/>\n        </g>\n      </svg>\n    </div>`;\n  };\n\n  // ── Nacht ─────────────────────────────────────────────────────\n  if (mode === 'Nacht') {\n    const starDim = Math.max(.18, 1 - cover / 120);\n    return `<div class=\"sky sky-night\">\n      <div class=\"stars\" style=\"opacity:${(0.75 * starDim).toFixed(2)}\"></div>\n      <div class=\"stars2\" style=\"opacity:${starDim.toFixed(2)}\"></div>\n      ${moonHTML()}\n      ${clouds('night')}\n      ${weatherFx()}\n      ${ground('night')}\n    ${nahFx}\n    </div>`;\n  }\n\n  // Sonne dorthin setzen, wo sie steht: Azimut 60°–300° auf 2 %–92 %,\n  // Höhe 0°–55° auf 72 %–6 % (tief stehend = knapp über dem Horizont).\n  const x = Math.max(2, Math.min(92, ((azi - 60) / 240) * 90 + 2));\n  const y = Math.max(6, Math.min(74, 72 - (Math.max(elev, -6) / 55) * 66));\n  const pos = `left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;`;\n  // Bei dichter Bedeckung verschwindet die Sonne hinter den Wolken\n  const sunOp = Math.max(0, 1 - cover / 105).toFixed(2);\n  const dusk  = mode === 'Dämmerung';\n  const paletteFor = () => {\n    if (dusk) return 'sky-dusk';\n    if (rain || cond === 'cloudy') return 'sky-day wet';\n    if (snow) return 'sky-day snowy';\n    if (fog)  return 'sky-day foggy';\n    if (clear) return 'sky-day clear';\n    return 'sky-day';\n  };\n  return `<div class=\"sky ${paletteFor()}\">\n    <div class=\"rays${dusk ? ' dusk' : ''}\" style=\"${pos}opacity:${sunOp}\"></div>\n    <div class=\"sun${dusk ? ' dusk' : ''}\" style=\"${pos}opacity:${sunOp}\"></div>\n    ${dusk ? '<div class=\"stars2 faint\"></div>' : ''}\n    ${dusk ? moonHTML() : ''}\n    <div class=\"haze\"></div>\n    ${clouds(dusk ? 'warm' : '')}\n    ${!rain && !snow && !fog && !dusk ? '<div class=\"bird b1\"></div><div class=\"bird b2\"></div>' : ''}\n    ${weatherFx()}\n    ${ground(dusk ? 'dusk' : 'day')}\n    ${nahFx}\n  </div>`;\n]]]\n"
+      scene: "[[[\n  const V = variables;\n  const S = states;\n  // ── Szene bestimmen ────────────────────────────────────────────\n  const sel = S['input_select.sky_mode'];\n  let mode = ({Auto: 'Automatik', Day: 'Tag', Dusk: 'Dämmerung', Night: 'Nacht'})[sel ? sel.state : 'Auto'] || 'Automatik';\n  const sun  = S['sun.sun'];\n  const elev = sun ? Number(sun.attributes.elevation) : -30;\n  const azi  = sun ? Number(sun.attributes.azimuth)   : 180;\n  if (mode === 'Automatik' || !['Tag','Dämmerung','Nacht'].includes(mode)) {\n    mode = elev > 6 ? 'Tag' : (elev > -8 ? 'Dämmerung' : 'Nacht');\n  }\n\n  // ── Wetter am Ort ─────────────────────────────────────────────\n  const w    = S[V.weather];\n  const cond = w ? String(w.state) : 'partlycloudy';\n  const att  = w ? w.attributes : {};\n  const cover = att.cloud_coverage != null ? Number(att.cloud_coverage)\n              : (cond === 'sunny' || cond === 'clear-night') ? 5\n              : cond === 'cloudy' ? 90 : 50;\n  const wind = Number(att.wind_speed) || 8;\n  const rain  = ['rainy','pouring','lightning-rainy','snowy-rainy','hail'].includes(cond);\n  const heavy = ['pouring','lightning-rainy','hail'].includes(cond);\n  const snow  = ['snowy','snowy-rainy'].includes(cond);\n  const fog   = ['fog','exceptional'].includes(cond);\n  const storm = ['lightning','lightning-rainy'].includes(cond);\n  const clear = ['sunny','clear-night'].includes(cond);\n  // Wolkenzahl folgt der Bedeckung, Tempo dem echten Wind. Bei Regen oder\n  // Schnee zieht deutlich mehr durchs Bild - dort, wo es herkommt, ist der\n  // Himmel eben voll.\n  // Auf dem Handy laeuft die Bewegung WEITER - nur mit halb so vielen\n  // Tropfen. Der Aufwand haengt an der Anzahl, nicht daran, ob sich etwas\n  // bewegt; ein Einfrieren sah aus wie ein Fehler.\n  const handy = !!(window.matchMedia && window.matchMedia('(max-width: 700px)').matches);\n  const wenigerAufKlein = (n) => handy ? Math.max(4, Math.round(n / 2)) : n;\n  const nass    = rain || snow;\n  const nClouds = Math.max(0, Math.min(nass ? 13 : 6,\n                  Math.round(cover / (nass ? 8 : 17)) + (nass ? 4 : 0)));\n  const sail    = Math.max(80, Math.round(430 - wind * 9));\n\n  // ── Jahreszeit (Nordhalbkugel) ────────────────────────────────\n  const m = new Date().getMonth();\n  const season = ['spring','summer','autumn','winter'].includes(V.season) ? V.season\n               : (m >= 2 && m <= 4) ? 'spring'\n               : (m >= 5 && m <= 7) ? 'summer'\n               : (m >= 8 && m <= 10) ? 'autumn' : 'winter';\n\n  // ── Bausteine ─────────────────────────────────────────────────\n  // Wenn es schneit, liegt Schnee - egal welcher Monat. Eine ausdrueckliche\n  // Vorgabe in variables.season behaelt Vorrang (sie dient dem Ausprobieren).\n  const bodenSaison = (snow && !['spring','summer','autumn','winter'].includes(V.season))\n                    ? 'winter' : season;\n  const clouds = (cls) => {\n    let out = '';\n    for (let i = 0; i < nClouds; i++) {\n      // 13 Wolken x 9 % waeren 117 % - die letzten waeren unter dem Bild.\n      // Deshalb umlaufend auf sieben Hoehen, leicht versetzt.\n      const top   = 6 + (i % 7) * 8 + (i > 6 ? 4 : 0);\n      const scale = (i % 3 === 0) ? 1.25 : (i % 3 === 1) ? 1 : .8;\n      const dur   = Math.round(sail * (1 + i * 0.22));\n      const delay = -Math.round(dur * (i * 0.31 % 1));\n      out += `<div class=\"cloud ${cls}\" style=\"top:${top}%;`\n           + `width:${Math.round(230 * scale)}px;height:${Math.round(78 * scale)}px;`\n           + `animation-duration:${dur}s;animation-delay:${delay}s;`\n           + `opacity:${(clear ? .26 : rain || cond === 'cloudy' ? .62 : .42).toFixed(2)}\"></div>`;\n    }\n    return out;\n  };\n  // Naher Regen gehoert VOR die Wiese, ferner dahinter. weatherFx() legt den\n    // nahen hier ab; die Vorlage liest ihn direkt nach dem Boden wieder aus.\n    // (Vorlagen werden von links nach rechts ausgewertet - der Wert steht dann.)\n    // Neigung von Regen und Schnee folgt dem echten Wind.\n    const boeen = Math.max(.35, Math.min(1.6, (wind || 8) / 12));\n    let nahFx = '';\n    const weatherFx = () => {\n    let out = '';\n    const rainLanes = (n, weit) => {\n          let out = '';\n          // 97 ist teilerfremd zu 100 - die Bahnen streuen sich damit von selbst,\n          // ohne Zufall (der bei jedem Neuzeichnen ein anderes Bild ergaebe).\n          for (let i = 0; i < n; i++) {\n            const x    = (i * 97 + (weit ? 41 : 13)) % 100;\n            const land = weit ? 23 + (i * 7) % 5 : 4 + (i * 11) % 22;\n            const nah  = weit ? 0 : 1 - land / 30;\n            const dur  = (weit ? 1.35 : .70) + ((i * 13) % 9) / 36 - nah * .18;\n            out += '<i class=\"rainlane' + (weit ? ' far' : '') + '\" style=\"'\n                 + 'left:' + x + '%;bottom:' + land + '%;'\n                 + '--w:'  + (weit ? 1.5 : 2.1 + nah * 1.7).toFixed(1) + 'px;'\n                 + '--h:'  + (weit ? 8 : 10 + nah * 9).toFixed(0) + 'px;'\n                 + '--sw:' + (10 + nah * 14).toFixed(0) + 'px;'\n                 + '--o:'  + (weit ? .38 : .55 + nah * .4).toFixed(2) + ';'\n                 + '--d:'  + (dur / (heavy ? 1.45 : 1)).toFixed(2) + 's;'\n                 + '--t:'  + (-(i * 0.37) % dur).toFixed(2) + 's;'\n                 + '--fall:' + (106 - land) + 'vh;'\n                 + '--dx:' + Math.round((weit ? 26 : 44) * boeen + (i % 3) * 4) + 'px\"></i>';\n          }\n          return out;\n        };\n        if (rain) { out += rainLanes(wenigerAufKlein(heavy ? 24 : 16), true);\n                   nahFx += rainLanes(wenigerAufKlein(heavy ? 34 : 20), false); }\n    const snowLanes = (n, weit) => {\n          let out = '';\n          for (let i = 0; i < n; i++) {\n            const x    = (i * 89 + (weit ? 29 : 7)) % 100;\n            const land = weit ? 23 + (i * 5) % 5 : 3 + (i * 13) % 23;\n            const nah  = weit ? 0 : 1 - land / 30;\n            const dur  = (weit ? 13 : 8.5) + ((i * 17) % 11) / 2;\n            out += '<i class=\"snowlane' + (weit ? ' far' : '') + '\" style=\"'\n                 + 'left:' + x + '%;bottom:' + land + '%;'\n                 + '--w:'  + (weit ? 3.4 : 4.6 + nah * 3.4).toFixed(1) + 'px;'\n                 + '--sw:' + (9 + nah * 11).toFixed(0) + 'px;'\n                 + '--o:'  + (weit ? .5 : .72 + nah * .26).toFixed(2) + ';'\n                 + '--d:'  + dur.toFixed(2) + 's;'\n                 + '--t:'  + (-(i * 1.7) % dur).toFixed(2) + 's;'\n                 + '--fall:' + (106 - land) + 'vh;'\n                 + '--dx:' + Math.round((weit ? 22 : 38) * (1 + boeen)) + 'px\"></i>';\n          }\n          return out;\n        };\n        if (snow) { out += snowLanes(wenigerAufKlein(24), true); nahFx += snowLanes(wenigerAufKlein(30), false); }\n    if (fog)   out += '<div class=\"fogband f1\"></div><div class=\"fogband f2\"></div>';\n    if (storm) out += '<div class=\"flash\"></div>';\n    return out;\n  };\n  const ground = (variant) => {\n    let extra = '';\n    if (bodenSaison === 'autumn' && variant !== 'night') {\n      extra = '<div class=\"leaf l1\"></div><div class=\"leaf l2\"></div><div class=\"leaf l3\"></div>';\n    }\n    if (bodenSaison === 'summer' && variant === 'night') {\n      extra = '<div class=\"firefly f1\"></div><div class=\"firefly f2\"></div>'\n            + '<div class=\"firefly f3\"></div><div class=\"firefly f4\"></div>';\n    }\n    return `<div class=\"ground ${bodenSaison} ${variant}\">\n      <div class=\"treeline\"></div>\n      <div class=\"meadow\"></div>\n      <div class=\"flowers\"></div>\n      <div class=\"grass\"></div>\n      ${extra}\n    </div>`;\n  };\n\n  // ── Mond: echte Bahn + echte Phase ────────────────────────────\n  // Vereinfachte Mondposition (Meeus, Genauigkeit ~0,3° — reicht fuer ein Bild)\n  // und der beleuchtete Anteil, gezeichnet als Lune. Standort kommt aus HA.\n  const moonHTML = () => {\n    const D = Math.PI / 180;\n    const lat = (hass.config && hass.config.latitude) || 50;\n    const lon = (hass.config && hass.config.longitude) || 10;\n    const d = Date.now() / 86400000 + 2440587.5 - 2451545.0;\n    const L = (218.316 + 13.176396 * d) * D;\n    const M = (134.963 + 13.064993 * d) * D;\n    const F = (93.272 + 13.229350 * d) * D;\n    const lam = L + 6.289 * D * Math.sin(M);\n    const bet = 5.128 * D * Math.sin(F);\n    const eps = 23.4397 * D;\n    const ra = Math.atan2(Math.sin(lam) * Math.cos(eps) - Math.tan(bet) * Math.sin(eps), Math.cos(lam));\n    const dec = Math.asin(Math.sin(bet) * Math.cos(eps) + Math.cos(bet) * Math.sin(eps) * Math.sin(lam));\n    const phi = lat * D;\n    const th = (280.16 + 360.9856235 * d) * D + lon * D;\n    const H = th - ra;\n    const alt = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H)) / D;\n    let az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi)) / D + 180;\n    az = (az + 360) % 360;\n    // Sonne (grob) fuer die Phase\n    const Ms = (357.5291 + 0.98560028 * d) * D;\n    const Ls = (280.459 + 0.98564736 * d) * D + (1.9148 * Math.sin(Ms) + 0.0200 * Math.sin(2 * Ms)) * D;\n    const elong = Math.acos(Math.cos(bet) * Math.cos(lam - Ls));\n    const k = (1 - Math.cos(elong)) / 2;                 // beleuchteter Anteil 0..1\n    const waxing = Math.sin(lam - Ls) > 0;               // zunehmend?\n    if (alt < -3) return '';                              // unter dem Horizont\n    const mx = Math.max(2, Math.min(92, ((az - 60) / 240) * 90 + 2));\n    const my = Math.max(4, Math.min(78, 74 - (Math.max(alt, -3) / 55) * 68));\n    const r = 46, rx = (r * Math.abs(1 - 2 * k)).toFixed(1);\n    const s1 = waxing ? 1 : 0;\n    const s2 = (k > 0.5) ? (waxing ? 1 : 0) : (waxing ? 0 : 1);\n    const lit = `M0,${-r} A${r},${r} 0 0,${s1} 0,${r} A${rx},${r} 0 0,${s2} 0,${-r} Z`;\n    const dim = Math.min(1, Math.max(0.25, 0.35 + k))\n              * Math.max(0.8, 1 - cover / 400);   // schmale Sichel + Wolken daempfen\n    const NAMES = ['Neumond','zunehmende Sichel','erstes Viertel','zunehmender Mond',\n                   'Vollmond','abnehmender Mond','letztes Viertel','abnehmende Sichel'];\n    const idx = k < 0.04 ? 0 : k > 0.96 ? 4\n              : (Math.abs(k - 0.5) < 0.06 ? (waxing ? 2 : 6) : (k < 0.5 ? (waxing ? 1 : 7) : (waxing ? 3 : 5)));\n    return `<div class=\"moonwrap\" style=\"left:${mx.toFixed(1)}%;top:${my.toFixed(1)}%;opacity:${dim.toFixed(2)}\"\n                 title=\"${NAMES[idx]} · ${Math.round(k * 100)} % beleuchtet\">\n      <svg viewBox=\"-52 -52 104 104\" class=\"moondisc\">\n        <defs>\n          <radialGradient id=\"mg\" cx=\"38%\" cy=\"34%\" r=\"72%\">\n            <stop offset=\"0%\" stop-color=\"#fffdf2\"/>\n            <stop offset=\"62%\" stop-color=\"#f2ead4\"/>\n            <stop offset=\"100%\" stop-color=\"#d9cfb4\"/>\n          </radialGradient>\n          <clipPath id=\"mclip\"><path d=\"${lit}\"/></clipPath>\n        </defs>\n        <circle r=\"46\" fill=\"rgba(205,214,244,.07)\"/>\n        <g clip-path=\"url(#mclip)\">\n          <circle r=\"46\" fill=\"url(#mg)\"/>\n          <circle cx=\"-14\" cy=\"-12\" r=\"8\"  fill=\"rgba(140,132,110,.30)\"/>\n          <circle cx=\"12\"  cy=\"6\"   r=\"11\" fill=\"rgba(140,132,110,.24)\"/>\n          <circle cx=\"-6\"  cy=\"20\"  r=\"6\"  fill=\"rgba(140,132,110,.26)\"/>\n          <circle cx=\"20\"  cy=\"-20\" r=\"5\"  fill=\"rgba(140,132,110,.22)\"/>\n        </g>\n      </svg>\n    </div>`;\n  };\n\n  // ── Nacht ─────────────────────────────────────────────────────\n  if (mode === 'Nacht') {\n    const starDim = Math.max(.18, 1 - cover / 120);\n    return `<div class=\"sky sky-night\">\n      <div class=\"stars\" style=\"opacity:${(0.75 * starDim).toFixed(2)}\"></div>\n      <div class=\"stars2\" style=\"opacity:${starDim.toFixed(2)}\"></div>\n      ${moonHTML()}\n      ${clouds('night')}\n      ${weatherFx()}\n      ${ground('night')}\n    ${nahFx}\n    </div>`;\n  }\n\n  // Sonne dorthin setzen, wo sie steht: Azimut 60°–300° auf 2 %–92 %,\n  // Höhe 0°–55° auf 72 %–6 % (tief stehend = knapp über dem Horizont).\n  const x = Math.max(2, Math.min(92, ((azi - 60) / 240) * 90 + 2));\n  const y = Math.max(6, Math.min(74, 72 - (Math.max(elev, -6) / 55) * 66));\n  const pos = `left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;`;\n  // Bei dichter Bedeckung verschwindet die Sonne hinter den Wolken\n  const sunOp = Math.max(0, 1 - cover / 105).toFixed(2);\n  const dusk  = mode === 'Dämmerung';\n  const paletteFor = () => {\n    if (dusk) return 'sky-dusk';\n    if (rain || cond === 'cloudy') return 'sky-day wet';\n    if (snow) return 'sky-day snowy';\n    if (fog)  return 'sky-day foggy';\n    if (clear) return 'sky-day clear';\n    return 'sky-day';\n  };\n  return `<div class=\"sky ${paletteFor()}\">\n    <div class=\"rays${dusk ? ' dusk' : ''}\" style=\"${pos}opacity:${sunOp}\"></div>\n    <div class=\"sun${dusk ? ' dusk' : ''}\" style=\"${pos}opacity:${sunOp}\"></div>\n    ${dusk ? '<div class=\"stars2 faint\"></div>' : ''}\n    ${dusk ? moonHTML() : ''}\n    <div class=\"haze\"></div>\n    ${clouds(dusk ? 'warm' : '')}\n    ${!rain && !snow && !fog && !dusk ? '<div class=\"bird b1\"></div><div class=\"bird b2\"></div>' : ''}\n    ${weatherFx()}\n    ${ground(dusk ? 'dusk' : 'day')}\n    ${nahFx}\n  </div>`;\n]]]\n"
     styles:
       card:
       - position: fixed
@@ -302,7 +302,7 @@ button_card_templates:
         scene:
         - position: absolute
         - inset: '0'
-    extra_styles: "/* fixed statt absolute: die Karte ist zwar bildschirmfüllend, ihr\n   Inhalts-Grid nicht — eine absolute Ebene darin wäre nur so hoch wie\n   der (leere) Karteninhalt und die Szene klebte oben am Rand. */\n.sky { position: fixed; inset: 0; overflow: hidden; }\n\n/* ══ HIMMEL-PALETTEN ══ folgen der Wetterlage am Ort ══════════════ */\n.sky-day        { background: linear-gradient(180deg, #12253f 0%, #1d4a75 26%, #2e7aa8 58%, #4aa3cc 100%); }\n.sky-day.clear  { background: linear-gradient(180deg, #0d2c52 0%, #1a5c92 30%, #3390c2 62%, #6fbde0 100%); }\n.sky-day.wet    { background: linear-gradient(180deg, #222c3a 0%, #3b4b5e 30%, #566a80 62%, #73879b 100%); }\n.sky-day.snowy  { background: linear-gradient(180deg, #2c3a49 0%, #4c6072 30%, #74899c 62%, #a3b5c4 100%); }\n.sky-day.foggy  { background: linear-gradient(180deg, #363d45 0%, #5e666e 30%, #868d94 62%, #aab1b8 100%); }\n.sky-dusk       { background: linear-gradient(180deg, #12122a 0%, #241f45 26%, #4a3059 52%, #7c4460 74%, #a8583f 100%); }\n.sky-night      { background: radial-gradient(120% 80% at 50% 108%, rgba(49,50,68,.5), transparent 62%); }\n\n/* Schleier: hält den oberen Bildbereich dunkel genug für die hellen\n   Sektions-Überschriften, lässt die Wiese unten aber hell bleiben. */\n.sky-day::after, .sky-dusk::after {\n  content: \"\"; position: absolute; inset: 0; pointer-events: none;\n  background: linear-gradient(180deg,\n    rgba(17,17,27,.16) 0%, rgba(17,17,27,.34) 42%,\n    rgba(17,17,27,.28) 72%, rgba(17,17,27,.08) 100%);\n}\n\n/* ══ NACHT ══ Sternbilder + Streulicht. Gedriftet wird per transform\n   auf einer überdimensionierten Ebene — background-position wäre eine\n   Paint-Eigenschaft und ließe den Blur aller Glaskarten darüber jeden\n   Frame neu rechnen. */\n.stars, .stars2 { position: absolute; inset: -30%; background-repeat: repeat; will-change: transform; }\n.stars {\n  background-image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='700'><g fill='none' stroke='rgba(180,190,254,0.12)' stroke-width='0.7'><path d='M60,80 L140,58 L204,122 L298,96 L344,150'/><path d='M420,178 L502,140 L558,210 L622,188'/><path d='M118,418 L182,378 L262,430 L252,520 L176,548'/><path d='M478,478 L542,430 L612,470 L590,560 L518,584'/><path d='M320,260 L362,300 L330,360 L320,260'/><path d='M560,60 L610,96 L664,72'/></g><g fill='%23b4befe'><circle cx='60' cy='80' r='1.4' opacity='.8'/><circle cx='140' cy='58' r='1.1' opacity='.7'/><circle cx='204' cy='122' r='1.5' opacity='.9'/><circle cx='298' cy='96' r='1' opacity='.6'/><circle cx='344' cy='150' r='1.2' opacity='.7'/><circle cx='420' cy='178' r='1.3' opacity='.8'/><circle cx='502' cy='140' r='1' opacity='.6'/><circle cx='558' cy='210' r='1.5' opacity='.9'/><circle cx='622' cy='188' r='1.1' opacity='.7'/><circle cx='118' cy='418' r='1.2' opacity='.7'/><circle cx='182' cy='378' r='1.4' opacity='.85'/><circle cx='262' cy='430' r='1' opacity='.6'/><circle cx='252' cy='520' r='1.3' opacity='.8'/><circle cx='176' cy='548' r='1' opacity='.6'/><circle cx='478' cy='478' r='1.4' opacity='.8'/><circle cx='542' cy='430' r='1.1' opacity='.65'/><circle cx='612' cy='470' r='1.5' opacity='.9'/><circle cx='590' cy='560' r='1' opacity='.6'/><circle cx='518' cy='584' r='1.2' opacity='.7'/><circle cx='320' cy='260' r='1.3' opacity='.75'/><circle cx='362' cy='300' r='1' opacity='.6'/><circle cx='330' cy='360' r='1.2' opacity='.7'/><circle cx='560' cy='60' r='1.2' opacity='.7'/><circle cx='610' cy='96' r='1.4' opacity='.85'/><circle cx='664' cy='72' r='1' opacity='.6'/></g><g fill='%23cdd6f4'><circle cx='40' cy='240' r='0.8' opacity='.35'/><circle cx='96' cy='300' r='0.7' opacity='.3'/><circle cx='230' cy='210' r='0.9' opacity='.4'/><circle cx='390' cy='60' r='0.7' opacity='.3'/><circle cx='470' cy='300' r='0.8' opacity='.35'/><circle cx='540' cy='330' r='0.7' opacity='.3'/><circle cx='640' cy='320' r='0.9' opacity='.4'/><circle cx='60' cy='620' r='0.8' opacity='.35'/><circle cx='340' cy='560' r='0.7' opacity='.3'/><circle cx='400' cy='640' r='0.9' opacity='.4'/><circle cx='660' cy='620' r='0.8' opacity='.35'/><circle cx='300' cy='400' r='0.7' opacity='.3'/></g></svg>\");\n  background-size: 700px 700px;\n  animation: sky-drift-a 420s linear infinite alternate;\n}\n.stars2 {\n  background-image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><g fill='%23cdd6f4'><circle cx='30' cy='50' r='1' opacity='.55'/><circle cx='120' cy='24' r='0.8' opacity='.45'/><circle cx='210' cy='90' r='1.1' opacity='.6'/><circle cx='330' cy='40' r='0.8' opacity='.45'/><circle cx='390' cy='140' r='1' opacity='.55'/><circle cx='70' cy='180' r='0.9' opacity='.5'/><circle cx='170' cy='230' r='0.7' opacity='.4'/><circle cx='280' cy='190' r='1' opacity='.55'/><circle cx='350' cy='280' r='0.8' opacity='.45'/><circle cx='40' cy='330' r='1.1' opacity='.6'/><circle cx='150' cy='370' r='0.8' opacity='.45'/><circle cx='250' cy='330' r='0.9' opacity='.5'/><circle cx='330' cy='390' r='1' opacity='.55'/><circle cx='390' cy='350' r='0.7' opacity='.4'/></g></svg>\");\n  background-size: 420px 420px;\n  animation: sky-drift-b 300s linear infinite alternate, sky-twinkle 7s ease-in-out infinite alternate;\n}\n.stars2.faint { opacity: .45 !important; animation: sky-twinkle 9s ease-in-out infinite alternate; }\n.moon {\n  /* Steht der Mond hinter einer Glaskarte, verwischt deren backdrop-filter\n     ihn zu einem Lichtfleck — deshalb groß, kontrastreich und knapp unter\n     dem Kopfbereich, wo meist eine Lücke bleibt. */\n  position: absolute; top: 4.5%; right: 7%;\n  width: 88px; height: 88px; border-radius: 50%;\n  background: radial-gradient(circle at 36% 33%, #f8f4e6 0%, #e6e0cf 52%, #c6c2b1 100%);\n  box-shadow: 0 0 26px 3px rgba(246,242,226,.14),\n              inset -7px -5px 13px rgba(88,86,78,.30);\n  will-change: transform;\n  animation: sky-breath 40s ease-in-out infinite;\n}\n.moon::after {\n  content: \"\"; position: absolute; inset: 0; border-radius: 50%;\n  background:\n    radial-gradient(circle at 63% 29%, rgba(126,124,110,.30) 0 8px, transparent 9px),\n    radial-gradient(circle at 39% 61%, rgba(126,124,110,.26) 0 12px, transparent 13px),\n    radial-gradient(circle at 69% 68%, rgba(126,124,110,.20) 0 7px, transparent 8px);\n}\n\n/* ══ SONNE ══ Position kommt aus Azimut/Höhe, Deckkraft aus der Bewölkung */\n.sun {\n  position: absolute; width: 132px; height: 132px; margin: -66px 0 0 -66px;\n  border-radius: 50%;\n  background: radial-gradient(circle at 50% 50%, #fffae8 0%, #ffdf9a 34%, rgba(255,199,102,.42) 58%, rgba(255,199,102,0) 72%);\n  will-change: opacity;\n  animation: sky-breath 22s ease-in-out infinite;\n}\n.sun.dusk { background: radial-gradient(circle at 50% 50%, #ffe9c9 0%, #ffab68 32%, rgba(240,124,88,.40) 58%, rgba(240,124,88,0) 74%); }\n.rays {\n  position: absolute; width: 460px; height: 460px; margin: -230px 0 0 -230px;\n  border-radius: 50%;\n  background: repeating-conic-gradient(rgba(255,214,130,.13) 0deg 3deg, rgba(255,214,130,0) 3deg 22deg);\n  -webkit-mask: radial-gradient(circle, transparent 12%, #000 22%, #000 62%, transparent 74%);\n  mask: radial-gradient(circle, transparent 12%, #000 22%, #000 62%, transparent 74%);\n  will-change: transform;\n  animation: sky-spin 190s linear infinite;\n}\n.rays.dusk { background: repeating-conic-gradient(rgba(255,163,110,.11) 0deg 3deg, rgba(255,163,110,0) 3deg 22deg); }\n\n/* Dunstband über dem Horizont — lässt die Ferne zurücktreten */\n.haze {\n  position: absolute; left: 0; right: 0; bottom: 24%; height: 18%;\n  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.14) 100%);\n}\n\n/* ══ WOLKEN ══ drei weiche Kreise über flacher Unterkante — gezeichnet,\n   nicht fotografiert. Anzahl = Bedeckungsgrad, Tempo = echter Wind. */\n.cloud {\n  position: absolute;\n  background:\n    radial-gradient(circle at 28% 62%, rgba(205,214,244,.80) 0 30px, rgba(205,214,244,0) 31px),\n    radial-gradient(circle at 52% 44%, rgba(205,214,244,.86) 0 39px, rgba(205,214,244,0) 40px),\n    radial-gradient(circle at 76% 64%, rgba(205,214,244,.74) 0 27px, rgba(205,214,244,0) 28px),\n    linear-gradient(to top, rgba(205,214,244,.68) 0 15px, rgba(205,214,244,0) 16px);\n  background-size: cover;\n  filter: blur(1.5px);\n  will-change: transform;\n  animation-name: sky-sail;\n  animation-timing-function: linear;\n  animation-iteration-count: infinite;\n}\n.cloud.warm {\n  background:\n    radial-gradient(circle at 28% 62%, rgba(255,196,158,.72) 0 30px, rgba(255,196,158,0) 31px),\n    radial-gradient(circle at 52% 44%, rgba(255,206,172,.78) 0 39px, rgba(255,206,172,0) 40px),\n    radial-gradient(circle at 76% 64%, rgba(255,186,150,.66) 0 27px, rgba(255,186,150,0) 28px),\n    linear-gradient(to top, rgba(255,196,158,.60) 0 15px, rgba(255,196,158,0) 16px);\n}\n.cloud.night {\n  background:\n    radial-gradient(circle at 28% 62%, rgba(120,130,165,.55) 0 30px, rgba(120,130,165,0) 31px),\n    radial-gradient(circle at 52% 44%, rgba(126,136,172,.62) 0 39px, rgba(126,136,172,0) 40px),\n    radial-gradient(circle at 76% 64%, rgba(114,124,158,.50) 0 27px, rgba(114,124,158,0) 28px),\n    linear-gradient(to top, rgba(120,130,165,.46) 0 15px, rgba(120,130,165,0) 16px);\n}\n\n/* Zwei Vögel, nur bei ruhigem Wetter am Tag */\n.bird {\n  position: absolute; width: 26px; height: 13px;\n  background-color: rgba(30,40,60,.55);\n  -webkit-mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='13'><path d='M2 9 C6 2 9 2 13 8 C17 2 20 2 24 9' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>\") no-repeat center / contain;\n  mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='13'><path d='M2 9 C6 2 9 2 13 8 C17 2 20 2 24 9' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>\") no-repeat center / contain;\n  will-change: transform;\n}\n.bird.b1 { top: 21%; animation: sky-fly 128s linear infinite; }\n.bird.b2 { top: 25%; transform: scale(.72); animation: sky-fly 155s linear infinite; animation-delay: -44s; }\n\n/* ══ NIEDERSCHLAG ══ echte Tropfen: fallen, treffen auf, zerplatzen ══\n   Jede Bahn ist ein unsichtbarer Marker AM AUFSCHLAGPUNKT. Der Tropfen\n   (::before) kommt von oben zu ihm hin, der Aufschlag (::after) sitzt genau\n   auf ihm. Beide teilen Dauer und Versatz - deshalb zerplatzt es exakt beim\n   Auftreffen, ganz ohne Zeitsteuerung in JavaScript. Bewegt werden nur\n   transform und opacity; die Neigung liegt in der BAHN, nicht in der Form. */\n.rainlane { position: absolute; width: 0; height: 0; pointer-events: none; }\n.rainlane::before {\n  content: \"\"; position: absolute; left: 0; top: 0;\n  width: var(--w,3px); height: var(--h,15px);\n  border-radius: 50% 50% 46% 46% / 74% 74% 26% 26%;\n  background: linear-gradient(180deg,\n      rgba(205,214,244,.04) 0%, rgba(205,214,244,.48) 42%,\n      rgba(233,239,250,.90) 76%, rgba(240,245,255,1) 100%);\n  will-change: transform, opacity;\n  animation: sky-drop var(--d,1.1s) linear infinite var(--t,0s);\n}\n/* Die Krone: zwei Ringe. Der zweite kommt aus box-shadow und wird EINMAL\n   gezeichnet - bewegt wird nur skaliert und ausgeblendet. */\n.rainlane::after {\n  content: \"\"; position: absolute; left: 0; bottom: 0;\n  width: var(--sw,18px); height: calc(var(--sw,18px) * .32);\n  margin-left: calc(var(--sw,18px) / -2); margin-bottom: -1px;\n  border: 1.3px solid rgba(240,245,255,.70); border-radius: 50%;\n  box-shadow: 0 0 0 2.6px rgba(240,245,255,.16);\n  opacity: 0; will-change: transform, opacity;\n  animation: sky-splash var(--d,1.1s) linear infinite var(--t,0s);\n}\n/* Die Ferne bekommt keinen Aufschlag - er waere kleiner als ein Bildpunkt. */\n.rainlane.far::after { display: none; }\n@keyframes sky-drop {\n  0%   { transform: translate3d(var(--dx,12px), calc(var(--fall,90vh) * -1), 0) scaleY(.8); opacity: 0; }\n  7%   { opacity: var(--o,.9); }\n  90%  { opacity: var(--o,.9); }\n  93%  { transform: translate3d(0,0,0) scaleY(1.15); opacity: var(--o,.9); }\n  95%  { transform: translate3d(0,0,0) scale(1.9,.22); opacity: 0; }\n  100% { transform: translate3d(0,0,0) scale(1.9,.22); opacity: 0; }\n}\n@keyframes sky-splash {\n  0%,88% { transform: scale(.16,.45); opacity: 0; }\n  93.5%  { transform: scale(.60,.95); opacity: .9; }\n  100%   { transform: scale(1.7,1.25); opacity: 0; }\n}\n/* ══ SCHNEE ══ echte Flocken: taumeln herab und bleiben liegen ══════\n   Gleiche Bauart wie der Regen - Marker am Aufschlagpunkt, Flocke als\n   ::before, das Liegenbleiben als ::after. Der Seitwaerts-Versatz steckt\n   in den Zwischenschritten der Bahn, deshalb pendelt die Flocke, statt\n   schnurgerade zu fallen. Wieder nur transform und opacity. */\n.snowlane { position: absolute; width: 0; height: 0; pointer-events: none; }\n.snowlane::before {\n  content: \"\"; position: absolute; left: 0; top: 0;\n  width: var(--w,6px); height: var(--w,6px); border-radius: 50%;\n  background: radial-gradient(circle at 40% 36%,\n      #ffffff 0%, rgba(255,255,255,.86) 52%, rgba(255,255,255,0) 100%);\n  will-change: transform, opacity;\n  animation: sky-flake var(--d,9s) linear infinite var(--t,0s);\n}\n/* Kein Zerplatzen: die Flocke wird zu einem weichen Fleck und vergeht. */\n.snowlane::after {\n  content: \"\"; position: absolute; left: 0; bottom: 0;\n  width: var(--sw,14px); height: calc(var(--sw,14px) * .38);\n  margin-left: calc(var(--sw,14px) / -2); margin-bottom: -2px;\n  border-radius: 50%;\n  background: radial-gradient(ellipse at 50% 62%,\n      rgba(255,255,255,.92) 0%, rgba(255,255,255,0) 74%);\n  opacity: 0; will-change: transform, opacity;\n  animation: sky-settle var(--d,9s) linear infinite var(--t,0s);\n}\n.snowlane.far::after { display: none; }\n@keyframes sky-flake {\n  0%   { transform: translate3d(calc(var(--dx,20px) * -1), calc(var(--fall,90vh) * -1), 0); opacity: 0; }\n  6%   { opacity: var(--o,.9); }\n  25%  { transform: translate3d(calc(var(--dx,20px) * .65), calc(var(--fall,90vh) * -.73), 0); }\n  50%  { transform: translate3d(calc(var(--dx,20px) * -.85), calc(var(--fall,90vh) * -.49), 0); }\n  75%  { transform: translate3d(calc(var(--dx,20px) * .55), calc(var(--fall,90vh) * -.24), 0); }\n  92%  { transform: translate3d(0,0,0); opacity: var(--o,.9); }\n  97%  { transform: translate3d(0,0,0) scale(.65); opacity: 0; }\n  100% { transform: translate3d(0,0,0) scale(.65); opacity: 0; }\n}\n@keyframes sky-settle {\n  0%,90% { transform: scale(.3,.4); opacity: 0; }\n  94%    { transform: scale(1,1); opacity: .78; }\n  100%   { transform: scale(1.18,1.06); opacity: 0; }\n}\n.fogband {\n  position: absolute; left: -20%; right: -20%; height: 22%;\n  background: linear-gradient(180deg, rgba(226,232,240,0), rgba(226,232,240,.30), rgba(226,232,240,0));\n  will-change: transform;\n}\n.fogband.f1 { top: 38%; animation: sky-fog 90s ease-in-out infinite alternate; }\n.fogband.f2 { top: 58%; opacity: .7; animation: sky-fog 130s ease-in-out infinite alternate-reverse; }\n.flash {\n  position: absolute; inset: 0;\n  background: radial-gradient(58% 42% at 62% 16%, rgba(255,255,255,.55), rgba(255,255,255,0) 70%);\n  opacity: 0; will-change: opacity;\n  animation: sky-flash 11s linear infinite;\n}\n\n/* ══ BODEN ══ leichte Wiese, Farbe folgt der Jahreszeit ═══════════ */\n.ground { position: absolute; left: 0; right: 0; bottom: 0; height: 27%; }\n.ground.spring { --meadow-far: #6f9f57; --meadow-near: #8fc76c; --grass: #7ab760; --tree: #3f6b3a; }\n.ground.summer { --meadow-far: #55913f; --meadow-near: #7cb654; --grass: #6aa94a; --tree: #2f5c31; }\n.ground.autumn { --meadow-far: #8a7538; --meadow-near: #c69d50; --grass: #ae9249; --tree: #6b4a24; }\n.ground.winter { --meadow-far: #b3c1d0; --meadow-near: #e7eef5; --grass: #a6b6c3; --tree: #3d4a58; }\n\n/* Baumreihe am Horizont — von Hand gezeichnete Kronen, als Maske\n   eingefärbt, damit eine SVG-Form für alle Jahreszeiten reicht. */\n.ground .treeline {\n  position: absolute; left: 0; right: 0; top: -46px; height: 74px;\n  background-color: var(--tree); opacity: .92;\n  -webkit-mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='74'><g fill='white'><path d='M0 74 L0 58 C10 58 12 44 22 44 C32 44 34 56 44 57 L44 74Z'/><ellipse cx='72' cy='50' rx='26' ry='19'/><rect x='68' y='52' width='8' height='22'/><path d='M112 74 L104 74 L108 40 L112 74Z'/><path d='M96 52 L108 26 L120 52Z'/><path d='M100 62 L108 40 L116 62Z'/><ellipse cx='152' cy='54' rx='30' ry='21'/><rect x='148' y='56' width='9' height='18'/><ellipse cx='206' cy='48' rx='22' ry='17'/><rect x='202' y='50' width='7' height='24'/><path d='M244 74 L236 74 L240 34 L244 74Z'/><path d='M228 50 L240 20 L252 50Z'/><path d='M232 62 L240 38 L248 62Z'/><ellipse cx='288' cy='53' rx='28' ry='20'/><rect x='284' y='55' width='8' height='19'/><ellipse cx='336' cy='49' rx='20' ry='16'/><rect x='333' y='51' width='7' height='23'/><path d='M380 74 L372 74 L376 42 L380 74Z'/><path d='M364 54 L376 28 L388 54Z'/><ellipse cx='412' cy='55' rx='24' ry='18'/></g></svg>\") repeat-x bottom / 420px 74px;\n  mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='74'><g fill='white'><path d='M0 74 L0 58 C10 58 12 44 22 44 C32 44 34 56 44 57 L44 74Z'/><ellipse cx='72' cy='50' rx='26' ry='19'/><rect x='68' y='52' width='8' height='22'/><path d='M112 74 L104 74 L108 40 L112 74Z'/><path d='M96 52 L108 26 L120 52Z'/><path d='M100 62 L108 40 L116 62Z'/><ellipse cx='152' cy='54' rx='30' ry='21'/><rect x='148' y='56' width='9' height='18'/><ellipse cx='206' cy='48' rx='22' ry='17'/><rect x='202' y='50' width='7' height='24'/><path d='M244 74 L236 74 L240 34 L244 74Z'/><path d='M228 50 L240 20 L252 50Z'/><path d='M232 62 L240 38 L248 62Z'/><ellipse cx='288' cy='53' rx='28' ry='20'/><rect x='284' y='55' width='8' height='19'/><ellipse cx='336' cy='49' rx='20' ry='16'/><rect x='333' y='51' width='7' height='23'/><path d='M380 74 L372 74 L376 42 L380 74Z'/><path d='M364 54 L376 28 L388 54Z'/><ellipse cx='412' cy='55' rx='24' ry='18'/></g></svg>\") repeat-x bottom / 420px 74px;\n}\n.ground .meadow {\n  position: absolute; inset: 0;\n  background:\n    radial-gradient(120% 60% at 30% 0%, rgba(255,255,255,.14), transparent 60%),\n    linear-gradient(180deg, var(--meadow-far) 0%, var(--meadow-near) 100%);\n}\n/* Blumen: gestreute Punkte, je Jahreszeit andere Farben */\n.ground .flowers { position: absolute; inset: 0; opacity: .85; }\n.ground.spring .flowers {\n  background-image:\n    radial-gradient(circle, #ffffff 0 2.2px, transparent 3px),\n    radial-gradient(circle, #f9e2af 0 2px, transparent 2.8px),\n    radial-gradient(circle, #f5c2e7 0 1.8px, transparent 2.6px);\n  background-size: 96px 62px, 138px 84px, 172px 108px;\n  background-position: 14px 26px, 62px 12px, 110px 48px;\n}\n.ground.summer .flowers {\n  background-image:\n    radial-gradient(circle, #f38ba8 0 2.4px, transparent 3.2px),\n    radial-gradient(circle, #ffffff 0 2px, transparent 2.8px),\n    radial-gradient(circle, #f9e2af 0 1.8px, transparent 2.6px);\n  background-size: 118px 70px, 88px 56px, 164px 96px;\n  background-position: 22px 30px, 54px 16px, 96px 54px;\n}\n.ground.autumn .flowers {\n  background-image:\n    radial-gradient(circle, #e8b45c 0 2px, transparent 2.8px),\n    radial-gradient(circle, #d08b4a 0 1.6px, transparent 2.4px);\n  background-size: 132px 78px, 186px 112px;\n  background-position: 26px 34px, 88px 60px;\n  opacity: .6;\n}\n.ground.winter .flowers { opacity: 0; }\n/* Grashalme an der Unterkante, ganz leicht im Wind */\n.ground .grass {\n  position: absolute; left: 0; right: 0; bottom: 0; height: 44px;\n  background-color: var(--grass);\n  transform-origin: bottom center; will-change: transform;\n  animation: sky-sway 11s ease-in-out infinite;\n  -webkit-mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='210' height='44'><g fill='white'><path d='M6 44 C9 30 3 22 11 8 C8 24 12 32 12 44Z'/><path d='M24 44 C26 34 22 26 28 16 C26 28 30 34 30 44Z'/><path d='M44 44 C48 28 40 20 50 4 C45 22 52 32 50 44Z'/><path d='M66 44 C68 36 64 28 70 20 C68 30 72 36 72 44Z'/><path d='M86 44 C90 30 82 22 92 10 C87 26 94 34 92 44Z'/><path d='M108 44 C110 34 106 26 112 14 C110 28 114 34 114 44Z'/><path d='M128 44 C132 32 124 24 134 12 C129 28 136 34 134 44Z'/><path d='M150 44 C152 36 148 28 154 18 C152 30 156 36 156 44Z'/><path d='M170 44 C174 28 166 20 176 6 C171 24 178 32 176 44Z'/><path d='M192 44 C194 34 190 26 196 16 C194 28 198 34 198 44Z'/></g></svg>\") repeat-x bottom / 210px 44px;\n  mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='210' height='44'><g fill='white'><path d='M6 44 C9 30 3 22 11 8 C8 24 12 32 12 44Z'/><path d='M24 44 C26 34 22 26 28 16 C26 28 30 34 30 44Z'/><path d='M44 44 C48 28 40 20 50 4 C45 22 52 32 50 44Z'/><path d='M66 44 C68 36 64 28 70 20 C68 30 72 36 72 44Z'/><path d='M86 44 C90 30 82 22 92 10 C87 26 94 34 92 44Z'/><path d='M108 44 C110 34 106 26 112 14 C110 28 114 34 114 44Z'/><path d='M128 44 C132 32 124 24 134 12 C129 28 136 34 134 44Z'/><path d='M150 44 C152 36 148 28 154 18 C152 30 156 36 156 44Z'/><path d='M170 44 C174 28 166 20 176 6 C171 24 178 32 176 44Z'/><path d='M192 44 C194 34 190 26 196 16 C194 28 198 34 198 44Z'/></g></svg>\") repeat-x bottom / 210px 44px;\n}\n.ground.winter .grass { height: 30px; opacity: .75; }\n/* Abend/Nacht legen sich als ruhige Decke über die Wiese */\n.ground.dusk::after, .ground.night::after {\n  content: \"\"; position: absolute; left: 0; right: 0; top: -46px; bottom: 0;\n  pointer-events: none;\n}\n.ground.dusk::after  { background: linear-gradient(180deg, rgba(74,38,58,.60), rgba(26,16,32,.78)); }\n.ground.night::after { background: linear-gradient(180deg, rgba(12,14,30,.82), rgba(8,9,20,.93)); }\n\n/* Fallende Blätter im Herbst */\n.leaf {\n  position: absolute; width: 9px; height: 6px; border-radius: 60% 40% 55% 45%;\n  background: #d08b4a; opacity: .8; will-change: transform;\n}\n.leaf.l1 { left: 18%; top: -50%; animation: sky-leaf 17s linear infinite; }\n.leaf.l2 { left: 52%; top: -50%; background: #c2703c; animation: sky-leaf 23s linear infinite; animation-delay: -9s; }\n.leaf.l3 { left: 78%; top: -50%; background: #e8b45c; animation: sky-leaf 20s linear infinite; animation-delay: -15s; }\n/* Glühwürmchen in Sommernächten */\n.firefly {\n  position: absolute; width: 5px; height: 5px; border-radius: 50%;\n  background: radial-gradient(circle, #f9e2af 0%, rgba(249,226,175,0) 70%);\n  will-change: transform, opacity;\n}\n.firefly.f1 { left: 16%; bottom: 34%; animation: sky-blink 5.5s ease-in-out infinite, sky-hover 19s ease-in-out infinite; }\n.firefly.f2 { left: 38%; bottom: 20%; animation: sky-blink 7s ease-in-out infinite 1.5s, sky-hover 24s ease-in-out infinite reverse; }\n.firefly.f3 { left: 63%; bottom: 41%; animation: sky-blink 6.2s ease-in-out infinite .8s, sky-hover 21s ease-in-out infinite; }\n.firefly.f4 { left: 84%; bottom: 26%; animation: sky-blink 8s ease-in-out infinite 2.4s, sky-hover 27s ease-in-out infinite reverse; }\n\n@keyframes sky-drift-a { from { transform: translate3d(0,0,0); }     to { transform: translate3d(-180px,-70px,0); } }\n@keyframes sky-drift-b { from { transform: translate3d(0,0,0); }     to { transform: translate3d(120px,60px,0); } }\n@keyframes sky-twinkle { from { opacity: .25; }                      to { opacity: .8; } }\n@keyframes sky-breath  { 0%,100% { opacity: .85; }                   50% { opacity: 1; } }\n@keyframes sky-spin    { to { transform: rotate(360deg); } }\n@keyframes sky-sail    { from { transform: translate3d(-32vw,0,0); } to { transform: translate3d(114vw,0,0); } }\n@keyframes sky-fly     { from { transform: translate3d(-10vw,0,0); } to { transform: translate3d(112vw,-40px,0); } }\n@keyframes sky-fog     { from { transform: translate3d(-6%,0,0); }   to { transform: translate3d(6%,0,0); } }\n@keyframes sky-flash   { 0%,92%,100% { opacity: 0; } 93% { opacity: .85; } 94% { opacity: .12; } 95% { opacity: .65; } 96.5% { opacity: 0; } }\n@keyframes sky-sway    { 0%,100% { transform: skewX(0deg); }         50% { transform: skewX(2.2deg); } }\n@keyframes sky-leaf    { from { transform: translate3d(0,0,0) rotate(0deg); } to { transform: translate3d(-70px, 150vh, 0) rotate(540deg); } }\n@keyframes sky-blink   { 0%,100% { opacity: .15; }                   50% { opacity: 1; } }\n@keyframes sky-hover   { 0%,100% { transform: translate3d(0,0,0); }  50% { transform: translate3d(26px,-18px,0); } }\n\n@media (prefers-reduced-motion: reduce) {\n  .stars, .stars2, .moon, .sun, .rays, .cloud, .bird,\n  .rainlane::before, .rainlane::after,\n.snowlane::before, .snowlane::after,\n.fogband, .flash, .grass, .leaf, .firefly { animation: none !important; }\n}\n/* Schutz vor dem Glas-Helfer: der Himmel bleibt eine feste Ebene ohne Glanz */\nha-card { position: fixed !important; }\nha-card::before { content: none !important; }\n\n  .moonwrap {\n    position: absolute;\n    width: 132px; height: 132px;\n    margin: -66px 0 0 -66px;\n    pointer-events: none;\n    filter: drop-shadow(0 0 18px rgba(249,226,175,.28));\n    transition: left 2s linear, top 2s linear;\n  }\n  .moondisc { width: 100%; height: 100%; display: block; }\n"
+    extra_styles: "/* fixed statt absolute: die Karte ist zwar bildschirmfüllend, ihr\n   Inhalts-Grid nicht — eine absolute Ebene darin wäre nur so hoch wie\n   der (leere) Karteninhalt und die Szene klebte oben am Rand. */\n.sky { position: fixed; inset: 0; overflow: hidden; }\n\n/* ══ HIMMEL-PALETTEN ══ folgen der Wetterlage am Ort ══════════════ */\n.sky-day        { background: linear-gradient(180deg, #12253f 0%, #1d4a75 26%, #2e7aa8 58%, #4aa3cc 100%); }\n.sky-day.clear  { background: linear-gradient(180deg, #0d2c52 0%, #1a5c92 30%, #3390c2 62%, #6fbde0 100%); }\n.sky-day.wet    { background: linear-gradient(180deg, #222c3a 0%, #3b4b5e 30%, #566a80 62%, #73879b 100%); }\n.sky-day.snowy  { background: linear-gradient(180deg, #2c3a49 0%, #4c6072 30%, #74899c 62%, #a3b5c4 100%); }\n.sky-day.foggy  { background: linear-gradient(180deg, #363d45 0%, #5e666e 30%, #868d94 62%, #aab1b8 100%); }\n.sky-dusk       { background: linear-gradient(180deg, #12122a 0%, #241f45 26%, #4a3059 52%, #7c4460 74%, #a8583f 100%); }\n.sky-night      { background: radial-gradient(120% 80% at 50% 108%, rgba(49,50,68,.5), transparent 62%); }\n\n/* Schleier: hält den oberen Bildbereich dunkel genug für die hellen\n   Sektions-Überschriften, lässt die Wiese unten aber hell bleiben. */\n.sky-day::after, .sky-dusk::after {\n  content: \"\"; position: absolute; inset: 0; pointer-events: none;\n  background: linear-gradient(180deg,\n    rgba(17,17,27,.16) 0%, rgba(17,17,27,.34) 42%,\n    rgba(17,17,27,.28) 72%, rgba(17,17,27,.08) 100%);\n}\n\n/* ══ NACHT ══ Sternbilder + Streulicht. Gedriftet wird per transform\n   auf einer überdimensionierten Ebene — background-position wäre eine\n   Paint-Eigenschaft und ließe den Blur aller Glaskarten darüber jeden\n   Frame neu rechnen. */\n.stars, .stars2 { position: absolute; inset: -30%; background-repeat: repeat; will-change: transform; }\n.stars {\n  background-image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='700'><g fill='none' stroke='rgba(180,190,254,0.12)' stroke-width='0.7'><path d='M60,80 L140,58 L204,122 L298,96 L344,150'/><path d='M420,178 L502,140 L558,210 L622,188'/><path d='M118,418 L182,378 L262,430 L252,520 L176,548'/><path d='M478,478 L542,430 L612,470 L590,560 L518,584'/><path d='M320,260 L362,300 L330,360 L320,260'/><path d='M560,60 L610,96 L664,72'/></g><g fill='%23b4befe'><circle cx='60' cy='80' r='1.4' opacity='.8'/><circle cx='140' cy='58' r='1.1' opacity='.7'/><circle cx='204' cy='122' r='1.5' opacity='.9'/><circle cx='298' cy='96' r='1' opacity='.6'/><circle cx='344' cy='150' r='1.2' opacity='.7'/><circle cx='420' cy='178' r='1.3' opacity='.8'/><circle cx='502' cy='140' r='1' opacity='.6'/><circle cx='558' cy='210' r='1.5' opacity='.9'/><circle cx='622' cy='188' r='1.1' opacity='.7'/><circle cx='118' cy='418' r='1.2' opacity='.7'/><circle cx='182' cy='378' r='1.4' opacity='.85'/><circle cx='262' cy='430' r='1' opacity='.6'/><circle cx='252' cy='520' r='1.3' opacity='.8'/><circle cx='176' cy='548' r='1' opacity='.6'/><circle cx='478' cy='478' r='1.4' opacity='.8'/><circle cx='542' cy='430' r='1.1' opacity='.65'/><circle cx='612' cy='470' r='1.5' opacity='.9'/><circle cx='590' cy='560' r='1' opacity='.6'/><circle cx='518' cy='584' r='1.2' opacity='.7'/><circle cx='320' cy='260' r='1.3' opacity='.75'/><circle cx='362' cy='300' r='1' opacity='.6'/><circle cx='330' cy='360' r='1.2' opacity='.7'/><circle cx='560' cy='60' r='1.2' opacity='.7'/><circle cx='610' cy='96' r='1.4' opacity='.85'/><circle cx='664' cy='72' r='1' opacity='.6'/></g><g fill='%23cdd6f4'><circle cx='40' cy='240' r='0.8' opacity='.35'/><circle cx='96' cy='300' r='0.7' opacity='.3'/><circle cx='230' cy='210' r='0.9' opacity='.4'/><circle cx='390' cy='60' r='0.7' opacity='.3'/><circle cx='470' cy='300' r='0.8' opacity='.35'/><circle cx='540' cy='330' r='0.7' opacity='.3'/><circle cx='640' cy='320' r='0.9' opacity='.4'/><circle cx='60' cy='620' r='0.8' opacity='.35'/><circle cx='340' cy='560' r='0.7' opacity='.3'/><circle cx='400' cy='640' r='0.9' opacity='.4'/><circle cx='660' cy='620' r='0.8' opacity='.35'/><circle cx='300' cy='400' r='0.7' opacity='.3'/></g></svg>\");\n  background-size: 700px 700px;\n  animation: sky-drift-a 420s linear infinite alternate;\n}\n.stars2 {\n  background-image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><g fill='%23cdd6f4'><circle cx='30' cy='50' r='1' opacity='.55'/><circle cx='120' cy='24' r='0.8' opacity='.45'/><circle cx='210' cy='90' r='1.1' opacity='.6'/><circle cx='330' cy='40' r='0.8' opacity='.45'/><circle cx='390' cy='140' r='1' opacity='.55'/><circle cx='70' cy='180' r='0.9' opacity='.5'/><circle cx='170' cy='230' r='0.7' opacity='.4'/><circle cx='280' cy='190' r='1' opacity='.55'/><circle cx='350' cy='280' r='0.8' opacity='.45'/><circle cx='40' cy='330' r='1.1' opacity='.6'/><circle cx='150' cy='370' r='0.8' opacity='.45'/><circle cx='250' cy='330' r='0.9' opacity='.5'/><circle cx='330' cy='390' r='1' opacity='.55'/><circle cx='390' cy='350' r='0.7' opacity='.4'/></g></svg>\");\n  background-size: 420px 420px;\n  animation: sky-drift-b 300s linear infinite alternate, sky-twinkle 7s ease-in-out infinite alternate;\n}\n.stars2.faint { opacity: .45 !important; animation: sky-twinkle 9s ease-in-out infinite alternate; }\n.moon {\n  /* Steht der Mond hinter einer Glaskarte, verwischt deren backdrop-filter\n     ihn zu einem Lichtfleck — deshalb groß, kontrastreich und knapp unter\n     dem Kopfbereich, wo meist eine Lücke bleibt. */\n  position: absolute; top: 4.5%; right: 7%;\n  width: 88px; height: 88px; border-radius: 50%;\n  background: radial-gradient(circle at 36% 33%, #f8f4e6 0%, #e6e0cf 52%, #c6c2b1 100%);\n  box-shadow: 0 0 26px 3px rgba(246,242,226,.14),\n              inset -7px -5px 13px rgba(88,86,78,.30);\n  will-change: transform;\n  animation: sky-breath 40s ease-in-out infinite;\n}\n.moon::after {\n  content: \"\"; position: absolute; inset: 0; border-radius: 50%;\n  background:\n    radial-gradient(circle at 63% 29%, rgba(126,124,110,.30) 0 8px, transparent 9px),\n    radial-gradient(circle at 39% 61%, rgba(126,124,110,.26) 0 12px, transparent 13px),\n    radial-gradient(circle at 69% 68%, rgba(126,124,110,.20) 0 7px, transparent 8px);\n}\n\n/* ══ SONNE ══ Position kommt aus Azimut/Höhe, Deckkraft aus der Bewölkung */\n.sun {\n  position: absolute; width: 132px; height: 132px; margin: -66px 0 0 -66px;\n  border-radius: 50%;\n  background: radial-gradient(circle at 50% 50%, #fffae8 0%, #ffdf9a 34%, rgba(255,199,102,.42) 58%, rgba(255,199,102,0) 72%);\n  will-change: opacity;\n  animation: sky-breath 22s ease-in-out infinite;\n}\n.sun.dusk { background: radial-gradient(circle at 50% 50%, #ffe9c9 0%, #ffab68 32%, rgba(240,124,88,.40) 58%, rgba(240,124,88,0) 74%); }\n.rays {\n  position: absolute; width: 460px; height: 460px; margin: -230px 0 0 -230px;\n  border-radius: 50%;\n  background: repeating-conic-gradient(rgba(255,214,130,.13) 0deg 3deg, rgba(255,214,130,0) 3deg 22deg);\n  -webkit-mask: radial-gradient(circle, transparent 12%, #000 22%, #000 62%, transparent 74%);\n  mask: radial-gradient(circle, transparent 12%, #000 22%, #000 62%, transparent 74%);\n  will-change: transform;\n  animation: sky-spin 190s linear infinite;\n}\n.rays.dusk { background: repeating-conic-gradient(rgba(255,163,110,.11) 0deg 3deg, rgba(255,163,110,0) 3deg 22deg); }\n\n/* Dunstband über dem Horizont — lässt die Ferne zurücktreten */\n.haze {\n  position: absolute; left: 0; right: 0; bottom: 24%; height: 18%;\n  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.14) 100%);\n}\n\n/* ══ WOLKEN ══ drei weiche Kreise über flacher Unterkante — gezeichnet,\n   nicht fotografiert. Anzahl = Bedeckungsgrad, Tempo = echter Wind. */\n.cloud {\n  position: absolute;\n  background:\n    radial-gradient(circle at 28% 62%, rgba(205,214,244,.80) 0 30px, rgba(205,214,244,0) 31px),\n    radial-gradient(circle at 52% 44%, rgba(205,214,244,.86) 0 39px, rgba(205,214,244,0) 40px),\n    radial-gradient(circle at 76% 64%, rgba(205,214,244,.74) 0 27px, rgba(205,214,244,0) 28px),\n    linear-gradient(to top, rgba(205,214,244,.68) 0 15px, rgba(205,214,244,0) 16px);\n  background-size: cover;\n  filter: blur(1.5px);\n  will-change: transform;\n  animation-name: sky-sail;\n  animation-timing-function: linear;\n  animation-iteration-count: infinite;\n}\n.cloud.warm {\n  background:\n    radial-gradient(circle at 28% 62%, rgba(255,196,158,.72) 0 30px, rgba(255,196,158,0) 31px),\n    radial-gradient(circle at 52% 44%, rgba(255,206,172,.78) 0 39px, rgba(255,206,172,0) 40px),\n    radial-gradient(circle at 76% 64%, rgba(255,186,150,.66) 0 27px, rgba(255,186,150,0) 28px),\n    linear-gradient(to top, rgba(255,196,158,.60) 0 15px, rgba(255,196,158,0) 16px);\n}\n.cloud.night {\n  background:\n    radial-gradient(circle at 28% 62%, rgba(120,130,165,.55) 0 30px, rgba(120,130,165,0) 31px),\n    radial-gradient(circle at 52% 44%, rgba(126,136,172,.62) 0 39px, rgba(126,136,172,0) 40px),\n    radial-gradient(circle at 76% 64%, rgba(114,124,158,.50) 0 27px, rgba(114,124,158,0) 28px),\n    linear-gradient(to top, rgba(120,130,165,.46) 0 15px, rgba(120,130,165,0) 16px);\n}\n\n/* Zwei Vögel, nur bei ruhigem Wetter am Tag */\n.bird {\n  position: absolute; width: 26px; height: 13px;\n  background-color: rgba(30,40,60,.55);\n  -webkit-mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='13'><path d='M2 9 C6 2 9 2 13 8 C17 2 20 2 24 9' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>\") no-repeat center / contain;\n  mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='13'><path d='M2 9 C6 2 9 2 13 8 C17 2 20 2 24 9' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>\") no-repeat center / contain;\n  will-change: transform;\n}\n.bird.b1 { top: 21%; animation: sky-fly 128s linear infinite; }\n.bird.b2 { top: 25%; transform: scale(.72); animation: sky-fly 155s linear infinite; animation-delay: -44s; }\n\n/* ══ NIEDERSCHLAG ══ echte Tropfen: fallen, treffen auf, zerplatzen ══\n   Jede Bahn ist ein unsichtbarer Marker AM AUFSCHLAGPUNKT. Der Tropfen\n   (::before) kommt von oben zu ihm hin, der Aufschlag (::after) sitzt genau\n   auf ihm. Beide teilen Dauer und Versatz - deshalb zerplatzt es exakt beim\n   Auftreffen, ganz ohne Zeitsteuerung in JavaScript. Bewegt werden nur\n   transform und opacity; die Neigung liegt in der BAHN, nicht in der Form. */\n.rainlane { position: absolute; width: 0; height: 0; pointer-events: none; }\n.rainlane::before {\n  content: \"\"; position: absolute; left: 0; top: 0;\n  width: var(--w,3px); height: var(--h,15px);\n  border-radius: 50% 50% 46% 46% / 74% 74% 26% 26%;\n  background: linear-gradient(180deg,\n      rgba(205,214,244,.04) 0%, rgba(205,214,244,.48) 42%,\n      rgba(233,239,250,.90) 76%, rgba(240,245,255,1) 100%);\n  will-change: transform, opacity;\n  animation: sky-drop var(--d,1.1s) linear infinite var(--t,0s);\n}\n/* Die Krone: zwei Ringe. Der zweite kommt aus box-shadow und wird EINMAL\n   gezeichnet - bewegt wird nur skaliert und ausgeblendet. */\n.rainlane::after {\n  content: \"\"; position: absolute; left: 0; bottom: 0;\n  width: var(--sw,18px); height: calc(var(--sw,18px) * .32);\n  margin-left: calc(var(--sw,18px) / -2); margin-bottom: -1px;\n  border: 1.3px solid rgba(240,245,255,.70); border-radius: 50%;\n  box-shadow: 0 0 0 2.6px rgba(240,245,255,.16);\n  opacity: 0; will-change: transform, opacity;\n  animation: sky-splash var(--d,1.1s) linear infinite var(--t,0s);\n}\n/* Die Ferne bekommt keinen Aufschlag - er waere kleiner als ein Bildpunkt. */\n.rainlane.far::after { display: none; }\n@keyframes sky-drop {\n  0%   { transform: translate3d(var(--dx,12px), calc(var(--fall,90vh) * -1), 0) scaleY(.8); opacity: 0; }\n  7%   { opacity: var(--o,.9); }\n  90%  { opacity: var(--o,.9); }\n  93%  { transform: translate3d(0,0,0) scaleY(1.15); opacity: var(--o,.9); }\n  95%  { transform: translate3d(0,0,0) scale(1.9,.22); opacity: 0; }\n  100% { transform: translate3d(0,0,0) scale(1.9,.22); opacity: 0; }\n}\n@keyframes sky-splash {\n  0%,88% { transform: scale(.16,.45); opacity: 0; }\n  93.5%  { transform: scale(.60,.95); opacity: .9; }\n  100%   { transform: scale(1.7,1.25); opacity: 0; }\n}\n/* ══ SCHNEE ══ echte Flocken: taumeln herab und bleiben liegen ══════\n   Gleiche Bauart wie der Regen - Marker am Aufschlagpunkt, Flocke als\n   ::before, das Liegenbleiben als ::after. Der Seitwaerts-Versatz steckt\n   in den Zwischenschritten der Bahn, deshalb pendelt die Flocke, statt\n   schnurgerade zu fallen. Wieder nur transform und opacity. */\n.snowlane { position: absolute; width: 0; height: 0; pointer-events: none; }\n.snowlane::before {\n  content: \"\"; position: absolute; left: 0; top: 0;\n  width: var(--w,6px); height: var(--w,6px); border-radius: 50%;\n  background: radial-gradient(circle at 40% 36%,\n      #ffffff 0%, rgba(255,255,255,.86) 52%, rgba(255,255,255,0) 100%);\n  will-change: transform, opacity;\n  animation: sky-flake var(--d,9s) linear infinite var(--t,0s);\n}\n/* Kein Zerplatzen: die Flocke wird zu einem weichen Fleck und vergeht. */\n.snowlane::after {\n  content: \"\"; position: absolute; left: 0; bottom: 0;\n  width: var(--sw,14px); height: calc(var(--sw,14px) * .38);\n  margin-left: calc(var(--sw,14px) / -2); margin-bottom: -2px;\n  border-radius: 50%;\n  background: radial-gradient(ellipse at 50% 62%,\n      rgba(255,255,255,.92) 0%, rgba(255,255,255,0) 74%);\n  opacity: 0; will-change: transform, opacity;\n  animation: sky-settle var(--d,9s) linear infinite var(--t,0s);\n}\n.snowlane.far::after { display: none; }\n@keyframes sky-flake {\n  0%   { transform: translate3d(calc(var(--dx,20px) * -1), calc(var(--fall,90vh) * -1), 0); opacity: 0; }\n  6%   { opacity: var(--o,.9); }\n  25%  { transform: translate3d(calc(var(--dx,20px) * .65), calc(var(--fall,90vh) * -.73), 0); }\n  50%  { transform: translate3d(calc(var(--dx,20px) * -.85), calc(var(--fall,90vh) * -.49), 0); }\n  75%  { transform: translate3d(calc(var(--dx,20px) * .55), calc(var(--fall,90vh) * -.24), 0); }\n  92%  { transform: translate3d(0,0,0); opacity: var(--o,.9); }\n  97%  { transform: translate3d(0,0,0) scale(.65); opacity: 0; }\n  100% { transform: translate3d(0,0,0) scale(.65); opacity: 0; }\n}\n@keyframes sky-settle {\n  0%,90% { transform: scale(.3,.4); opacity: 0; }\n  94%    { transform: scale(1,1); opacity: .78; }\n  100%   { transform: scale(1.18,1.06); opacity: 0; }\n}\n.fogband {\n  position: absolute; left: -20%; right: -20%; height: 22%;\n  background: linear-gradient(180deg, rgba(226,232,240,0), rgba(226,232,240,.30), rgba(226,232,240,0));\n  will-change: transform;\n}\n.fogband.f1 { top: 38%; animation: sky-fog 90s ease-in-out infinite alternate; }\n.fogband.f2 { top: 58%; opacity: .7; animation: sky-fog 130s ease-in-out infinite alternate-reverse; }\n.flash {\n  position: absolute; inset: 0;\n  background: radial-gradient(58% 42% at 62% 16%, rgba(255,255,255,.55), rgba(255,255,255,0) 70%);\n  opacity: 0; will-change: opacity;\n  animation: sky-flash 11s linear infinite;\n}\n\n/* ══ BODEN ══ leichte Wiese, Farbe folgt der Jahreszeit ═══════════ */\n.ground { position: absolute; left: 0; right: 0; bottom: 0; height: 27%; }\n.ground.spring { --meadow-far: #6f9f57; --meadow-near: #8fc76c; --grass: #7ab760; --tree: #3f6b3a; }\n.ground.summer { --meadow-far: #55913f; --meadow-near: #7cb654; --grass: #6aa94a; --tree: #2f5c31; }\n.ground.autumn { --meadow-far: #8a7538; --meadow-near: #c69d50; --grass: #ae9249; --tree: #6b4a24; }\n.ground.winter { --meadow-far: #b3c1d0; --meadow-near: #e7eef5; --grass: #a6b6c3; --tree: #3d4a58; }\n\n/* Baumreihe am Horizont — von Hand gezeichnete Kronen, als Maske\n   eingefärbt, damit eine SVG-Form für alle Jahreszeiten reicht. */\n.ground .treeline {\n  position: absolute; left: 0; right: 0; top: -46px; height: 74px;\n  background-color: var(--tree); opacity: .92;\n  -webkit-mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='74'><g fill='white'><path d='M0 74 L0 58 C10 58 12 44 22 44 C32 44 34 56 44 57 L44 74Z'/><ellipse cx='72' cy='50' rx='26' ry='19'/><rect x='68' y='52' width='8' height='22'/><path d='M112 74 L104 74 L108 40 L112 74Z'/><path d='M96 52 L108 26 L120 52Z'/><path d='M100 62 L108 40 L116 62Z'/><ellipse cx='152' cy='54' rx='30' ry='21'/><rect x='148' y='56' width='9' height='18'/><ellipse cx='206' cy='48' rx='22' ry='17'/><rect x='202' y='50' width='7' height='24'/><path d='M244 74 L236 74 L240 34 L244 74Z'/><path d='M228 50 L240 20 L252 50Z'/><path d='M232 62 L240 38 L248 62Z'/><ellipse cx='288' cy='53' rx='28' ry='20'/><rect x='284' y='55' width='8' height='19'/><ellipse cx='336' cy='49' rx='20' ry='16'/><rect x='333' y='51' width='7' height='23'/><path d='M380 74 L372 74 L376 42 L380 74Z'/><path d='M364 54 L376 28 L388 54Z'/><ellipse cx='412' cy='55' rx='24' ry='18'/></g></svg>\") repeat-x bottom / 420px 74px;\n  mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='74'><g fill='white'><path d='M0 74 L0 58 C10 58 12 44 22 44 C32 44 34 56 44 57 L44 74Z'/><ellipse cx='72' cy='50' rx='26' ry='19'/><rect x='68' y='52' width='8' height='22'/><path d='M112 74 L104 74 L108 40 L112 74Z'/><path d='M96 52 L108 26 L120 52Z'/><path d='M100 62 L108 40 L116 62Z'/><ellipse cx='152' cy='54' rx='30' ry='21'/><rect x='148' y='56' width='9' height='18'/><ellipse cx='206' cy='48' rx='22' ry='17'/><rect x='202' y='50' width='7' height='24'/><path d='M244 74 L236 74 L240 34 L244 74Z'/><path d='M228 50 L240 20 L252 50Z'/><path d='M232 62 L240 38 L248 62Z'/><ellipse cx='288' cy='53' rx='28' ry='20'/><rect x='284' y='55' width='8' height='19'/><ellipse cx='336' cy='49' rx='20' ry='16'/><rect x='333' y='51' width='7' height='23'/><path d='M380 74 L372 74 L376 42 L380 74Z'/><path d='M364 54 L376 28 L388 54Z'/><ellipse cx='412' cy='55' rx='24' ry='18'/></g></svg>\") repeat-x bottom / 420px 74px;\n}\n.ground .meadow {\n  position: absolute; inset: 0;\n  background:\n    radial-gradient(120% 60% at 30% 0%, rgba(255,255,255,.14), transparent 60%),\n    linear-gradient(180deg, var(--meadow-far) 0%, var(--meadow-near) 100%);\n}\n/* Blumen: gestreute Punkte, je Jahreszeit andere Farben */\n.ground .flowers { position: absolute; inset: 0; opacity: .85; }\n.ground.spring .flowers {\n  background-image:\n    radial-gradient(circle, #ffffff 0 2.2px, transparent 3px),\n    radial-gradient(circle, #f9e2af 0 2px, transparent 2.8px),\n    radial-gradient(circle, #f5c2e7 0 1.8px, transparent 2.6px);\n  background-size: 96px 62px, 138px 84px, 172px 108px;\n  background-position: 14px 26px, 62px 12px, 110px 48px;\n}\n.ground.summer .flowers {\n  background-image:\n    radial-gradient(circle, #f38ba8 0 2.4px, transparent 3.2px),\n    radial-gradient(circle, #ffffff 0 2px, transparent 2.8px),\n    radial-gradient(circle, #f9e2af 0 1.8px, transparent 2.6px);\n  background-size: 118px 70px, 88px 56px, 164px 96px;\n  background-position: 22px 30px, 54px 16px, 96px 54px;\n}\n.ground.autumn .flowers {\n  background-image:\n    radial-gradient(circle, #e8b45c 0 2px, transparent 2.8px),\n    radial-gradient(circle, #d08b4a 0 1.6px, transparent 2.4px);\n  background-size: 132px 78px, 186px 112px;\n  background-position: 26px 34px, 88px 60px;\n  opacity: .6;\n}\n.ground.winter .flowers { opacity: 0; }\n/* Grashalme an der Unterkante, ganz leicht im Wind */\n.ground .grass {\n  position: absolute; left: 0; right: 0; bottom: 0; height: 44px;\n  background-color: var(--grass);\n  transform-origin: bottom center; will-change: transform;\n  animation: sky-sway 11s ease-in-out infinite;\n  -webkit-mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='210' height='44'><g fill='white'><path d='M6 44 C9 30 3 22 11 8 C8 24 12 32 12 44Z'/><path d='M24 44 C26 34 22 26 28 16 C26 28 30 34 30 44Z'/><path d='M44 44 C48 28 40 20 50 4 C45 22 52 32 50 44Z'/><path d='M66 44 C68 36 64 28 70 20 C68 30 72 36 72 44Z'/><path d='M86 44 C90 30 82 22 92 10 C87 26 94 34 92 44Z'/><path d='M108 44 C110 34 106 26 112 14 C110 28 114 34 114 44Z'/><path d='M128 44 C132 32 124 24 134 12 C129 28 136 34 134 44Z'/><path d='M150 44 C152 36 148 28 154 18 C152 30 156 36 156 44Z'/><path d='M170 44 C174 28 166 20 176 6 C171 24 178 32 176 44Z'/><path d='M192 44 C194 34 190 26 196 16 C194 28 198 34 198 44Z'/></g></svg>\") repeat-x bottom / 210px 44px;\n  mask: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='210' height='44'><g fill='white'><path d='M6 44 C9 30 3 22 11 8 C8 24 12 32 12 44Z'/><path d='M24 44 C26 34 22 26 28 16 C26 28 30 34 30 44Z'/><path d='M44 44 C48 28 40 20 50 4 C45 22 52 32 50 44Z'/><path d='M66 44 C68 36 64 28 70 20 C68 30 72 36 72 44Z'/><path d='M86 44 C90 30 82 22 92 10 C87 26 94 34 92 44Z'/><path d='M108 44 C110 34 106 26 112 14 C110 28 114 34 114 44Z'/><path d='M128 44 C132 32 124 24 134 12 C129 28 136 34 134 44Z'/><path d='M150 44 C152 36 148 28 154 18 C152 30 156 36 156 44Z'/><path d='M170 44 C174 28 166 20 176 6 C171 24 178 32 176 44Z'/><path d='M192 44 C194 34 190 26 196 16 C194 28 198 34 198 44Z'/></g></svg>\") repeat-x bottom / 210px 44px;\n}\n.ground.winter .grass { height: 30px; opacity: .75; }\n/* Abend/Nacht legen sich als ruhige Decke über die Wiese */\n.ground.dusk::after, .ground.night::after {\n  content: \"\"; position: absolute; left: 0; right: 0; top: -46px; bottom: 0;\n  pointer-events: none;\n}\n.ground.dusk::after  { background: linear-gradient(180deg, rgba(74,38,58,.60), rgba(26,16,32,.78)); }\n.ground.night::after { background: linear-gradient(180deg, rgba(12,14,30,.82), rgba(8,9,20,.93)); }\n\n/* Fallende Blätter im Herbst */\n.leaf {\n  position: absolute; width: 9px; height: 6px; border-radius: 60% 40% 55% 45%;\n  background: #d08b4a; opacity: .8; will-change: transform;\n}\n.leaf.l1 { left: 18%; top: -50%; animation: sky-leaf 17s linear infinite; }\n.leaf.l2 { left: 52%; top: -50%; background: #c2703c; animation: sky-leaf 23s linear infinite; animation-delay: -9s; }\n.leaf.l3 { left: 78%; top: -50%; background: #e8b45c; animation: sky-leaf 20s linear infinite; animation-delay: -15s; }\n/* Glühwürmchen in Sommernächten */\n.firefly {\n  position: absolute; width: 5px; height: 5px; border-radius: 50%;\n  background: radial-gradient(circle, #f9e2af 0%, rgba(249,226,175,0) 70%);\n  will-change: transform, opacity;\n}\n.firefly.f1 { left: 16%; bottom: 34%; animation: sky-blink 5.5s ease-in-out infinite, sky-hover 19s ease-in-out infinite; }\n.firefly.f2 { left: 38%; bottom: 20%; animation: sky-blink 7s ease-in-out infinite 1.5s, sky-hover 24s ease-in-out infinite reverse; }\n.firefly.f3 { left: 63%; bottom: 41%; animation: sky-blink 6.2s ease-in-out infinite .8s, sky-hover 21s ease-in-out infinite; }\n.firefly.f4 { left: 84%; bottom: 26%; animation: sky-blink 8s ease-in-out infinite 2.4s, sky-hover 27s ease-in-out infinite reverse; }\n\n@keyframes sky-drift-a { from { transform: translate3d(0,0,0) rotate(0.02deg); }     to { transform: translate3d(-180px,-70px,0) rotate(0.02deg); } }\n@keyframes sky-drift-b { from { transform: translate3d(0,0,0) rotate(0.02deg); }     to { transform: translate3d(120px,60px,0) rotate(0.02deg); } }\n@keyframes sky-twinkle { from { opacity: .25; }                      to { opacity: .8; } }\n@keyframes sky-breath  { 0%,100% { opacity: .85; }                   50% { opacity: 1; } }\n@keyframes sky-spin    { to { transform: rotate(360deg); } }\n@keyframes sky-sail    { from { transform: translate3d(-32vw,0,0) rotate(0.02deg); } to { transform: translate3d(114vw,0,0) rotate(0.02deg); } }\n@keyframes sky-fly     { from { transform: translate3d(-10vw,0,0); } to { transform: translate3d(112vw,-40px,0); } }\n@keyframes sky-fog     { from { transform: translate3d(-6%,0,0) rotate(0.02deg); }   to { transform: translate3d(6%,0,0) rotate(0.02deg); } }\n@keyframes sky-flash   { 0%,92%,100% { opacity: 0; } 93% { opacity: .85; } 94% { opacity: .12; } 95% { opacity: .65; } 96.5% { opacity: 0; } }\n@keyframes sky-sway    { 0%,100% { transform: skewX(0deg); }         50% { transform: skewX(2.2deg); } }\n@keyframes sky-leaf    { from { transform: translate3d(0,0,0) rotate(0deg); } to { transform: translate3d(-70px, 150vh, 0) rotate(540deg); } }\n@keyframes sky-blink   { 0%,100% { opacity: .15; }                   50% { opacity: 1; } }\n@keyframes sky-hover   { 0%,100% { transform: translate3d(0,0,0); }  50% { transform: translate3d(26px,-18px,0); } }\n\n@media (prefers-reduced-motion: reduce) {\n  .stars, .stars2, .moon, .sun, .rays, .cloud, .bird,\n  .rainlane::before, .rainlane::after,\n.snowlane::before, .snowlane::after,\n.fogband, .flash, .grass, .leaf, .firefly { animation: none !important; }\n}\n/* Schutz vor dem Glas-Helfer: der Himmel bleibt eine feste Ebene ohne Glanz */\nha-card { position: fixed !important; }\nha-card::before { content: none !important; }\n\n  .moonwrap {\n    position: absolute;\n    width: 132px; height: 132px;\n    margin: -66px 0 0 -66px;\n    pointer-events: none;\n    filter: drop-shadow(0 0 18px rgba(249,226,175,.28));\n    transition: left 2s linear, top 2s linear;\n  }\n  .moondisc { width: 100%; height: 100%; display: block; }\n"
   aurora_light:
     template: aurora_base
     show_state: true
@@ -312,7 +312,7 @@ button_card_templates:
       action: toggle
     hold_action:
       action: more-info
-    state_display: "[[[\n  if (entity && entity.state === 'on') {\n    const b = entity.attributes.brightness;\n    return b ? Math.round(b / 2.55) + ' %' : 'ON';\n  }\n  return entity && entity.state === 'unavailable' ? '—' : 'OFF';\n]]]\n"
+    state_display: "[[[\n  if (entity && entity.state === 'on') {\n    const b = entity?.attributes.brightness;\n    return b ? Math.round(b / 2.55) + ' %' : 'ON';\n  }\n  return entity && entity.state === 'unavailable' ? '—' : 'OFF';\n]]]\n"
     styles:
       grid:
       - grid-template-areas: '''i'' ''n'' ''s'''
@@ -356,7 +356,7 @@ button_card_templates:
         icon:
         - color: "[[[\n\n  const A = entity ? entity.attributes : {};\n  const M = A.supported_color_modes || [];\n  const kannFarbe = M.some(m => ['hs','xy','rgb','rgbw','rgbww','rgbwww'].indexOf(m) >= 0);\n  const kannWeiss = M.indexOf('color_temp') >= 0;\n  const GELB = [249,226,175];\n  /* Farbtemperatur → sichtbarer Weisston. Bewusst KEINE physikalische Umrechnung:\n     6500 K ist in RGB fast reines Weiss und waere von 4000 K nicht zu unterscheiden.\n     Diese Rampe spreizt warm→kalt so, dass man es auf einen Blick sieht. */\n  const ct = (k) => {\n    const WARM = [255,176,110], MITTE = [255,250,244], KALT = [188,216,255];\n    const x = Math.max(2000, Math.min(6500, k));\n    if (x <= 4000) { const f = (x - 2000) / 2000; return WARM.map((v, i) => Math.round(v + (MITTE[i] - v) * f)); }\n    const f = (x - 4000) / 2500; return MITTE.map((v, i) => Math.round(v + (KALT[i] - v) * f));\n  };\n  /* Lesbar auf dunklem Glas: auf volle Helligkeit normieren, dann 35 % Richtung Weiss\n     mischen. Der Farbton (die Information) bleibt, das Pastell passt zu Catppuccin. */\n  const weich = (c) => { const m = Math.max(c[0], c[1], c[2], 1); const f = 255 / m;\n    return c.map((x) => { const y = Math.min(255, x * f); return Math.round(y + (255 - y) * 0.35); }); };\n  /* Eine Farblampe im Weissmodus meldet AUCH rgb_color (umgerechnet) — dann zaehlt\n     die Farbtemperatur, sonst saehe jedes warme Weiss wie ein blasses Orange aus. */\n  const F = (A.color_mode === 'color_temp' && A.color_temp_kelvin) ? ct(A.color_temp_kelvin)\n          : (A.rgb_color ? weich(A.rgb_color)\n          : (A.color_temp_kelvin ? ct(A.color_temp_kelvin) : GELB));\n  const rgb = (a) => 'rgba(' + F[0] + ',' + F[1] + ',' + F[2] + ',' + a + ')';\n  /* 0..1 — bei nicht dimmbaren Lampen zaehlt AN als volle Helligkeit. */\n  const h = A.brightness != null ? A.brightness / 255 : 1;\nreturn rgb(1);\n]]]\n"
         - filter: "[[[\n\n  const A = entity ? entity.attributes : {};\n  const M = A.supported_color_modes || [];\n  const kannFarbe = M.some(m => ['hs','xy','rgb','rgbw','rgbww','rgbwww'].indexOf(m) >= 0);\n  const kannWeiss = M.indexOf('color_temp') >= 0;\n  const GELB = [249,226,175];\n  /* Farbtemperatur → sichtbarer Weisston. Bewusst KEINE physikalische Umrechnung:\n     6500 K ist in RGB fast reines Weiss und waere von 4000 K nicht zu unterscheiden.\n     Diese Rampe spreizt warm→kalt so, dass man es auf einen Blick sieht. */\n  const ct = (k) => {\n    const WARM = [255,176,110], MITTE = [255,250,244], KALT = [188,216,255];\n    const x = Math.max(2000, Math.min(6500, k));\n    if (x <= 4000) { const f = (x - 2000) / 2000; return WARM.map((v, i) => Math.round(v + (MITTE[i] - v) * f)); }\n    const f = (x - 4000) / 2500; return MITTE.map((v, i) => Math.round(v + (KALT[i] - v) * f));\n  };\n  /* Lesbar auf dunklem Glas: auf volle Helligkeit normieren, dann 35 % Richtung Weiss\n     mischen. Der Farbton (die Information) bleibt, das Pastell passt zu Catppuccin. */\n  const weich = (c) => { const m = Math.max(c[0], c[1], c[2], 1); const f = 255 / m;\n    return c.map((x) => { const y = Math.min(255, x * f); return Math.round(y + (255 - y) * 0.35); }); };\n  /* Eine Farblampe im Weissmodus meldet AUCH rgb_color (umgerechnet) — dann zaehlt\n     die Farbtemperatur, sonst saehe jedes warme Weiss wie ein blasses Orange aus. */\n  const F = (A.color_mode === 'color_temp' && A.color_temp_kelvin) ? ct(A.color_temp_kelvin)\n          : (A.rgb_color ? weich(A.rgb_color)\n          : (A.color_temp_kelvin ? ct(A.color_temp_kelvin) : GELB));\n  const rgb = (a) => 'rgba(' + F[0] + ',' + F[1] + ',' + F[2] + ',' + a + ')';\n  /* 0..1 — bei nicht dimmbaren Lampen zaehlt AN als volle Helligkeit. */\n  const h = A.brightness != null ? A.brightness / 255 : 1;\nreturn 'drop-shadow(0 0 ' + (3 + 9 * h).toFixed(1) + 'px ' + rgb(0.30 + 0.60 * h) + ')';\n]]]\n"
-        - animation: "[[[\n  const d = (entity.entity_id.length % 4) * 0.5;\n  const f = (entity.entity_id.length % 7) * 1.3;\n  return 'aurora-breathe 2.8s ease-in-out ' + d + 's infinite, aurora-flicker 9s ease-in-out -' + f + 's infinite';\n]]]\n"
+        - animation: "[[[\n  const d = ((entity?.entity_id || '').length % 4) * 0.5;\n  const f = ((entity?.entity_id || '').length % 7) * 1.3;\n  return 'aurora-breathe 2.8s ease-in-out ' + d + 's infinite, aurora-flicker 9s ease-in-out -' + f + 's infinite';\n]]]\n"
   aurora_switch:
     template: aurora_light
     state:
@@ -390,7 +390,7 @@ button_card_templates:
       - padding: 8px 12px
       icon:
       - color: '#cba6f7'
-      - animation: "[[[\n  const d = (entity.entity_id.length % 9) * 0.8;\n  return 'aurora-shimmer 6s ease-in-out ' + d + 's infinite';\n]]]\n"
+      - animation: "[[[\n  const d = ((entity?.entity_id || '').length % 9) * 0.8;\n  return 'aurora-shimmer 6s ease-in-out ' + d + 's infinite';\n]]]\n"
       name:
       - justify-self: start
       - text-align: left
@@ -410,7 +410,7 @@ button_card_templates:
       action: more-info
     icon: "[[[\n  const st = entity ? entity.state : 'unknown';\n  if (st !== 'home' && st !== 'not_home') return 'mdi:help-circle-outline';\n  return st === 'home' ? 'mdi:home-account' : 'mdi:walk';\n]]]\n"
     state_display: "[[[\n  const st = entity ? entity.state : 'unknown';\n  if (st === 'home')     return 'Home';\n  if (st === 'not_home') return 'Away';\n  if (st === 'unknown' || st === 'unavailable') return 'Unknown';\n  return st;\n]]]\n"
-    label: "[[[\n  const st = entity ? entity.state : 'unknown';\n  if (st !== 'home' && st !== 'not_home') return '';\n  const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;\n  if (min < 2)  return 'just now';\n  if (min < 60) return 'for ' + Math.round(min) + ' min';\n  const h = min / 60;\n  if (h < 24)   return 'for ' + (h < 10 ? h.toFixed(1) : Math.round(h)) + ' h';\n  const d = Math.floor(h / 24);\n  return 'for ' + d + (d === 1 ? ' day' : ' days');\n]]]\n"
+    label: "[[[\n  const st = entity ? entity.state : 'unknown';\n  if (st !== 'home' && st !== 'not_home') return '';\n  const min = (Date.now() - new Date(entity?.last_changed).getTime()) / 60000;\n  if (min < 2)  return 'just now';\n  if (min < 60) return 'for ' + Math.round(min) + ' min';\n  const h = min / 60;\n  if (h < 24)   return 'for ' + (h < 10 ? h.toFixed(1) : Math.round(h)) + ' h';\n  const d = Math.floor(h / 24);\n  return 'for ' + d + (d === 1 ? ' day' : ' days');\n]]]\n"
     styles:
       grid:
       - grid-template-areas: '''i'' ''n'' ''s'' ''l'''
@@ -418,20 +418,21 @@ button_card_templates:
       - align-content: center
       - gap: '0'
       card:
-      - height: 104px
+      - min-height: 112px
+      - height: 100%
       - padding: 10px 6px
-      - --aur-farbe: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  if (!bek) return '#6c7086';\n  const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                        : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n]]]\n"
+      - --aur-farbe: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  if (!bek) return '#6c7086';\n  const min = (Date.now() - new Date(entity?.last_changed).getTime()) / 60000;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                        : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n]]]\n"
       - --aur-lo: "[[[\n  const e = entity, st = e ? e.state : 'unknown';\n  const min = (st === 'home' || st === 'not_home')\n    ? (Date.now() - new Date(e.last_changed).getTime()) / 60000 : 1e9;\n  return String([0.18, 0.15, 0.13, 0.11][min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3]);\n]]]\n"
       - --aur-hi: "[[[\n  const e = entity, st = e ? e.state : 'unknown';\n  const min = (st === 'home' || st === 'not_home')\n    ? (Date.now() - new Date(e.last_changed).getTime()) / 60000 : 1e9;\n  return String([0.62, 0.54, 0.46, 0.38][min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3]);\n]]]\n"
       - --aur-mid: "[[[\n  const e = entity, st = e ? e.state : 'unknown';\n  const min = (st === 'home' || st === 'not_home')\n    ? (Date.now() - new Date(e.last_changed).getTime()) / 60000 : 1e9;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  const lo = [0.18, 0.15, 0.13, 0.11][s], hi = [0.62, 0.54, 0.46, 0.38][s];\n  return (lo + 0.5 * (hi - lo)).toFixed(3);\n]]]\n"
-      - --aur-kante: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  if (!bek) return 'color-mix(in srgb, #6c7086 95%, transparent)';\n  const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  const c = (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                           : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n  return 'color-mix(in srgb, ' + c + ' 95%, transparent)';\n]]]\n"
+      - --aur-kante: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  if (!bek) return 'color-mix(in srgb, #6c7086 95%, transparent)';\n  const min = (Date.now() - new Date(entity?.last_changed).getTime()) / 60000;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  const c = (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                           : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n  return 'color-mix(in srgb, ' + c + ' 95%, transparent)';\n]]]\n"
       - --aurora-person-anim: "[[[\n  const st = entity ? entity.state : 'unknown';\n  return (st === 'home' || st === 'not_home')\n    ? 'aurora-person-puls 3s ease-in-out infinite' : 'none';\n]]]\n"
-      - border: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  const min = bek ? (Date.now() - new Date(entity.last_changed).getTime()) / 60000 : 1e9;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  const c = !bek ? '#6c7086'\n    : (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                     : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n  return '1px solid color-mix(in srgb, ' + c + ' 40%, transparent)';\n]]]\n"
+      - border: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  const min = bek ? (Date.now() - new Date(entity?.last_changed).getTime()) / 60000 : 1e9;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  const c = !bek ? '#6c7086'\n    : (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                     : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n  return '1px solid color-mix(in srgb, ' + c + ' 40%, transparent)';\n]]]\n"
       entity_picture:
       - width: 28px
       - height: 28px
       - border-radius: 50%
-      - border: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  const min = bek ? (Date.now() - new Date(entity.last_changed).getTime()) / 60000 : 1e9;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  return '2px solid ' + (!bek ? '#6c7086'\n    : (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                     : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s]);\n]]]\n"
+      - border: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  const min = bek ? (Date.now() - new Date(entity?.last_changed).getTime()) / 60000 : 1e9;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  return '2px solid ' + (!bek ? '#6c7086'\n    : (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                     : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s]);\n]]]\n"
       img_cell:
       - width: 28px
       - height: 28px
@@ -439,7 +440,7 @@ button_card_templates:
       - justify-self: center
       - margin-bottom: 2px
       icon:
-      - color: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  if (!bek) return '#6c7086';\n  const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                        : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n]]]\n"
+      - color: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  if (!bek) return '#6c7086';\n  const min = (Date.now() - new Date(entity?.last_changed).getTime()) / 60000;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                        : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n]]]\n"
       name:
       - font-size: 17px
       - font-weight: 700
@@ -452,13 +453,13 @@ button_card_templates:
       - letter-spacing: .08em
       - text-transform: uppercase
       - margin-top: 3px
-      - color: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  if (!bek) return '#6c7086';\n  const min = (Date.now() - new Date(entity.last_changed).getTime()) / 60000;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                        : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n]]]\n"
+      - color: "[[[\n  const st = entity ? entity.state : 'unknown';\n  const bek = (st === 'home' || st === 'not_home');\n  if (!bek) return '#6c7086';\n  const min = (Date.now() - new Date(entity?.last_changed).getTime()) / 60000;\n  const s = min < 15 ? 0 : min < 120 ? 1 : min < 480 ? 2 : 3;\n  return (st === 'home' ? ['#c7f5c2','#a6e3a1','#87c48c','#6a9c78']\n                        : ['#ffa3a3','#f38ba8','#c9788c','#8f6070'])[s];\n]]]\n"
       label:
       - font-size: 10px
       - color: '#9399b2'
       - letter-spacing: .02em
       - margin-top: 2px
-    extra_styles: "#container { position: relative; }\n#container::before {\n  content: \"\";\n  position: absolute;\n  inset: -10px -6px;\n  border-radius: var(--ha-card-border-radius, 18px);\n  background: var(--aur-farbe, #6c7086);\n  border: 1px solid var(--aur-kante, transparent);\n  opacity: var(--aur-lo, .12);\n  z-index: -1;\n  pointer-events: none;\n  animation: var(--aurora-person-anim, none);\n}\n@keyframes aurora-person-puls {\n  0%, 100% { opacity: var(--aur-lo, .12); }\n  50%      { opacity: var(--aur-hi, .46); }\n}\n/* \"Reduce motion\" may switch off decoration, but this pulse carries\n   information. Same beat and phase, half the swing — only the\n   animation NAME is swapped. */\n@keyframes aurora-person-ruhig {\n  0%, 100% { opacity: var(--aur-lo, .12); }\n  50%      { opacity: var(--aur-mid, .28); }\n}\n@media (prefers-reduced-motion: reduce) {\n  #container::before { animation-name: aurora-person-ruhig; }\n}\n\n@media (max-width: 620px) {\n  ha-card { height: 92px !important; padding: 8px 4px !important; }\n  #container::before { inset: -8px -4px !important; }\n  #name   { font-size: 15px !important; margin-top: 3px !important; }\n  #state  { font-size: 11px !important; letter-spacing: .06em !important; }\n  #label  { font-size: 9px !important; }\n}\n"
+    extra_styles: "#container { position: relative; }\n#container::before {\n  content: \"\";\n  position: absolute;\n  inset: -10px -6px;\n  border-radius: var(--ha-card-border-radius, 18px);\n  background: var(--aur-farbe, #6c7086);\n  border: 1px solid var(--aur-kante, transparent);\n  opacity: var(--aur-lo, .12);\n  z-index: -1;\n  pointer-events: none;\n  animation: var(--aurora-person-anim, none);\n}\n@keyframes aurora-person-puls {\n  0%, 100% { opacity: var(--aur-lo, .12); }\n  50%      { opacity: var(--aur-hi, .46); }\n}\n/* \"Reduce motion\" may switch off decoration, but this pulse carries\n   information. Same beat and phase, half the swing — only the\n   animation NAME is swapped. */\n@keyframes aurora-person-ruhig {\n  0%, 100% { opacity: var(--aur-lo, .12); }\n  50%      { opacity: var(--aur-mid, .28); }\n}\n@media (prefers-reduced-motion: reduce) {\n  #container::before { animation-name: aurora-person-ruhig; }\n}\n\n@media (max-width: 620px) {\n  ha-card { min-height: 98px !important; padding: 8px 4px !important; }\n  #container::before { inset: -8px -4px !important; }\n  #name   { font-size: 15px !important; margin-top: 3px !important; }\n  #state  { font-size: 11px !important; letter-spacing: .06em !important; }\n  #label  { font-size: 9px !important; }\n}\n"
   aurora_window:
     template: aurora_base
     show_icon: true
@@ -467,7 +468,7 @@ button_card_templates:
     size: 24px
     tap_action:
       action: more-info
-    state_display: '[[[ return entity.state === ''on'' ? ''OPEN'' : ''CLOSED''; ]]]
+    state_display: '[[[ if (entity == null) return ''—''; return entity?.state === ''on'' ? ''OPEN'' : ''CLOSED''; ]]]
 
       '
     styles:
@@ -520,8 +521,8 @@ button_card_templates:
       - height: 62px
       - padding: 8px 12px
       icon:
-      - color: "[[[\n  const v = parseFloat(entity.state);\n  if (isNaN(v)) return '#585b70';\n  return v <= 20 ? '#f38ba8' : v <= 40 ? '#f9e2af' : '#a6e3a1';\n]]]\n"
-      - animation: "[[[\n  const v = parseFloat(entity.state);\n  if (v <= 20) return 'aurora-pulse 1.2s ease-in-out infinite';\n  if (v <= 40) return 'aurora-blink 3.4s ease-in-out infinite';\n  const d = (entity.entity_id.length % 5) * 0.6;\n  return 'aurora-float 8s ease-in-out ' + d + 's infinite';\n]]]\n"
+      - color: "[[[\n  const v = parseFloat(entity?.state);\n  if (isNaN(v)) return '#585b70';\n  return v <= 20 ? '#f38ba8' : v <= 40 ? '#f9e2af' : '#a6e3a1';\n]]]\n"
+      - animation: "[[[\n  const v = parseFloat(entity?.state);\n  if (v <= 20) return 'aurora-pulse 1.2s ease-in-out infinite';\n  if (v <= 40) return 'aurora-blink 3.4s ease-in-out infinite';\n  const d = ((entity?.entity_id || '').length % 5) * 0.6;\n  return 'aurora-float 8s ease-in-out ' + d + 's infinite';\n]]]\n"
       state:
       - justify-self: start
       - align-self: end
@@ -663,10 +664,10 @@ button_card_templates:
       action: more-info
     variables:
       accent: '#a6e3a1'
-    state_display: '[[[ return entity.state === ''on'' ? ''ACTIVE'' : ''OFF''; ]]]
+    state_display: '[[[ if (entity == null) return ''—''; return entity?.state === ''on'' ? ''ACTIVE'' : ''OFF''; ]]]
 
       '
-    name: "[[[\n  return (entity.attributes.friendly_name || entity.entity_id)\n    .replace(/^[A-Za-zÄÖÜäöü ]{3,18}[:·\\-—]\\s+/, '');\n]]]\n"
+    name: "[[[\n  return (entity?.attributes?.friendly_name || entity?.entity_id || '')\n    .replace(/^[A-Za-zÄÖÜäöü ]{3,18}[:·\\-—]\\s+/, '');\n]]]\n"
     styles:
       grid:
       - grid-template-areas: '''i n'' ''i s'''
@@ -706,15 +707,15 @@ button_card_templates:
         - border: '[[[ return ''1px solid '' + variables.accent + ''38''; ]]]'
         icon:
         - color: '[[[ return variables.accent; ]]]'
-        - animation: "[[[\n  const d = (entity.entity_id.length % 5) * 0.7;\n  return 'aurora-wobble 4.5s ease-in-out ' + d + 's infinite';\n]]]\n"
+        - animation: "[[[\n  const d = ((entity?.entity_id || '').length % 5) * 0.7;\n  return 'aurora-wobble 4.5s ease-in-out ' + d + 's infinite';\n]]]\n"
         state:
         - color: '[[[ return variables.accent; ]]]'
   aurora_valve:
     template: aurora_metric
     styles:
       icon:
-      - color: "[[[\n  const v = parseFloat(entity.state);\n  if (isNaN(v) || v <= 0) return '#585b70';\n  return v >= 60 ? '#f38ba8' : v >= 25 ? '#fab387' : '#f9e2af';\n]]]\n"
-      - animation: "[[[\n  const v = parseFloat(entity.state);\n  if (isNaN(v) || v <= 0) return 'none';\n  const dur = Math.max(1.2, 6 - (v / 20));\n  return 'aurora-spin ' + dur.toFixed(1) + 's linear infinite';\n]]]\n"
+      - color: "[[[\n  const v = parseFloat(entity?.state);\n  if (isNaN(v) || v <= 0) return '#585b70';\n  return v >= 60 ? '#f38ba8' : v >= 25 ? '#fab387' : '#f9e2af';\n]]]\n"
+      - animation: "[[[\n  const v = parseFloat(entity?.state);\n  if (isNaN(v) || v <= 0) return 'none';\n  const dur = Math.max(1.2, 6 - (v / 20));\n  return 'aurora-spin ' + dur.toFixed(1) + 's linear infinite';\n]]]\n"
   aurora_action:
     template: aurora_metric
     show_state: true
@@ -722,7 +723,7 @@ button_card_templates:
       action: toggle
     hold_action:
       action: more-info
-    state_display: '[[[ return entity.state === ''on'' ? ''RUNNING …'' : ''RUN''; ]]]
+    state_display: '[[[ if (entity == null) return ''—''; return entity?.state === ''on'' ? ''RUNNING …'' : ''RUN''; ]]]
 
       '
     variables:
@@ -730,7 +731,7 @@ button_card_templates:
       accent_bg: rgba(137,220,235,0.10)
     styles:
       icon:
-      - animation: "[[[\n  return entity.state === 'on'\n    ? 'aurora-swing 1.1s ease-in-out infinite'\n    : 'aurora-float 7s ease-in-out infinite';\n]]]\n"
+      - animation: "[[[\n  return entity?.state === 'on'\n    ? 'aurora-swing 1.1s ease-in-out infinite'\n    : 'aurora-float 7s ease-in-out infinite';\n]]]\n"
       state:
       - font-size: 13px
   aurora_signal:
@@ -805,10 +806,11 @@ button_card_templates:
       - justify-items: center
       card:
       - padding: 10px 6px
-      - height: 68px
+      - min-height: 73px
+      - height: 100%
       - cursor: pointer
       - border: "[[[\n  const a = states['input_select.sky_mode'];\n  return (a && a.state === variables.option)\n    ? '1px solid ' + variables.accent\n    : '1px solid rgba(180,190,254,0.10)';\n]]]\n"
-      - background: "[[[\n  const a = states['input_select.sky_mode'];\n  return (a && a.state === variables.option)\n    ? 'color-mix(in srgb, ' + variables.accent + ' 16%, transparent)'\n    : 'transparent';\n]]]\n"
+      - background: "[[[\n  const a = states['input_select.sky_mode'];\n  return (a && a.state === variables.option)\n    ? 'color-mix(in srgb, ' + variables.accent + ' 16%, transparent)'\n    : 'var(--aurora-btn-idle, transparent)';\n]]]\n"
       img_cell:
       - width: 34px
       - height: 34px
@@ -1084,7 +1086,7 @@ views:
             name: "[[[\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('light.') && s.state === 'on').length);\n]]]\n"
             tap_action:
               action: navigate
-              navigation_path: /aurora-home/licht
+              navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/licht'; ]]]"
             styles:
               icon:
               - color: "[[[\n  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('light.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('light.') && s.state === 'on').length;\n  return n > 0 ? '#f9e2af' : '#585b70';\n]]]\n"
@@ -1095,7 +1097,7 @@ views:
             name: "[[[\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('binary_sensor.') &&\n    ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&\n    s.state === 'on').length);\n]]]\n"
             tap_action:
               action: navigate
-              navigation_path: /aurora-home/klima
+              navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/klima'; ]]]"
             styles:
               icon:
               - color: "[[[\n  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('binary_sensor.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('binary_sensor.') &&\n    ['door','window','opening','garage_door'].includes(s.attributes.device_class) &&\n    s.state === 'on').length;\n  return n > 0 ? '#fab387' : '#585b70';\n]]]\n"
@@ -1117,7 +1119,7 @@ views:
             name: "[[[\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('sensor.') &&\n    s.attributes.device_class === 'battery' &&\n    parseFloat(s.state) <= 20).length);\n]]]\n"
             tap_action:
               action: navigate
-              navigation_path: /aurora-home/system
+              navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/system'; ]]]"
             styles:
               icon:
               - color: "[[[\n  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('sensor.') &&\n    s.attributes.device_class === 'battery' &&\n    parseFloat(s.state) <= 20).length;\n  return n > 0 ? '#f38ba8' : '#585b70';\n]]]\n"
@@ -1131,7 +1133,7 @@ views:
             name: "[[[\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('update.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('update.') && s.state === 'on').length);\n]]]\n"
             tap_action:
               action: navigate
-              navigation_path: /aurora-home/system
+              navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/system'; ]]]"
             styles:
               icon:
               - color: "[[[\n  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('update.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('update.') && s.state === 'on').length;\n  return n > 0 ? '#89b4fa' : '#585b70';\n]]]\n"
@@ -1160,7 +1162,7 @@ views:
             name: "[[[\n  const vals = Object.keys(hass.states).filter(_i=>_i.startsWith('sensor.room_temp_')).map(_i=>hass.states[_i])\n    .filter(s => s.entity_id.startsWith('sensor.room_temp_'))\n    .map(s => parseFloat(s.state)).filter(v => !isNaN(v));\n  if (!vals.length) return '–';\n  return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) + ' °C';\n]]]\n"
             tap_action:
               action: navigate
-              navigation_path: /aurora-home/klima
+              navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/klima'; ]]]"
             styles:
               icon:
               - color: '#94e2d5'
@@ -1269,12 +1271,15 @@ views:
           entity: sensor.total_power
           name: Power · 12 h
           label: The home's current draw, in watts
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : Math.round(v) + '' W''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : Math.round(v) + '' W''; ]]]
 
             '
           variables:
             accent: '#fab387'
         - type: custom:apexcharts-card
+          update_interval: 1min
+          show:
+            loading: false
           graph_span: 12h
           header:
             show: false
@@ -1329,6 +1334,9 @@ views:
           variables:
             accent: '#89b4fa'
         - type: custom:apexcharts-card
+          update_interval: 1min
+          show:
+            loading: false
           graph_span: 6h
           header:
             show: false
@@ -1566,7 +1574,7 @@ views:
         icon: mdi:sofa
         tap_action:
           action: navigate
-          navigation_path: /aurora-home/room-living_room
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/room-living_room'; ]]]"
         variables:
           accent: '#cba6f7'
           accent_bg: rgba(203,166,247,0.10)
@@ -1577,7 +1585,7 @@ views:
         icon: mdi:countertop
         tap_action:
           action: navigate
-          navigation_path: /aurora-home/room-kitchen
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/room-kitchen'; ]]]"
         variables:
           accent: '#fab387'
           accent_bg: rgba(250,179,135,0.10)
@@ -1588,7 +1596,7 @@ views:
         icon: mdi:bed-king
         tap_action:
           action: navigate
-          navigation_path: /aurora-home/room-bedroom
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/room-bedroom'; ]]]"
         variables:
           accent: '#b4befe'
           accent_bg: rgba(180,190,254,0.10)
@@ -1599,7 +1607,7 @@ views:
         icon: mdi:desk
         tap_action:
           action: navigate
-          navigation_path: /aurora-home/room-office
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/room-office'; ]]]"
         variables:
           accent: '#89b4fa'
           accent_bg: rgba(137,180,250,0.10)
@@ -1610,7 +1618,7 @@ views:
         icon: mdi:shower
         tap_action:
           action: navigate
-          navigation_path: /aurora-home/room-bathroom
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/room-bathroom'; ]]]"
         variables:
           accent: '#94e2d5'
           accent_bg: rgba(148,226,213,0.10)
@@ -1621,7 +1629,7 @@ views:
         icon: mdi:coat-rack
         tap_action:
           action: navigate
-          navigation_path: /aurora-home/room-hallway
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/room-hallway'; ]]]"
         variables:
           accent: '#f9e2af'
           accent_bg: rgba(249,226,175,0.10)
@@ -1835,7 +1843,7 @@ views:
           entity: sensor.room_temp_living_room
           name: Temperature · 24 h
           label: Measured temperature against the set point, in °C
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
 
             '
           variables:
@@ -1871,7 +1879,7 @@ views:
           entity: sensor.trv_living_room_valve
           name: Valve position · 24 h
           label: How far the radiator valve was open — 100 % is full heat, 0 % is shut
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
 
             '
           variables:
@@ -2106,7 +2114,7 @@ views:
           entity: sensor.room_temp_kitchen
           name: Temperature · 24 h
           label: Measured temperature against the set point, in °C
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
 
             '
           variables:
@@ -2142,7 +2150,7 @@ views:
           entity: sensor.trv_kitchen_valve
           name: Valve position · 24 h
           label: How far the radiator valve was open — 100 % is full heat, 0 % is shut
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
 
             '
           variables:
@@ -2377,7 +2385,7 @@ views:
           entity: sensor.room_temp_bedroom
           name: Temperature · 24 h
           label: Measured temperature against the set point, in °C
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
 
             '
           variables:
@@ -2413,7 +2421,7 @@ views:
           entity: sensor.trv_bedroom_valve
           name: Valve position · 24 h
           label: How far the radiator valve was open — 100 % is full heat, 0 % is shut
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
 
             '
           variables:
@@ -2633,7 +2641,7 @@ views:
           entity: sensor.room_temp_office
           name: Temperature · 24 h
           label: Measured temperature against the set point, in °C
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
 
             '
           variables:
@@ -2669,7 +2677,7 @@ views:
           entity: sensor.trv_office_valve
           name: Valve position · 24 h
           label: How far the radiator valve was open — 100 % is full heat, 0 % is shut
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
 
             '
           variables:
@@ -2889,7 +2897,7 @@ views:
           entity: sensor.room_temp_bathroom
           name: Temperature · 24 h
           label: Measured temperature against the set point, in °C
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' °C''; ]]]
 
             '
           variables:
@@ -2925,7 +2933,7 @@ views:
           entity: sensor.trv_bathroom_valve
           name: Valve position · 24 h
           label: How far the radiator valve was open — 100 % is full heat, 0 % is shut
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : Math.round(v) + '' %''; ]]]
 
             '
           variables:
@@ -3333,6 +3341,9 @@ views:
       heading_style: title
       icon: mdi:chart-bell-curve-cumulative
     - type: custom:apexcharts-card
+      update_interval: 1min
+      show:
+        loading: false
       grid_options:
         columns: full
       graph_span: 24h
@@ -3476,6 +3487,9 @@ views:
           heading_style: title
           icon: mdi:water-percent
         - type: custom:apexcharts-card
+          update_interval: 1min
+          show:
+            loading: false
           graph_span: 24h
           header:
             show: false
@@ -3583,12 +3597,15 @@ views:
           entity: sensor.total_power
           name: Total power · 24 h
           label: The home's current draw, in watts
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : Math.round(v) + '' W''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : Math.round(v) + '' W''; ]]]
 
             '
           variables:
             accent: '#fab387'
         - type: custom:apexcharts-card
+          update_interval: 1min
+          show:
+            loading: false
           graph_span: 24h
           span:
             end: minute
@@ -3640,12 +3657,15 @@ views:
           entity: sensor.total_energy_today
           name: kWh per day · 14 days
           label: 'One bar per day: kilowatt-hours used'
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(2) + '' kWh''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(2) + '' kWh''; ]]]
 
             '
           variables:
             accent: '#94e2d5'
         - type: custom:apexcharts-card
+          update_interval: 1min
+          show:
+            loading: false
           graph_span: 14d
           span:
             end: day
@@ -3761,6 +3781,9 @@ views:
           heading_style: title
           icon: mdi:chart-donut
         - type: custom:apexcharts-card
+          update_interval: 1min
+          show:
+            loading: false
           chart_type: donut
           header:
             show: false
@@ -3911,12 +3934,15 @@ views:
           entity: sensor.wan_download_rate
           name: WAN throughput · 12 h
           label: Traffic to the internet in Mbit/s — download against upload
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' Mbit/s''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' Mbit/s''; ]]]
 
             '
           variables:
             accent: '#89b4fa'
         - type: custom:apexcharts-card
+          update_interval: 1min
+          show:
+            loading: false
           graph_span: 12h
           header:
             show: false
@@ -3971,7 +3997,7 @@ views:
           entity: sensor.wan_download_today
           name: Today ↓
           icon: mdi:download
-          state_display: '[[[ return (parseFloat(entity.state) / 1024).toFixed(1) + '' GB''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : (v / 1024).toFixed(1) + '' GB''; ]]]
 
             '
           variables:
@@ -3982,7 +4008,7 @@ views:
           entity: sensor.wan_upload_today
           name: Today ↑
           icon: mdi:upload
-          state_display: '[[[ return (parseFloat(entity.state) / 1024).toFixed(1) + '' GB''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : (v / 1024).toFixed(1) + '' GB''; ]]]
 
             '
           variables:
@@ -3993,7 +4019,7 @@ views:
           entity: sensor.wan_download_week
           name: Week ↓
           icon: mdi:calendar-week
-          state_display: '[[[ return (parseFloat(entity.state) / 1024).toFixed(0) + '' GB''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : (v / 1024).toFixed(0) + '' GB''; ]]]
 
             '
           variables:
@@ -4004,7 +4030,7 @@ views:
           entity: sensor.wan_upload_week
           name: Week ↑
           icon: mdi:calendar-week
-          state_display: '[[[ return (parseFloat(entity.state) / 1024).toFixed(0) + '' GB''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : (v / 1024).toFixed(0) + '' GB''; ]]]
 
             '
           variables:
@@ -4015,7 +4041,7 @@ views:
           entity: sensor.wan_download_month
           name: Month ↓
           icon: mdi:calendar-month
-          state_display: '[[[ return (parseFloat(entity.state) / 1024).toFixed(0) + '' GB''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : (v / 1024).toFixed(0) + '' GB''; ]]]
 
             '
           variables:
@@ -4026,7 +4052,7 @@ views:
           entity: sensor.wan_upload_month
           name: Month ↑
           icon: mdi:calendar-month
-          state_display: '[[[ return (parseFloat(entity.state) / 1024).toFixed(0) + '' GB''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : (v / 1024).toFixed(0) + '' GB''; ]]]
 
             '
           variables:
@@ -4200,7 +4226,7 @@ views:
           entity: sensor.ble_scanner_1_rssi_avg
           name: Scanner 1
           icon: mdi:radar
-          state_display: "[[[\n  const v = parseFloat(entity.state);\n  return isNaN(v) ? '—' : v.toFixed(1) + ' dBm';\n]]]\n"
+          state_display: "[[[\n  const v = parseFloat(entity?.state);\n  return isNaN(v) ? '—' : v.toFixed(1) + ' dBm';\n]]]\n"
           variables:
             accent: '#94e2d5'
             accent_bg: rgba(148,226,213,0.10)
@@ -4232,7 +4258,7 @@ views:
           entity: sensor.ble_scanner_2_rssi_avg
           name: Scanner 2
           icon: mdi:cube-outline
-          state_display: "[[[\n  const v = parseFloat(entity.state);\n  return isNaN(v) ? '—' : v.toFixed(1) + ' dBm';\n]]]\n"
+          state_display: "[[[\n  const v = parseFloat(entity?.state);\n  return isNaN(v) ? '—' : v.toFixed(1) + ' dBm';\n]]]\n"
           variables:
             accent: '#89dceb'
             accent_bg: rgba(137,220,235,0.10)
@@ -4295,12 +4321,15 @@ views:
         entity: sensor.ble_scanner_1_rssi_avg
         name: RSSI · 24 h
         label: Radio strength in dBm — closer to zero is better
-        state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' dBm''; ]]]
+        state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' dBm''; ]]]
 
           '
         variables:
           accent: '#89dceb'
       - type: custom:apexcharts-card
+        update_interval: 1min
+        show:
+          loading: false
         graph_span: 24h
         header:
           show: false
@@ -4576,7 +4605,7 @@ views:
           entity: sensor.your_server_cpu_usage
           name: CPU load · 24 h
           label: Processor load in %
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(0) + '' %''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(0) + '' %''; ]]]
 
             '
           variables:
@@ -4617,7 +4646,7 @@ views:
           entity: sensor.your_server_memory_used
           name: Memory · 24 h
           label: Memory in use
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(0) + '' MB''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(0) + '' MB''; ]]]
 
             '
           variables:
@@ -4655,7 +4684,7 @@ views:
           entity: sensor.your_server_network_rx
           name: Network · 24 h
           label: The machine's traffic
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1); ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1); ]]]
 
             '
           variables:
@@ -4690,7 +4719,7 @@ views:
           entity: sensor.your_server_disk_read
           name: Disk throughput · 24 h
           label: Read and write rate of the disk
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1); ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1); ]]]
 
             '
           variables:
@@ -4725,7 +4754,7 @@ views:
           entity: sensor.your_server_written_today
           name: Bytes written per day · 14 d
           label: 'One bar per day: how much was written to the disk'
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' GB''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' GB''; ]]]
 
             '
           variables:
@@ -4760,7 +4789,7 @@ views:
           entity: sensor.your_server_sd_wear
           name: Disk wear · 30 d
           label: Wear of the storage card in % — rising means it is ageing
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' %''; ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(1) + '' %''; ]]]
 
             '
           variables:
@@ -4792,7 +4821,7 @@ views:
           entity: sensor.your_server_health_score
           name: Health score · 7 d
           label: Overall score from 0 to 100 — higher is healthier
-          state_display: '[[[ const v = parseFloat(entity.state); return isNaN(v) ? ''—'' : v.toFixed(0); ]]]
+          state_display: '[[[ const v = parseFloat(entity?.state); return isNaN(v) ? ''—'' : v.toFixed(0); ]]]
 
             '
           variables:
@@ -4912,7 +4941,7 @@ views:
       show_empty: false
       card:
         type: entities
-        title: Energy & Kosten
+        title: Energy & Cost
       sort:
         method: state
         numeric: true

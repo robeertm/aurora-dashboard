@@ -1,5 +1,12 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.36.0 — Firefox no longer pays for a backdrop blur per card. Measured by
+ *            a user on a 2560 px / 166 Hz display: the per-card blur over the
+ *            animated sky was ~70 % of the GPU load in Firefox. Firefox now
+ *            gets the glass without the blur and a more opaque card colour
+ *            (the sheen and the rest of the glass stay); Blink and WebKit are
+ *            unchanged. Theme variables `aurora-glass-blur` / `aurora-glass-solid`
+ *            switch the blur off (or back on) in any browser.
  * v2.35.2 — wide grids that a filter fills (BLE signal tiles) no longer
  *            leave one card alone in a second row: the cards spread evenly over the rows the grid needs (6 -> 3+3, 8 -> 4+4). A
  *            single leftover card still spans the full width, as before.
@@ -149,7 +156,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.35.2";
+  const AE_VERSION = "2.36.0";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
@@ -336,12 +343,12 @@
 
   // Full glass treatment for top-level cards: strong blur, a diagonal light
   // sheen plus a faint top-edge highlight (::before overlay).
-  const GLASS = `
+  const glassCss = (blur, solid) => `
     ha-card {
       position: relative;
       z-index: 1;
-      backdrop-filter: blur(18px) saturate(1.45);
-      -webkit-backdrop-filter: blur(18px) saturate(1.45);
+      backdrop-filter: var(--aurora-glass-blur, ${blur});
+      -webkit-backdrop-filter: var(--aurora-glass-blur, ${blur});${solid}
       transition: border-color .3s ease, box-shadow .3s ease;
     }
     ha-card::before {
@@ -368,6 +375,9 @@
       }
     }
   `;
+  const BLUR = "blur(18px) saturate(1.45)";
+  const GLASS = glassCss(BLUR, "");
+
   // Safari / iOS get the phone treatment at ANY window size. WebKit does not
   // composite `backdrop-filter` the way Blink does: with a full-screen backdrop
   // behind them, every blurred card is re-resolved while scrolling, and a room
@@ -399,6 +409,31 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
     }
   `;
+  // Firefox (Gecko) behaves like WebKit here, not like Blink: with the animated
+  // full-screen sky behind them every blurred card has to be recomputed on every
+  // frame. A user measured it on desktop Firefox: ~92 % GPU / 56 W as shipped,
+  // ~21-25 % / 35 W with the card blur off (animations still running) -- the
+  // blur alone was about 70 % of the load. So Firefox keeps the full glass (the
+  // sheen, the edge light, the transitions) but drops the blur and gets a more
+  // opaque card colour instead, so the text stays readable over a bright sky.
+  // `Firefox/` is absent from the UA of Firefox on iOS ("FxiOS"), which is
+  // WebKit and handled above.
+  const FIREFOX = (() => {
+    try {
+      return /Gecko\/\d/.test(navigator.userAgent || "") && /Firefox\//.test(navigator.userAgent || "");
+    } catch (e) {
+      return false;
+    }
+  })();
+  // Theme variables, any browser: `aurora-glass-blur: none` drops the blur,
+  // a filter list (e.g. "blur(18px) saturate(1.45)") brings it back in Firefox;
+  // `aurora-glass-solid` sets the card colour used where the blur is off.
+  // `--aurora-btn-idle` is the resting fill of the sky buttons: they have no
+  // card colour of their own (the blur used to soften the sun glow behind
+  // them), so without the blur they get a light tint instead.
+  const GLASS_FIREFOX = glassCss("none", `
+      background-color: var(--aurora-glass-solid, rgba(30,31,48,0.80));
+      --aurora-btn-idle: rgba(30,31,48,0.55);`);
   // The sky is a full-screen fixed layer. Blink keeps it on the compositor by
   // itself; WebKit repaints it with the page unless it is promoted explicitly.
   //
@@ -661,7 +696,7 @@
   };
   const SHEETS = {
     base: mkSheet(KEYFRAMES + IDLE + SKY_LAYER + (WEBKIT ? SKY_WEBKIT : "")),
-    glass: mkSheet(WEBKIT ? GLASS_WEBKIT : GLASS),
+    glass: mkSheet(WEBKIT ? GLASS_WEBKIT : FIREFOX ? GLASS_FIREFOX : GLASS),
     glassInner: mkSheet(GLASS_INNER),
     apex: mkSheet(APEX),
     mini: mkSheet(MINI),
@@ -766,6 +801,7 @@
     : null;
 
   const apexDone = new WeakSet();
+  const hoeheBeobachtet = new WeakSet();
   const miniDone = new WeakSet();
   const glassDone = new WeakSet();
   const fillDone = new WeakSet();
@@ -833,12 +869,26 @@
     // in derselben Zeile auf gleicher Hoehe (dieselbe Regel wie v2.11.0).
     // button-card schreibt die Hoehe als Inline-Stil; danach steht dort
     // "100%", die Umstellung passiert je Render also genau einmal.
+    // Der Stil wird bei JEDEM Neuzeichnen neu geschrieben (update_timer, jede
+    // Zustandsaenderung); bis der naechste Durchlauf kam, stand die Karte auf
+    // der festen Hoehe und sprang — bei einer zu knappen Zahl sichtbar um
+    // Pixel (Personenkarte alle 10 s). Darum zusaetzlich ein Beobachter am
+    // Stil-Attribut: er stellt die Karte im selben Augenblick wieder um.
     if (el.tagName === "BUTTON-CARD") {
       const kachel = sr.querySelector("ha-card");
-      if (kachel && kachel.style.height.endsWith("px")) {
-        kachel.style.minHeight = kachel.style.height;
-        kachel.style.height = "100%";
-        el.style.height = "100%";
+      if (kachel) {
+        const umstellen = () => {
+          if (kachel.style.height.endsWith("px")) {
+            kachel.style.minHeight = kachel.style.height;
+            kachel.style.height = "100%";
+            el.style.height = "100%";
+          }
+        };
+        umstellen();
+        if (!hoeheBeobachtet.has(kachel) && typeof MutationObserver === "function") {
+          hoeheBeobachtet.add(kachel);
+          new MutationObserver(umstellen).observe(kachel, { attributes: true, attributeFilter: ["style"] });
+        }
       }
     }
     if (el.tagName === "APEXCHARTS-CARD") {
@@ -1925,5 +1975,5 @@
     setTimeout(sweep, 300);
     aufbauBeobachten();
   });
-  console.info("%c AURORA-EFFECTS %c v" + AE_VERSION + " ready (" + (WEBKIT ? "WebKit-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
+  console.info("%c AURORA-EFFECTS %c v" + AE_VERSION + " ready (" + (WEBKIT ? "WebKit-Modus" : FIREFOX ? "Firefox-Modus" : "Blink") + ") ", "background:#cba6f7;color:#11111b;font-weight:700", "background:#313244;color:#cdd6f4");
 })();

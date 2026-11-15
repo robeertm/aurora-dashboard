@@ -5,6 +5,57 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.36.0
+
+A round of fixes after an unusually thorough bug report. The helper and the
+dashboard both change; Firefox users should notice the biggest difference.
+
+- **Firefox no longer pays for a backdrop blur per card.** Measured on a
+  2560 px / 166 Hz desktop display: about 92 % GPU load as shipped, about
+  21-25 % with the per-card blur off and all animations still running - the
+  blur alone was roughly 70 % of the load. Firefox now gets the glass without
+  the blur (sheen, edge light and transitions stay) and a more opaque card
+  colour so text stays readable over a bright sky. Chrome, Edge and Safari are
+  unchanged. Two optional theme variables override it in any browser:
+  `aurora-glass-blur` (`none`, or a filter such as `blur(18px) saturate(1.45)`)
+  and `aurora-glass-solid` (card colour where the blur is off).
+- **The person card and the sky buttons no longer jump in height.** Both
+  templates forced a fixed pixel height smaller than their content, so the card
+  switched between that height and its natural height on every re-render (the
+  person card did it every 10 s, shifting everything below it by several
+  pixels). They now use `min-height` with `height: 100%`, and so does the
+  phone rule of the person card (its 92 px was also too small). The helper
+  additionally converts any fixed pixel card height at the moment button-card
+  writes it, not only on its next sweep.
+- **The sky buttons now change the sky.** The scene read
+  `input_select.aurora_himmel` (German values) while the buttons write
+  `input_select.sky_mode` (`Auto`, `Day`, `Dusk`, `Night`), so the scene always
+  fell back to the sun position. The scene now reads `sky_mode`. The README and
+  the installer now say that this helper has to exist.
+- **Links work under any dashboard URL.** Eleven `navigation_path` values were
+  hard-coded to `/aurora-home/...`; they are built from `location.pathname`
+  like the status card and the back chip already were.
+- **No more red template-error cards for missing entities.** Every
+  `entity.state`, `entity.attributes`, `entity.entity_id` and
+  `entity.last_changed` read in a template is now optional-chained; the nine
+  per-card `state_display` overrides show a dash instead of throwing or
+  printing `NaN`. Cards whose entity exists look exactly as before.
+- **Charts no longer flash a loading spinner.** All apexcharts cards refresh
+  on a one-minute interval and have `show.loading: false`; before, every state
+  change of a fast sensor re-fetched the history and showed the spinner.
+- **Clouds glide instead of hopping.** The slow animations (clouds, fog, the
+  star layers) moved less than a pixel per frame and were drawn on whole
+  pixels; a constant 0.02 degree rotation makes the browser render them at
+  sub-pixel positions. Invisible, but smooth.
+- Leftover German heading "Energy & Kosten" is now "Energy & Cost".
+- The resource URL in the README and the installer output carries `?v=<version>`
+  and says to change it on every manual update, because browsers (Firefox in
+  particular) keep an unversioned resource even after a hard reload.
+- New `scripts/check_dashboard.py` finds unguarded `entity.` reads, hard-coded
+  dashboard paths, apexcharts cards without `update_interval`, fixed pixel
+  heights on the two templates above, the sky helper mismatch and the Firefox
+  glass rule.
+
 ## 2.35.2
 
 Helper only; the dashboard files are unchanged.

@@ -101,3 +101,8 @@ Aurora:
 
   # ── effect gate: aurora-effects.js injects glass blur only where this is set
   aurora-fx: "1"
+  # Optional, read by the effects helper (v2.36.0+). Firefox draws the glass
+  # without the per-card blur by default (it costs a lot of GPU over the
+  # animated sky). Uncomment to override in any browser:
+  # aurora-glass-blur: none                         # or "blur(18px) saturate(1.45)"
+  # aurora-glass-solid: "rgba(30,31,48,0.80)"       # card colour where the blur is off
