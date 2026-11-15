@@ -32,6 +32,9 @@ cat <<EOT
    4. Create the dropdown helper input_select.sky_mode with the options
       Auto, Day, Dusk, Night (README, "The sky switch"). The sky buttons
       write to it; without it they do nothing.
-   5. Adapt the few entities listed in the README table.
+   5. Optional: create the dropdown helper input_select.person_pulse with the
+      options Always, On change, Off to choose how the person cards pulse
+      (README, "The person pulse"). Without it they pulse always.
+   6. Adapt the few entities listed in the README table.
 
 EOT

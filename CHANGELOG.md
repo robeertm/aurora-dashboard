@@ -5,6 +5,19 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.37.0
+
+- **The pulse of the person cards is now a setting** (idea from issue #2: pulse
+  only when the status changes). A dropdown helper `input_select.person_pulse`
+  with the options *Always*, *On change*, *Off* (in that order) decides. *Always*
+  is the default and is exactly the old behaviour, also when the helper does not
+  exist. *On change* plays two beats (about 5 s) after a person arrives or
+  leaves and then rests; it counts from `last_changed`, so it is correct after
+  a page reload as well. See *The person pulse* in the README.
+- With the system setting *reduce motion* the person card no longer pulses at
+  all (it used to pulse at half strength). Colour and glow strength still show
+  how long the person has been home or away.
+
 ## 2.36.0
 
 A round of fixes after an unusually thorough bug report. The helper and the

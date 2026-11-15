@@ -190,7 +190,7 @@ the two remaining UI steps.
    `frontend.reload_themes` action.
 2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
-   resource: `/local/aurora-effects/aurora-effects.js?v=2.36.0` (type *module*).
+   resource: `/local/aurora-effects/aurora-effects.js?v=2.37.0` (type *module*).
    **When you update the file, change the number after `?v=`** (any new value
    works): the browser keeps a resource without a version, and Firefox did so
    even after a hard reload.
@@ -258,6 +258,33 @@ to pin one.
 
    Everything else (lights, switches, scenes, climate, windows, batteries, RSSI,
    trackers, updates, the whole Explorer) finds your entities by itself.
+
+### The person pulse
+
+Each person card glows softly in time with a slow pulse; colour and strength
+fade with how long the person has been home or away. How much of that you want
+is one setting. Create a dropdown helper (*Settings → Devices & services →
+Helpers → Dropdown*) named `person_pulse` with exactly these three options, in
+this order — or drop this into your `configuration.yaml`:
+
+```yaml
+input_select:
+  person_pulse:
+    name: Person pulse
+    icon: mdi:pulse
+    options: [Always, On change, Off]
+```
+
+- **Always** — the pulse never stops (the behaviour of every earlier version,
+  and what you get if the helper does not exist).
+- **On change** — two beats (about 5 s) after someone arrives or leaves, then
+  the card rests; the colour stays. It counts from the entity's `last_changed`,
+  so it is right after a page reload too.
+- **Off** — no pulse at all.
+
+The helper is read by position, so you may rename the options (say, to your own
+language) but keep the order. With the system setting *reduce motion* the card
+never pulses, whatever the helper says.
 
 ## The scan pulse
 

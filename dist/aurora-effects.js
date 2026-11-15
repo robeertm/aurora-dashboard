@@ -1,5 +1,8 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.37.0 — the pulse of the person cards is a setting (`input_select.person_pulse`:
+ *            Always / On change / Off). The helper itself is unchanged apart from
+ *            the version; the setting lives in the dashboard template.
  * v2.36.0 — Firefox no longer pays for a backdrop blur per card. Measured by
  *            a user on a 2560 px / 166 Hz display: the per-card blur over the
  *            animated sky was ~70 % of the GPU load in Firefox. Firefox now
@@ -156,7 +159,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.36.0";
+  const AE_VERSION = "2.37.0";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
