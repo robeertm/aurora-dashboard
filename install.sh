@@ -35,6 +35,8 @@ cat <<EOT
    5. Optional: create the dropdown helper input_select.person_pulse with the
       options Always, On change, Off to choose how the person cards pulse
       (README, "The person pulse"). Without it they pulse always.
+      If you keep your own dashboard YAML, copy the template changes too
+      (README, "If you keep your own dashboard YAML").
    6. Adapt the few entities listed in the README table.
 
 EOT

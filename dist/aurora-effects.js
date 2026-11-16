@@ -1,5 +1,8 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.37.1 — documentation only: README and installer now say that your own dashboard
+ *            YAML needs the two template changes of 2.37.0 as well. The helper is
+ *            unchanged apart from the version.
  * v2.37.0 — the pulse of the person cards is a setting (`input_select.person_pulse`:
  *            Always / On change / Off). The helper itself is unchanged apart from
  *            the version; the setting lives in the dashboard template.
@@ -159,7 +162,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.37.0";
+  const AE_VERSION = "2.37.1";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a

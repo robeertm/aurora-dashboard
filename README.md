@@ -190,7 +190,7 @@ the two remaining UI steps.
    `frontend.reload_themes` action.
 2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
-   resource: `/local/aurora-effects/aurora-effects.js?v=2.37.0` (type *module*).
+   resource: `/local/aurora-effects/aurora-effects.js?v=2.37.1` (type *module*).
    **When you update the file, change the number after `?v=`** (any new value
    works): the browser keeps a resource without a version, and Firefox did so
    even after a hard reload.
@@ -285,6 +285,50 @@ input_select:
 The helper is read by position, so you may rename the options (say, to your own
 language) but keep the order. With the system setting *reduce motion* the card
 never pulses, whatever the helper says.
+
+### If you keep your own dashboard YAML
+
+The helper file and the new helper are not enough: the setting lives in the
+`aurora_person` template of `dashboard/aurora.yaml`. If you maintain your own
+copy of the dashboard YAML (or pasted an older one), copy these two changes
+into your `aurora_person` template (from 2.37.0 on):
+
+1. Re-render the card when the helper changes:
+
+```yaml
+  aurora_person:
+    # ...
+    triggers_update:
+    - input_select.person_pulse
+```
+
+2. Replace the value of `--aurora-person-anim` under `styles` → `card`:
+
+```yaml
+      - --aurora-person-anim: |-
+          [[[
+            const st = entity ? entity.state : 'unknown';
+            if (st !== 'home' && st !== 'not_home') return 'none';
+            // Setting: input_select.person_pulse, options in this order:
+            // Always (default) / On change / Off. Read by position so the options can
+            // carry any language; a missing or unavailable helper means Always.
+            const h = states['input_select.person_pulse'];
+            const o = h?.attributes?.options;
+            const i = Array.isArray(o) ? o.indexOf(h.state) : -1;
+            if (i === 2) return 'none';
+            if (i === 1) {
+              // Two beats (5 s) after the change, counted from last_changed so a page
+              // reload in the middle picks up where the beat would be.
+              const age = Math.max(0, (Date.now() - new Date(entity?.last_changed).getTime()) / 1000);
+              return age < 5 ? 'aurora-person-puls 2.5s ease-in-out -' + age.toFixed(2) + 's 2' : 'none';
+            }
+            return 'aurora-person-puls 3s ease-in-out infinite';
+          ]]]
+```
+
+(`[[[ ... ]]]` is the button-card JavaScript template syntax; keep the
+brackets.) Without these two changes the card keeps pulsing as before and
+ignores the setting.
 
 ## The scan pulse
 

@@ -5,6 +5,19 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.37.1
+
+Documentation only; the helper is unchanged apart from the version number.
+
+- The README (*The person pulse → If you keep your own dashboard YAML*) and the
+  installer's closing notes now say what a hand-maintained dashboard needs for
+  the pulse setting of 2.37.0: the `triggers_update` entry and the new
+  `--aurora-person-anim` template, copied verbatim from `dashboard/aurora.yaml`.
+  A new helper file plus the helper entity is not enough on its own.
+- Convention from now on: release notes for any version that changes
+  `dashboard/aurora.yaml` end with the line "copy the template changes too if
+  you keep your own YAML", and name the templates that changed.
+
 ## 2.37.0
 
 - **The pulse of the person cards is now a setting** (idea from issue #2: pulse
