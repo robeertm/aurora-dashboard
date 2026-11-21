@@ -19,6 +19,7 @@ cat <<EOT
   ✔ Theme:            themes/aurora.yaml
   ✔ Effects helper:   www/aurora-effects/aurora-effects.js
   ✔ Dashboard YAML:   aurora-dashboard.yaml (in /config)
+  ✔ Helper package:   packages/aurora_helpers.yaml (needs: homeassistant: packages: !include_dir_named packages, then restart)
 
   Finish in the UI (once):
    1. configuration.yaml must load themes:
