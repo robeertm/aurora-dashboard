@@ -1,0 +1,77 @@
+# Aurora — helper entities in one file (Home Assistant package).
+#
+# Copy this file to  config/packages/aurora_helpers.yaml  and make sure
+# configuration.yaml loads packages:
+#
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# Then restart Home Assistant (helpers defined in YAML need a restart).
+# Everything here is optional except `sky_mode`; the dashboard keeps working
+# without the rest. Names and ids are generic: rename the rooms to match your
+# dashboard (the id suffix must match the one used in dashboard/aurora.yaml).
+
+input_select:
+  # The sky switch (Overview + Phone views). Keep the order: Auto / Day / Dusk / Night.
+  sky_mode:
+    name: Sky
+    icon: mdi:theme-light-dark
+    options: [Auto, Day, Dusk, Night]
+    initial: Auto
+
+  # Person card pulse (since 2.37.0). Read by position: you may translate the
+  # options, but keep the order Always / On change / Off.
+  person_pulse:
+    name: Person pulse
+    icon: mdi:pulse
+    options: [Always, On change, Off]
+    initial: Always
+
+# Room setpoint sliders in the Smart Home view (optional). One helper per room;
+# delete the rooms you do not have, add more with the same pattern.
+input_number:
+  room_setpoint_living_room:
+    name: Living room setpoint
+    icon: mdi:target
+    mode: slider
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    initial: 21
+  room_setpoint_kitchen:
+    name: Kitchen setpoint
+    icon: mdi:target
+    mode: slider
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    initial: 21
+  room_setpoint_bedroom:
+    name: Bedroom setpoint
+    icon: mdi:target
+    mode: slider
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    initial: 18
+  room_setpoint_bathroom:
+    name: Bathroom setpoint
+    icon: mdi:target
+    mode: slider
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    initial: 22
+  room_setpoint_office:
+    name: Office setpoint
+    icon: mdi:target
+    mode: slider
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    initial: 21

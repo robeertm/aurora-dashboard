@@ -11,6 +11,8 @@ mkdir -p themes www/aurora-effects
 curl -fsSL "$REPO/themes/aurora.yaml" -o themes/aurora.yaml
 curl -fsSL "$REPO/dist/aurora-effects.js" -o www/aurora-effects/aurora-effects.js
 curl -fsSL "$REPO/dashboard/aurora.yaml" -o aurora-dashboard.yaml
+mkdir -p packages
+[ -e packages/aurora_helpers.yaml ] || curl -fsSL "$REPO/packages/aurora_helpers.yaml" -o packages/aurora_helpers.yaml
 VER=$(sed -n 's/.*AE_VERSION = "\([0-9.]*\)".*/\1/p' www/aurora-effects/aurora-effects.js | head -n 1)
 cat <<EOT
 

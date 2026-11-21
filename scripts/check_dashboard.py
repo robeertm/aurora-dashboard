@@ -177,6 +177,37 @@ def main() -> int:
             else:
                 checked.append("'Switches on' counts correctly with switch_ignore (ids, patterns, case)")
 
+    # 8. package file with the helper entities
+    pkg_path = os.path.join(ROOT, "packages", "aurora_helpers.yaml")
+    if not os.path.exists(pkg_path):
+        findings.append("packages/aurora_helpers.yaml is missing")
+    else:
+        pkg_text = open(pkg_path, encoding="utf-8").read()
+        try:
+            pkg = yaml.safe_load(pkg_text)
+        except yaml.YAMLError as e:
+            pkg = None
+            findings.append("packages/aurora_helpers.yaml: invalid YAML: %s" % e)
+        if isinstance(pkg, dict):
+            have = {"%s.%s" % (dom, k) for dom, v in pkg.items() if isinstance(v, dict) for k in v}
+            dash_text = open(DASH, encoding="utf-8").read()
+            used = set(re.findall(r"\binput_(?:select|number|boolean|text|datetime)\.[a-z0-9_]+", dash_text))
+            used -= {"input_select.select_option", "input_select.select_next"}  # service names
+            for miss in sorted(used - have):
+                findings.append("packages/aurora_helpers.yaml: dashboard uses %s but the package does not define it" % miss)
+            for extra in sorted(have - used):
+                findings.append("packages/aurora_helpers.yaml: defines %s which the dashboard never uses" % extra)
+            opts = (pkg.get("input_select") or {})
+            if (opts.get("sky_mode") or {}).get("options") != ["Auto", "Day", "Dusk", "Night"]:
+                findings.append("packages/aurora_helpers.yaml: sky_mode options must be Auto, Day, Dusk, Night")
+            if len((opts.get("person_pulse") or {}).get("options") or []) != 3:
+                findings.append("packages/aurora_helpers.yaml: person_pulse needs exactly three options")
+        # no private names: ids/hosts/addresses/personal markers
+        bad = re.findall(r"(?i)\b(?:[a-z0-9_.-]+\.(?:local|lan|home|internal)|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|[\w.+-]+@[\w-]+\.\w+|https?://\S+|token|password|secret)\b", pkg_text)
+        if bad:
+            findings.append("packages/aurora_helpers.yaml: looks private/secret: %s" % sorted(set(bad))[:5])
+        checked.append("packages/aurora_helpers.yaml: valid YAML, covers every helper the dashboard uses, nothing private")
+
     # 7. helper
     js = open(HELPER, encoding="utf-8").read()
     ver = re.search(r'const AE_VERSION = "([0-9.]+)"', js)

@@ -5,6 +5,20 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.40.0
+
+Wish: one ready-made file with all the helper entities.
+
+- **New `packages/aurora_helpers.yaml`**: a Home Assistant package that defines
+  every helper the dashboard reads (`sky_mode`, `person_pulse`, five
+  `room_setpoint_*` sliders) with generic names. Copy it to `config/packages/`,
+  load packages, restart. README section "Helper entities as a package".
+- `install.sh` downloads it to `packages/` (never overwrites an existing file).
+- `scripts/check_dashboard.py` checks the file: valid YAML, defines every helper
+  the dashboard uses (and nothing it does not), correct options, no private
+  names, addresses or secrets.
+- The helper file only gets a new version number; the dashboard YAML is unchanged.
+
 ## 2.39.0
 
 Wish: keep chosen switches out of the **Switches on** counter.

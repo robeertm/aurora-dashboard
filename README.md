@@ -169,6 +169,10 @@ the bundled `dist/aurora-effects.js` (a small dependency-free helper).
 
 ## Easy install (one click)
 
+**Helper entities in one file:** `packages/aurora_helpers.yaml` defines every
+helper the dashboard reads (sky switch, person pulse, room setpoint sliders).
+See *Helper entities as a package* below; it replaces the per-helper steps.
+
 **Effects helper via HACS:**
 
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=robeertm&repository=aurora-dashboard&category=plugin)
@@ -194,7 +198,7 @@ the two remaining UI steps.
    `frontend.reload_themes` action.
 2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
-   resource: `/local/aurora-effects/aurora-effects.js?v=2.39.0` (type *module*).
+   resource: `/local/aurora-effects/aurora-effects.js?v=2.40.0` (type *module*).
    **When you update the file, change the number after `?v=`** (any new value
    works): the browser keeps a resource without a version, and Firefox did so
    even after a hard reload.
@@ -226,6 +230,31 @@ the two remaining UI steps.
    | `media_player.*` | one media row per room (optional) |
    | `sensor.ble_scanner_*` | optional BLE scanner metrics (adverts / unique devices / avg RSSI) — Radio view; the signal-tile grid works without them |
    | `input_select.sky_mode` | the sky switch — see below |
+
+### Helper entities as a package
+
+Instead of creating the helpers one by one, use the ready-made package file
+[`packages/aurora_helpers.yaml`](packages/aurora_helpers.yaml). It defines
+`input_select.sky_mode`, `input_select.person_pulse` and one
+`input_number.room_setpoint_*` slider per room, all with generic names.
+
+1. Copy it to `config/packages/aurora_helpers.yaml`.
+2. Make sure `configuration.yaml` loads packages (skip if it already does):
+
+   ```yaml
+   homeassistant:
+     packages: !include_dir_named packages
+   ```
+
+3. Restart Home Assistant (helpers from YAML need a restart, a reload is not
+   enough).
+
+Only `sky_mode` is needed; delete the rest if you do not want it. Rename or
+remove the room setpoints to match your rooms — the id suffix must match the one
+used in `dashboard/aurora.yaml`. Do not define the same helper twice: if you
+already created one in the UI, remove it from the package. `python
+scripts/check_dashboard.py` checks that the file is valid and covers every
+helper the dashboard uses.
 
 ### The sky switch
 
