@@ -5,6 +5,20 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.39.0
+
+Wish: keep chosen switches out of the **Switches on** counter.
+
+- **New option `switch_ignore`** on the *Switches on* tile (`variables` in
+  `dashboard/aurora.yaml`): a list of entity ids or `*` patterns that do not
+  count, e.g. an always-on socket or a status LED. Empty by default, so nothing
+  changes unless you set it. Case-insensitive; the switches stay visible and
+  switchable in the lights view. README section "Keeping switches out of the
+  counter". If you keep your own dashboard YAML, copy the tile's `variables`
+  block and `name` template too; the helper file only gets a new version number.
+- `scripts/check_dashboard.py` now runs that template against sample states
+  (ids, patterns, case, missing list) when Node is available.
+
 ## 2.38.0
 
 Idea from issue #1: make all the overview tiles consistently clickable. The

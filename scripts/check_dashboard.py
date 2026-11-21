@@ -30,8 +30,10 @@ Usage::
 """
 from __future__ import annotations
 
+import json
 import os
 import re
+import subprocess
 import sys
 
 import yaml
@@ -142,6 +144,38 @@ def main() -> int:
                 elif tap == "fire-dom-event" and node["tap_action"].get("aurora_sheet") not in ("persons", "media"):
                     findings.append("aurora.yaml: tile at %s fires a dom event the helper does not know" % where)
     checked.append("%d overview tiles have a tap action" % n_chip)
+
+    # 9. W27: the "Switches on" tile honours variables.switch_ignore (ids or * patterns)
+    tile = None
+    for view in data.get("views", []):
+        for path, node in walk(view):
+            if isinstance(node, dict) and node.get("label") == "Switches on" and "name" in node:
+                tile = node
+    if tile is None:
+        findings.append("aurora.yaml: 'Switches on' tile not found")
+    else:
+        if (tile.get("variables") or {}).get("switch_ignore") != []:
+            findings.append("aurora.yaml: 'Switches on' tile lacks `variables.switch_ignore: []`")
+        body = tile["name"].strip()[3:-3]
+        probe = (
+            "const fn = new Function('hass', 'variables', %s);"
+            "const st = {'switch.a':{state:'on'},'switch.b_led':{state:'on'},'switch.c_led':{state:'on'},"
+            "'switch.d':{state:'off'},'light.x':{state:'on'},'switch.e.f':{state:'on'}};"
+            "const run = (ign) => fn({states: st}, {switch_ignore: ign});"
+            "const r = [run([]), run(['switch.a']), run(['switch.*_led']), run(['SWITCH.A', 'switch.e.f']), run(['switch.e*f']), run(undefined)];"
+            "console.log(JSON.stringify(r));"
+        ) % json.dumps(body)
+        try:
+            out = subprocess.run(["node", "-e", probe], capture_output=True, text=True, timeout=30)
+            got = json.loads(out.stdout) if out.returncode == 0 else out.stderr.strip()[:200]
+        except (OSError, ValueError) as e:  # no node: the static check above still ran
+            got = None
+            checked.append("switch_ignore behaviour not run (%s)" % e)
+        if got is not None:
+            if got != ["4", "3", "2", "2", "3", "4"]:
+                findings.append("aurora.yaml: 'Switches on' switch_ignore behaves wrong: %s" % (got,))
+            else:
+                checked.append("'Switches on' counts correctly with switch_ignore (ids, patterns, case)")
 
     # 7. helper
     js = open(HELPER, encoding="utf-8").read()

@@ -1158,7 +1158,11 @@ views:
             template: aurora_chip_kompakt
             icon: mdi:toggle-switch
             label: Switches on
-            name: "[[[\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('switch.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('switch.') && s.state === 'on').length);\n]]]\n"
+            variables:
+              # Switches that must not count as "on" (always-on sockets, LEDs, ...).
+              # Exact entity ids or patterns with * (e.g. switch.*_led).
+              switch_ignore: []
+            name: "[[[\n  const pats = (variables.switch_ignore || []).map(p => new RegExp('^' + String(p).split('*').map(x => x.replace(/[.+?^${}()|[\\]\\\\]/g, '\\\\$&')).join('.*') + '$', 'i'));\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('switch.') && !pats.some(r => r.test(_i))).map(_i=>hass.states[_i]).filter(s =>\n    s.state === 'on').length);\n]]]\n"
             tap_action:
               action: navigate
               navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/licht'; ]]]"

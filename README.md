@@ -194,7 +194,7 @@ the two remaining UI steps.
    `frontend.reload_themes` action.
 2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
-   resource: `/local/aurora-effects/aurora-effects.js?v=2.38.0` (type *module*).
+   resource: `/local/aurora-effects/aurora-effects.js?v=2.39.0` (type *module*).
    **When you update the file, change the number after `?v=`** (any new value
    works): the browser keeps a resource without a version, and Firefox did so
    even after a hard reload.
@@ -333,6 +333,30 @@ into your `aurora_person` template (from 2.37.0 on):
 (`[[[ ... ]]]` is the button-card JavaScript template syntax; keep the
 brackets.) Without these two changes the card keeps pulsing as before and
 ignores the setting.
+
+## Keeping switches out of the counter
+
+The **Switches on** tile counts every `switch.*` entity that is on. A socket
+that is always on (router, aquarium pump) or a status LED exposed as a switch
+would keep that number above zero forever. List them in `switch_ignore`, in the
+tile's `variables` in `dashboard/aurora.yaml`:
+
+```yaml
+- type: custom:button-card
+  template: aurora_chip_kompakt
+  label: Switches on
+  variables:
+    switch_ignore:
+    - switch.router_socket      # an exact entity id
+    - switch.*_led              # or a pattern: * matches any characters
+```
+
+Matching is case-insensitive. An empty list (the default) counts everything.
+If you keep your own dashboard YAML, copy the `variables` block and the new
+`name` template of that tile; the helper file is unchanged. The ignored
+switches still appear in the lights view and are still switchable there.
+`python scripts/check_dashboard.py` runs the tile's template against sample
+states to verify this.
 
 ## The scan pulse
 
