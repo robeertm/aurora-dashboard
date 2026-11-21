@@ -1,5 +1,10 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.38.0 — every tile of the overview opens something, and the same way: a tap, Tab
+ *            + Enter or Space, the same focus ring. "At home" and "Media playing" have
+ *            no view of their own, so they open the detail sheet (who is home, what is
+ *            playing) built from the live states at the moment of the tap. A tappable
+ *            card now takes focus (button-card 7 gave it neither tabindex nor role).
  * v2.37.1 — documentation only: README and installer now say that your own dashboard
  *            YAML needs the two template changes of 2.37.0 as well. The helper is
  *            unchanged apart from the version.
@@ -162,7 +167,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.37.1";
+  const AE_VERSION = "2.38.0";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
@@ -700,8 +705,17 @@
     s.replaceSync(css);
     return s;
   };
+  // A card that can be tapped can also be reached with Tab; show where the
+  // focus is, the same on every tile. Cards that cannot be tapped never take
+  // focus, so this never shows on them.
+  const FOCUS = `
+    ha-card:focus-visible {
+      outline: 2px solid #89b4fa;
+      outline-offset: 2px;
+    }
+  `;
   const SHEETS = {
-    base: mkSheet(KEYFRAMES + IDLE + SKY_LAYER + (WEBKIT ? SKY_WEBKIT : "")),
+    base: mkSheet(KEYFRAMES + IDLE + SKY_LAYER + FOCUS + (WEBKIT ? SKY_WEBKIT : "")),
     glass: mkSheet(WEBKIT ? GLASS_WEBKIT : FIREFOX ? GLASS_FIREFOX : GLASS),
     glassInner: mkSheet(GLASS_INNER),
     apex: mkSheet(APEX),
@@ -950,6 +964,16 @@
       seen.add(card);
       io.observe(card);
     }
+    // button-card 7 gives a tappable card no tabindex and no role: the mouse
+    // works, Tab skips it, and Enter has nothing to act on. button-card does
+    // bind Enter itself (keyup), so making the card focusable is enough.
+    // A card with `tap_action: none` carries `.disabled` and stays out.
+    if (card && el.tagName === "BUTTON-CARD" && !card.dataset.auroraTap &&
+        !card.classList.contains("disabled") && !card.hasAttribute("tabindex")) {
+      card.dataset.auroraTap = "1";
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("role", "button");
+    }
   };
 
   const walk = (node) => {
@@ -1086,7 +1110,13 @@
           gezeichnet: "gezeichnet", heute: "heute", gestern: "gestern",
           aus: "aus", an: "an", keineaufz: "keine Aufzeichnung",
           keinfenster: "Zeitfenster unbekannt — keine Uhrzeit angezeigt",
-          keinbild: "Streifen nicht erreichbar" },
+          keinbild: "Streifen nicht erreichbar",
+          pzh: "zu Hause", pweg: "unterwegs", pseit: "seit", pniemand: "Niemand ist zu Hause",
+          pvon: "von", pkopf: "zu Hause", ppers: "Personen",
+          mnix: "Gerade läuft nichts", mlaeuft: "läuft",
+          mpause: "pausiert", mbereit: "bereit", mspielt: "spielt gerade",
+          mnixw: "Kein Wiedergabegerät spielt, pausiert oder wartet gerade.",
+          min: "Min.", std: "Std.", tage: "T." },
     en: { jetzt: "now", tun: "What you can do", zu: "Close", geraet: "Open device", hin: "Take me there",
           werte: "Details", verlauf: "Recent history",
           spur24: "Colour and brightness of the last 24 hours",
@@ -1096,7 +1126,13 @@
           gezeichnet: "drawn", heute: "today", gestern: "yesterday",
           aus: "off", an: "on", keineaufz: "nothing recorded",
           keinfenster: "time window unknown — no time shown",
-          keinbild: "strip unreachable" },
+          keinbild: "strip unreachable",
+          pzh: "home", pweg: "away", pseit: "for", pniemand: "Nobody is home",
+          pvon: "of", pkopf: "at home", ppers: "People",
+          mnix: "Nothing is playing", mlaeuft: "playing",
+          mpause: "paused", mbereit: "idle", mspielt: "playing right now",
+          mnixw: "No player is playing, paused or waiting right now.",
+          min: "min", std: "h", tage: "d" },
   };
   // 🔴 Erst beim Oeffnen nachsehen, nicht beim Laden: Home Assistant setzt
   //    <html lang> erst, wenn die Oberflaeche hochgekommen ist - dieses Modul
@@ -1973,6 +2009,102 @@
   // kommt auf dem iPhone beim ersten Mal nichts an.
   window.auroraSpur = (el) => window.auroraDetail(el);
 
+
+  // ── Kachel -> Blatt (Anwesend, Medien) ───────────────────────────────────
+  // Die Uebersichts-Kacheln springen alle auf eine Ansicht - ausser zwei, fuer
+  // die es keine eigene Ansicht gibt (wer ist zu Hause, was laeuft). Die
+  // bekommen dasselbe Antippen wie die anderen (button-card: Zeiger, Enter,
+  // Leertaste, Welle), nur mit `action: fire-dom-event`: HA schickt dann ein
+  // `ll-custom` mit der Aktion, und wir antworten mit dem Blatt. Die Liste
+  // wird erst beim Tippen gebaut, die Karte rechnet dafuer nichts vor.
+  let letzteTaste = 0;
+  document.addEventListener("keydown", () => { letzteTaste = Date.now(); }, true);
+
+  const ago = (iso, W) => {
+    const t = Date.parse(iso);
+    if (!isFinite(t)) return "";
+    const m = Math.max(0, Math.round((Date.now() - t) / 60000));
+    if (m < 60) return W.pseit + " " + Math.max(1, m) + " " + W.min;
+    const h = Math.floor(m / 60);
+    if (h < 48) return W.pseit + " " + h + " " + W.std + (m % 60 ? " " + (m % 60) + " " + W.min : "");
+    return W.pseit + " " + Math.floor(h / 24) + " " + W.tage;
+  };
+  const haStates = () => {
+    try {
+      const root = document.querySelector("home-assistant");
+      return (root && root.hass && root.hass.states) || null;
+    } catch (e) { return null; }
+  };
+  const fname = (st) => (st.attributes && st.attributes.friendly_name) || st.entity_id;
+
+  const kachelBlatt = (art) => {
+    const S = haStates();
+    if (!S) return null;
+    const W = worte();
+    const all = Object.keys(S).map((k) => S[k]);
+    if (art === "persons") {
+      const ps = all.filter((s) => s.entity_id.indexOf("person.") === 0)
+        .sort((a, b) => (b.state === "home") - (a.state === "home") ||
+                        fname(a).localeCompare(fname(b)));
+      const heim = ps.filter((s) => s.state === "home");
+      return {
+        i: "mdi:account-group", c: "#a6e3a1",
+        t: ps.length ? heim.length + " " + W.pvon + " " + ps.length + " " + W.pkopf : W.ppers,
+        s: heim.length ? heim.map(fname).join(" · ") : (ps.length ? W.pniemand : ""),
+        kv: ps.map((s) => {
+          const wo = s.state === "home" ? W.pzh : s.state === "not_home" ? W.pweg
+            : (s.state === "unknown" || s.state === "unavailable") ? "?" : s.state;
+          const seit = (s.state === "home" || s.state === "not_home") ? ago(s.last_changed, W) : "";
+          return [fname(s), wo + (seit ? " · " + seit : "")];
+        }),
+        e: heim.length ? heim[0].entity_id : (ps[0] && ps[0].entity_id),
+      };
+    }
+    if (art === "media") {
+      const rang = { playing: 0, paused: 1, buffering: 1, idle: 2, on: 2 };
+      const ms = all.filter((s) => s.entity_id.indexOf("media_player.") === 0 &&
+                                   rang[s.state] !== undefined)
+        .sort((a, b) => rang[a.state] - rang[b.state] || fname(a).localeCompare(fname(b)));
+      const spielt = ms.filter((s) => s.state === "playing");
+      const titel = (s) => {
+        const a = s.attributes || {};
+        return [a.media_artist || a.media_series_title, a.media_title].filter(Boolean).join(" – ");
+      };
+      return {
+        i: "mdi:music", c: "#cba6f7",
+        t: spielt.length ? spielt.length + " " + W.mlaeuft : W.mnix,
+        s: spielt.length ? spielt.map(fname).join(" · ") : "",
+        w: ms.length ? "" : W.mnixw,
+        kv: ms.map((s) => [fname(s), (s.state === "playing" ? (titel(s) || W.mspielt)
+          : s.state === "paused" || s.state === "buffering" ? W.mpause : W.mbereit)]),
+        e: (spielt[0] || ms[0] || {}).entity_id,
+      };
+    }
+    return null;
+  };
+
+  // Space presses a focused tile as well (Enter is button-card's own).
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key !== " " && ev.key !== "Spacebar") return;
+    const c = ev.composedPath && ev.composedPath()[0];
+    if (!c || !c.dataset || !c.dataset.auroraTap) return;
+    ev.preventDefault();
+    c.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true, composed: true }));
+  }, true);
+
+  window.addEventListener("ll-custom", (ev) => {
+    const art = ev && ev.detail && ev.detail.aurora_sheet;
+    if (!art) return;
+    try {
+      // Dieselbe Sperre wie beim Blatt der Zeilen: ein Tipp, ein Blatt.
+      if (document.getElementById(SHEET_ID)) return;
+      if (performance.now() - letztesZu < GEIST_MS) return;
+      const d = kachelBlatt(art);
+      if (d) openSheet(d, Date.now() - letzteTaste < 600);
+    } catch (e) {
+      console.warn("[aurora] Kachelblatt liess sich nicht oeffnen:", e);
+    }
+  });
 
   sweep();
   aufbauBeobachten();

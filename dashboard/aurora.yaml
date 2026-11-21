@@ -1110,6 +1110,9 @@ views:
             icon: mdi:account-group
             label: At home
             name: "[[[\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('person.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('person.') && s.state === 'home').length);\n]]]\n"
+            tap_action:
+              action: fire-dom-event
+              aurora_sheet: persons
             styles:
               icon:
               - color: '#a6e3a1'
@@ -1143,6 +1146,9 @@ views:
             icon: mdi:music
             label: Media playing
             name: "[[[\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('media_player.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('media_player.') && s.state === 'playing').length);\n]]]\n"
+            tap_action:
+              action: fire-dom-event
+              aurora_sheet: media
             styles:
               icon:
               - color: "[[[\n  const n = Object.keys(hass.states).filter(_i=>_i.startsWith('media_player.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('media_player.') && s.state === 'playing').length;\n  return n > 0 ? '#cba6f7' : '#585b70';\n]]]\n"
@@ -1153,6 +1159,9 @@ views:
             icon: mdi:toggle-switch
             label: Switches on
             name: "[[[\n  return String(Object.keys(hass.states).filter(_i=>_i.startsWith('switch.')).map(_i=>hass.states[_i]).filter(s =>\n    s.entity_id.startsWith('switch.') && s.state === 'on').length);\n]]]\n"
+            tap_action:
+              action: navigate
+              navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/licht'; ]]]"
             styles:
               icon:
               - color: '#a6e3a1'
@@ -1512,6 +1521,9 @@ views:
         name: '[[[ const vs=Object.keys(hass.states).filter(_i=>_i.startsWith(''sensor.room_temp_'')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith(''sensor.room_temp_'')).map(s=>parseFloat(s.state)).filter(v=>!isNaN(v));return vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(1)+'' °C'':''—''; ]]]
 
           '
+        tap_action:
+          action: navigate
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/klima'; ]]]"
         styles:
           icon:
           - color: '#94e2d5'
@@ -1522,6 +1534,9 @@ views:
         name: '[[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith(''climate.'')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith(''climate.'')&&s.state===''heat'').length); ]]]
 
           '
+        tap_action:
+          action: navigate
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/klima'; ]]]"
         styles:
           icon:
           - color: '#fab387'
@@ -1532,6 +1547,9 @@ views:
         name: '[[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith(''light.'')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith(''light.'')&&s.state===''on'').length); ]]]
 
           '
+        tap_action:
+          action: navigate
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/licht'; ]]]"
         styles:
           icon:
           - color: '#f9e2af'
@@ -1542,6 +1560,9 @@ views:
         name: '[[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith(''automation.'')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith(''automation.'')&&s.state===''on'').length); ]]]
 
           '
+        tap_action:
+          action: navigate
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/automations'; ]]]"
         styles:
           icon:
           - color: '#a6e3a1'
@@ -1552,6 +1573,9 @@ views:
         name: '[[[ return String(Object.keys(hass.states).filter(_i=>_i.startsWith(''binary_sensor.'')).map(_i=>hass.states[_i]).filter(s=>s.entity_id.startsWith(''binary_sensor.'')&&[''door'',''window'',''opening''].includes(s.attributes.device_class)&&s.state===''on'').length); ]]]
 
           '
+        tap_action:
+          action: navigate
+          navigation_path: "[[[ return '/' + (location.pathname.split('/')[1] || 'aurora-home') + '/klima'; ]]]"
         styles:
           icon:
           - color: '#f38ba8'

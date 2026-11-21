@@ -141,6 +141,10 @@ instance can be rebuilt with <code>tools/demo/demo.sh</code>.</em></p>
 - **The status card explains itself.** Every row it reports can be tapped: a
   sheet says what was found, why it matters and what you can do about it, with
   a button that jumps to the matching view or opens the device.
+- **Every overview tile opens something.** Jump to the matching view, or — for
+  *At home* and *Media playing*, which have no view of their own — a sheet that
+  lists who is home and what is playing. Tap, Tab + Enter or Space, one focus
+  ring on all of them.
 - **A way back in every view.** Each view heading carries a chip back to the
   overview, built from the dashboard's own path — so it works whatever you
   called it.
@@ -190,7 +194,7 @@ the two remaining UI steps.
    `frontend.reload_themes` action.
 2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
-   resource: `/local/aurora-effects/aurora-effects.js?v=2.37.1` (type *module*).
+   resource: `/local/aurora-effects/aurora-effects.js?v=2.38.0` (type *module*).
    **When you update the file, change the number after `?v=`** (any new value
    works): the browser keeps a resource without a version, and Firefox did so
    even after a hard reload.

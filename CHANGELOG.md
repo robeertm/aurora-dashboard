@@ -5,6 +5,33 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.38.0
+
+Idea from issue #1: make all the overview tiles consistently clickable. The
+helper and the dashboard both change.
+
+- **Every tile of the overview opens something, and always the same way.**
+  Until now *Lights on*, *Windows open*, *Batteries*, *Updates* and *Ø indoor*
+  jumped to a view while *At home*, *Media playing* and *Switches on* did
+  nothing. *Switches on* now goes to the lights view (it lists every switch),
+  *At home* and *Media playing* open the detail sheet: who is home and for how
+  long, which players are playing and what. The sheet is built from the live
+  states at the moment of the tap, so the cards compute nothing extra. The
+  five tiles of the Smart Home view jump the same way (climate, lights,
+  automations).
+- **The tiles work from the keyboard.** button-card 7 gives a tappable card
+  neither `tabindex` nor a role, so Tab skipped it. The helper now makes every
+  tappable card focusable (`role="button"`), Enter and Space act like a tap,
+  and one focus ring is drawn on all of them. A card with `tap_action: none`
+  stays out. The sheet opened from the keyboard takes the focus, from a tap
+  it does not.
+- A check (`scripts/check_dashboard.py`) now fails when a chip of the overview
+  has no tap action again.
+- Copy the template changes too if you keep your own YAML: the chips
+  *At home*, *Media playing* and *Switches on* of the overview
+  (`aurora_chip_kompakt`, new `tap_action`), the five `aurora_chip` tiles of the
+  Smart Home view, and the helper file.
+
 ## 2.37.1
 
 Documentation only; the helper is unchanged apart from the version number.

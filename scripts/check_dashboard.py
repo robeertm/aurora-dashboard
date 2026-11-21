@@ -127,6 +127,22 @@ def main() -> int:
             findings.append("aurora.yaml: @keyframes %s has no sub-pixel rotate() in from/to" % name)
     checked.append("slow sky animations keep the sub-pixel rotate")
 
+    # 8. every overview tile does something (issue #1: three of eight did nothing)
+    n_chip = 0
+    for view in data.get("views", []):
+        if view.get("path") not in ("home", "smarthome"):
+            continue
+        for path, node in walk(view):
+            if isinstance(node, dict) and node.get("template") in ("aurora_chip", "aurora_chip_kompakt"):
+                n_chip += 1
+                tap = (node.get("tap_action") or {}).get("action")
+                where = "%s/%s" % (view.get("path"), "/".join(path))
+                if tap not in ("navigate", "fire-dom-event", "more-info", "call-service"):
+                    findings.append("aurora.yaml: tile at %s has no tap action (every overview tile opens something)" % where)
+                elif tap == "fire-dom-event" and node["tap_action"].get("aurora_sheet") not in ("persons", "media"):
+                    findings.append("aurora.yaml: tile at %s fires a dom event the helper does not know" % where)
+    checked.append("%d overview tiles have a tap action" % n_chip)
+
     # 7. helper
     js = open(HELPER, encoding="utf-8").read()
     ver = re.search(r'const AE_VERSION = "([0-9.]+)"', js)
@@ -145,6 +161,10 @@ def main() -> int:
     if not re.search(r"GLASS\s*=\s*glassCss\(BLUR", js) or 'BLUR = "blur(18px) saturate(1.45)"' not in js:
         findings.append("aurora-effects.js: Blink glass must stay blur(18px) saturate(1.45)")
     checked.append("Firefox glass has no blur, Blink glass unchanged")
+
+    if "tabindex" not in js or 'ev.detail.aurora_sheet' not in js:
+        findings.append("aurora-effects.js: tappable cards are not made focusable / no ll-custom sheet handler")
+    checked.append("helper focuses tappable cards and answers the tile sheet event")
 
     if "--list" in sys.argv:
         for c in checked:
