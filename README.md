@@ -198,7 +198,7 @@ the two remaining UI steps.
    `frontend.reload_themes` action.
 2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
-   resource: `/local/aurora-effects/aurora-effects.js?v=2.40.0` (type *module*).
+   resource: `/local/aurora-effects/aurora-effects.js?v=2.40.1` (type *module*).
    **When you update the file, change the number after `?v=`** (any new value
    works): the browser keeps a resource without a version, and Firefox did so
    even after a hard reload.

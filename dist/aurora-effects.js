@@ -1,6 +1,6 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
- * v2.40.0 — no helper change: the helper entities now ship as one package file.
+ * v2.40.1 — no helper change: the repo now ships a test suite for the checkers.
  * v2.39.0 — the "Switches on" tile has a `switch_ignore` list (no helper change).
  * v2.38.0 — every tile of the overview opens something, and the same way: a tap, Tab
  *            + Enter or Space, the same focus ring. "At home" and "Media playing" have
@@ -169,7 +169,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.40.0";
+  const AE_VERSION = "2.40.1";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a

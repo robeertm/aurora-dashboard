@@ -38,7 +38,8 @@ import sys
 
 import yaml
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# AURORA_ROOT lets the test suite point the checker at a copy with seeded defects.
+ROOT = os.path.abspath(os.environ.get("AURORA_ROOT") or os.path.join(os.path.dirname(__file__), ".."))
 DASH = os.path.join(ROOT, "dashboard", "aurora.yaml")
 HELPER = os.path.join(ROOT, "dist", "aurora-effects.js")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")

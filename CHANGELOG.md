@@ -5,6 +5,25 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.40.1
+
+Maintenance: a real test suite for the checkers. No change to the dashboard or
+the helper behaviour; the helper only gets a new version number.
+
+- **New `tests/`** (standard library `unittest` plus PyYAML, `node` optional):
+  `python3 -m unittest discover -s tests -t .`
+  - runs `scripts/check_dashboard.py` on a copy of the repo and on copies with one
+    seeded defect each (unguarded `entity.state`, hard-coded path, apexcharts
+    without `update_interval`, old sky helper, version mismatch, Firefox glass
+    blur, missing / extra / private package helper entities) and expects the
+    matching finding;
+  - YAML / JSON / JS syntax of the shipped files, version agreement between
+    constant, header and changelog, no private instance or backup tracked, no
+    addresses in the shipped YAML;
+  - `scripts/check_commit_identity.py` with good and bad identities, fixtures in
+    `tests/fixtures/`.
+- `scripts/check_dashboard.py` honours `AURORA_ROOT` so it can be pointed at a copy.
+
 ## 2.40.0
 
 Wish: one ready-made file with all the helper entities.
