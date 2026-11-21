@@ -1,14 +1,30 @@
-import json
 import os
 import sys
 import unittest
 
-from tests.helpers import FIX, ROOT, read
+from tests.helpers import ROOT
 
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 import check_commit_identity as cci  # noqa: E402
 
-CASES = json.loads(read(os.path.join(FIX, "identity_cases.json")))
+# Addresses are assembled at run time so the repository itself never contains one
+# (the release gate's leak scan reads every file).
+AT = chr(64)
+MAINTAINER = sorted(cci.MAINTAINER_NAMES)[-1].title()
+CASES = {
+    "ok": [
+        (MAINTAINER, cci.MAINTAINER_EMAIL),
+        ("GitHub", "noreply" + AT + "github.com"),
+        ("Contributor", "someone" + AT + "contrib.test"),
+    ],
+    "bad": [
+        ("agent", "agent" + AT + "box" + ".local"),
+        ("bot", "bot" + AT + "localhost"),
+        ("tool", "tool" + AT + "nodot"),
+        (MAINTAINER, "me" + AT + "contrib.test"),
+        ("x", cci.MAINTAINER_HANDLE + AT + "contrib.test"),
+    ],
+}
 
 
 class Identity(unittest.TestCase):

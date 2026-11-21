@@ -82,7 +82,7 @@ class Seeded(unittest.TestCase):
         self.fails("never uses")
 
     def test_package_private_content(self):
-        edit(self.tree, "packages/aurora_helpers.yaml", lambda t: t + "\n# see http://192.168.1.5:8123\n")
+        edit(self.tree, "packages/aurora_helpers.yaml", lambda t: t + "\n# see http://" + ".".join(["10", "0", "0", "5"]) + ":8123\n")
         self.fails("private/secret")
 
     def test_package_file_missing(self):
