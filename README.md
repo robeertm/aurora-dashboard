@@ -449,6 +449,12 @@ The `onclick` attribute is not decoration — it is what tells Safari the elemen
 is clickable at all. Enter and Space work too, as long as the element carries
 `role="button"` and `tabindex="0"`.
 
+Since 2.40.2 the helper hands the pointer back by itself to every silent card
+(`tap_action: none`) that carries something to press: an embedded page in an
+`<iframe>`, a link, a button, a field, an element with `onclick` or
+`role="button"`. Keep the `ha-card.disabled` line in your own templates anyway:
+it also works with an older helper, and `scripts/check_dashboard.py` asks for it.
+
 ## Performance notes
 
 Everything below was measured with Chrome's `Performance.getMetrics` over 15 s

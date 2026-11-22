@@ -17,6 +17,13 @@ Each rule below exists because a user hit the bug it prevents (issue #1):
                    ``height`` smaller than the content jump in height on every
                    re-render.  Use ``min-height`` (and no ``height: <n>px``,
                    not even a ``!important`` one in ``extra_styles``).
+* ``disabled``     a card with ``tap_action: none`` gets ``disabled`` from
+                   button-card, and that carries ``pointer-events: none`` for the
+                   card and everything in it.  A template that renders its own
+                   controls (iframe, link, button, field, ``onclick``,
+                   ``role="button"``) must hand the pointer back in its
+                   ``extra_styles``: ``ha-card.disabled { pointer-events: auto }``.
+                   (An embedded page showed all its buttons and none reacted.)
 * ``helper``       the scene must read the helper the buttons write
                    (``input_select.sky_mode``); the slow cloud animation must
                    keep a sub-pixel transform; Firefox must get the glass
@@ -43,6 +50,10 @@ ROOT = os.path.abspath(os.environ.get("AURORA_ROOT") or os.path.join(os.path.dir
 DASH = os.path.join(ROOT, "dashboard", "aurora.yaml")
 HELPER = os.path.join(ROOT, "dist", "aurora-effects.js")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
+
+# Markup that a user can press: if it sits in a `disabled` card it inherits pointer-events: none.
+CONTROLS = re.compile(r'<iframe\b|<a\s[^>]*href|<button\b|<input\b|<select\b|<textarea\b|\bonclick=|role=\\?"button|data-aurora-(?:nav|detail)')
+POINTER_BACK = re.compile(r"ha-card\.disabled[^{]*\{[^}]*pointer-events:\s*auto")
 
 PROPS = r"(?:state|attributes|entity_id|last_changed|last_updated|context)"
 # `entity.state` that is not optional-chained and not directly behind a guard.
@@ -146,6 +157,34 @@ def main() -> int:
                     findings.append("aurora.yaml: tile at %s fires a dom event the helper does not know" % where)
     checked.append("%d overview tiles have a tap action" % n_chip)
 
+    # 10. a silent card (tap_action: none) with its own controls hands the pointer back
+    tpls = data.get("button_card_templates") or {}
+
+    def own_or_inherited(name, key, seen=()):
+        node = tpls.get(name) or {}
+        if node.get(key) is not None:
+            return node.get(key)
+        parents = node.get("template")
+        for par in ([parents] if isinstance(parents, str) else (parents or [])):
+            if par in tpls and par not in seen:
+                found = own_or_inherited(par, key, seen + (name,))
+                if found is not None:
+                    return found
+        return None
+
+    n_silent = 0
+    for name, node in tpls.items():
+        tap = (own_or_inherited(name, "tap_action") or {}).get("action")
+        fields = json.dumps(node.get("custom_fields") or {})
+        if tap != "none" or not CONTROLS.search(fields):
+            continue
+        n_silent += 1
+        styles = own_or_inherited(name, "extra_styles") or ""
+        if not POINTER_BACK.search(styles):
+            findings.append("aurora.yaml: template %s has tap_action none and its own controls, "
+                            "but no `ha-card.disabled { pointer-events: auto }` -- nothing in it can be clicked" % name)
+    checked.append("%d silent templates with their own controls hand the pointer back" % n_silent)
+
     # 9. W27: the "Switches on" tile honours variables.switch_ignore (ids or * patterns)
     tile = None
     for view in data.get("views", []):
@@ -231,6 +270,9 @@ def main() -> int:
     if "tabindex" not in js or 'ev.detail.aurora_sheet' not in js:
         findings.append("aurora-effects.js: tappable cards are not made focusable / no ll-custom sheet handler")
     checked.append("helper focuses tappable cards and answers the tile sheet event")
+    if not re.search(r"ha-card\.disabled:has\(iframe", js) or "DISABLED_CONTROLS +" not in js:
+        findings.append("aurora-effects.js: silent cards with their own controls do not get the pointer back")
+    checked.append("helper hands the pointer back to silent cards with their own controls")
 
     if "--list" in sys.argv:
         for c in checked:

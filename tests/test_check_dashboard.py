@@ -73,6 +73,17 @@ class Seeded(unittest.TestCase):
         edit(self.tree, "dist/aurora-effects.js", lambda t: t.replace('glassCss("none"', 'glassCss(BLUR', 1))
         self.fails("GLASS_FIREFOX")
 
+    def test_silent_card_with_controls_without_pointer_back(self):
+        # tap_action: none + own controls, but the pointer is not handed back:
+        # button-card's `ha-card.disabled { pointer-events: none }` kills every control in it.
+        edit(self.tree, "dashboard/aurora.yaml",
+             lambda t: t.replace("ha-card.disabled { pointer-events: auto", "ha-card.disabled { opacity: 1"))
+        self.fails("nothing in it can be clicked")
+
+    def test_helper_loses_pointer_back(self):
+        edit(self.tree, "dist/aurora-effects.js", lambda t: t.replace("FOCUS + DISABLED_CONTROLS +", "FOCUS +", 1))
+        self.fails("do not get the pointer back")
+
     def test_package_missing_helper(self):
         edit(self.tree, "packages/aurora_helpers.yaml", lambda t: t.replace("person_pulse:", "person_pulse_x:", 1))
         self.fails("person_pulse")
@@ -98,6 +109,18 @@ class Units(unittest.TestCase):
     def test_guard_regex_flags_unguarded(self):
         text = read(os.path.join(FIX, "unguarded_bad.js"))
         self.assertEqual(len(check_dashboard.UNGUARDED.findall(text)), 1)
+
+    def test_controls_regex(self):
+        hit = check_dashboard.CONTROLS.search
+        self.assertTrue(hit('<iframe class="zs" src="x"></iframe>'))
+        self.assertTrue(hit('<div class="back" onclick="go(this)" role="button">'))
+        self.assertTrue(hit('<a href="/config/updates">all</a>'))
+        self.assertFalse(hit('<div class="sky"><span>decoration</span></div>'))
+
+    def test_pointer_back_regex(self):
+        back = check_dashboard.POINTER_BACK.search
+        self.assertTrue(back("ha-card.disabled { pointer-events: auto !important; }"))
+        self.assertFalse(back("ha-card.disabled { cursor: default; }"))
 
     def test_lineno(self):
         self.assertEqual(check_dashboard.lineno("a\nb\nc", 4), 3)

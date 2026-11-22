@@ -5,6 +5,35 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.40.2
+
+Fix: controls inside a silent card did not react.
+
+- A card with `tap_action: none` gets the class `disabled` from button-card, and
+  button-card's own stylesheet gives that `pointer-events: none`. The property is
+  inherited, so everything inside the card went dead with it: a page embedded in
+  an `<iframe>` (a timeline with period buttons, filter chips, a search field and
+  drop-downs) was drawn completely and not one of its controls reacted, on the
+  desktop and on a phone alike. `document.elementFromPoint` on any of those
+  buttons returned the card's wrapper, never the frame.
+- **Helper:** hands the pointer back to exactly those silent cards that carry
+  something to press (`iframe`, link, `button`, `input`, `select`, `textarea`,
+  `onclick`, `role="button"`, `data-aurora-nav`, `data-aurora-detail`), via
+  `:has()` in the shared base stylesheet. The card itself still does nothing on a
+  tap: button-card switches its action handler off for a disabled card.
+- **Checker rule 10:** a template with `tap_action: none` (own or inherited) whose
+  `custom_fields` render controls must carry
+  `ha-card.disabled { pointer-events: auto }` in its `extra_styles`; the helper
+  feature is checked as well. Both shipped templates of that kind
+  (`aurora_status`, `aurora_view_title`) already had it.
+- **Tests:** seeded defects for both checks; a browser test
+  (`tests/test_silent_card_browser.py`, Playwright, skipped without it) puts an
+  iframe button and a back chip into a card with button-card's own `disabled`
+  rule: without the helper neither reacts, with it both do (Chromium and WebKit).
+- If you keep your own dashboard YAML: add the `ha-card.disabled` line to every
+  template of yours that has `tap_action: none` and renders an iframe, a link or
+  a button, and update the helper file (`?v=2.40.2`).
+
 ## 2.40.1
 
 Maintenance: a real test suite for the checkers. No change to the dashboard or

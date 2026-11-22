@@ -1,5 +1,12 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.40.2 — a card with `tap_action: none` that carries its own controls (an
+ *            embedded page in an iframe, a link, a button, a field, a chip with
+ *            `onclick`) is clickable again. button-card puts `disabled` on such a
+ *            card and its stylesheet gives that `pointer-events: none`, which every
+ *            child inherits: the page inside the frame showed all its buttons and
+ *            none of them reacted. The helper hands pointer events back to exactly
+ *            these cards; the card itself stays silent (its action handler is off).
  * v2.40.1 — no helper change: the repo now ships a test suite for the checkers.
  * v2.39.0 — the "Switches on" tile has a `switch_ignore` list (no helper change).
  * v2.38.0 — every tile of the overview opens something, and the same way: a tap, Tab
@@ -169,7 +176,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.40.1";
+  const AE_VERSION = "2.40.2";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
@@ -716,8 +723,23 @@
       outline-offset: 2px;
     }
   `;
+  // button-card marks a card with `tap_action: none` as `disabled`, and its own
+  // stylesheet has `ha-card.disabled { pointer-events: none }`. pointer-events
+  // is inherited, so every control INSIDE such a card goes dead with it: an
+  // embedded page (iframe) shows all its buttons and none of them reacts, a
+  // back chip with `onclick` cannot be tapped. Give the pointer back only where
+  // the card carries something to press; the card itself still does nothing
+  // (button-card switches its action handler off for a disabled card).
+  // Templates that already say this in their own extra_styles are unaffected.
+  const DISABLED_CONTROLS = `
+    ha-card.disabled:has(iframe, a[href], button, input, select, textarea,
+        [onclick], [role="button"], [data-aurora-nav], [data-aurora-detail]) {
+      pointer-events: auto;
+      cursor: default;
+    }
+  `;
   const SHEETS = {
-    base: mkSheet(KEYFRAMES + IDLE + SKY_LAYER + FOCUS + (WEBKIT ? SKY_WEBKIT : "")),
+    base: mkSheet(KEYFRAMES + IDLE + SKY_LAYER + FOCUS + DISABLED_CONTROLS + (WEBKIT ? SKY_WEBKIT : "")),
     glass: mkSheet(WEBKIT ? GLASS_WEBKIT : FIREFOX ? GLASS_FIREFOX : GLASS),
     glassInner: mkSheet(GLASS_INNER),
     apex: mkSheet(APEX),
