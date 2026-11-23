@@ -156,9 +156,26 @@ def hass_tokens(t):
                        "refresh_token": t["refresh_token"]})
 
 
+def snap(page, path):
+    """Screenshot with retries: on a busy host the font wait can stall."""
+    for i in range(3):
+        try:
+            page.screenshot(timeout=90000, path=path)
+            return
+        except Exception as e:
+            print("retry", os.path.basename(path), str(e).splitlines()[0][:160], file=sys.stderr)
+            page.wait_for_timeout(5000)
+    sys.exit("screenshot failed: " + path)
+
+
 def shoot_cmd():
     from playwright.sync_api import sync_playwright
     t = json.load(open(TOKFILE))
+    # the stored access token lives 30 min: get a fresh one for this run
+    a = call("/auth/token", {"grant_type": "refresh_token", "refresh_token": t["refresh_token"],
+                             "client_id": CLIENT}, form=True)
+    t["access_token"] = a["access_token"]
+    json.dump(t, open(TOKFILE, "w"))
     os.makedirs(OUT, exist_ok=True)
     init = """
       localStorage.setItem('hassTokens', %s);
@@ -166,12 +183,14 @@ def shoot_cmd():
       localStorage.setItem('selectedTheme', '{"theme":"Aurora","dark":true}');
     """ % json.dumps(hass_tokens(t))
 
+    slow = float(os.environ.get("SHOT_SLOW", "1"))   # >1 on a busy host
+
     def settle(page, extra=6000):
         page.wait_for_load_state("networkidle")
-        page.wait_for_timeout(extra)
+        page.wait_for_timeout(int(extra * slow))
 
     with sync_playwright() as p:
-        browser = p.webkit.launch()
+        browser = getattr(p, os.environ.get("SHOT_BROWSER", "webkit")).launch()   # webkit (default) or chromium
         try:
             # wide
             ctx = browser.new_context(viewport={"width": 1440, "height": 1000}, device_scale_factor=1,
@@ -180,7 +199,10 @@ def shoot_cmd():
             page = ctx.new_page()
             views = [("home", "home"), ("climate", "klima"), ("energy", "energie"),
                      ("system", "system"), ("lights", "licht"), ("radio", "radio")]
+            only = os.environ.get("SHOT_ONLY")
             for name, path in views:
+                if only and name not in only.split(","):
+                    continue
                 page.goto("%s/aurora-home/%s" % (BASE, path))
                 settle(page, 9000)
                 if name == "system":
@@ -189,12 +211,12 @@ def shoot_cmd():
                     page.mouse.move(700, 500)
                     page.mouse.wheel(0, -80)
                     page.wait_for_timeout(2500)
-                page.screenshot(path=os.path.join(OUT, name + ".png"))
+                snap(page, path=os.path.join(OUT, name + ".png"))
                 print("shot", name)
                 if name == "home":
                     open_first_row(page)
                     page.wait_for_timeout(1200)
-                    page.screenshot(path=os.path.join(OUT, "detail-sheet.png"))
+                    snap(page, path=os.path.join(OUT, "detail-sheet.png"))
                     print("shot detail-sheet")
             ctx.close()
             # phone
@@ -205,11 +227,11 @@ def shoot_cmd():
             page = ctx.new_page()
             page.goto(BASE + "/aurora-home/home")
             settle(page, 9000)
-            page.screenshot(path=os.path.join(OUT, "phone.png"))
+            snap(page, path=os.path.join(OUT, "phone.png"))
             print("shot phone")
             open_first_row(page)
             page.wait_for_timeout(1500)
-            page.screenshot(path=os.path.join(OUT, "phone-detail.png"))
+            snap(page, path=os.path.join(OUT, "phone-detail.png"))
             print("shot phone-detail")
             ctx.close()
         finally:
@@ -221,8 +243,8 @@ def open_first_row(page):
     el = h.as_element()
     if el is None:
         sys.exit("no status row found")
-    el.scroll_into_view_if_needed()
-    el.click()
+    # scripted click: on a busy host the animated page is never "stable" for Playwright
+    el.evaluate("e => { e.scrollIntoView({block: 'center'}); e.click(); }")
 
 
 if __name__ == "__main__":
