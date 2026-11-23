@@ -9,34 +9,29 @@ sensor** in your installation, grouped by device class, with zero configuration.
 
 ![Overview](docs/screenshots/home.png)
 
-<table>
-<tr>
-<td width="50%"><img src="docs/screenshots/detail-sheet.png" alt="A status row, opened"></td>
-<td width="50%"><img src="docs/screenshots/climate.png" alt="Climate view"></td>
-</tr>
-<tr>
-<td><em>Every row of the status card explains itself — what was found, why it
-matters, and what you can do about it.</em></td>
-<td><em>Room temperatures over 24 hours, thermostats underneath.</em></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/energy.png" alt="Energy view"></td>
-<td><img src="docs/screenshots/system.png" alt="System view"></td>
-</tr>
-<tr>
-<td><em>Power over the day, kWh per day, and where they went.</em></td>
-<td><em>Batteries, host metrics and what is waiting to be updated.</em></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/lights.png" alt="Lights view with 24-hour colour strips"></td>
-<td><img src="docs/screenshots/radio.png" alt="Radio view"></td>
-</tr>
-<tr>
-<td><em>Every lamp, and a 24-hour colour strip for each one (the strips come
-from a small generator outside this repository).</em></td>
-<td><em>Bluetooth scanners, signal strength and its history.</em></td>
-</tr>
-</table>
+![A status row, opened](docs/screenshots/detail-sheet.png)
+
+*Every row of the status card explains itself — what was found, why it matters, and what you can do about it.*
+
+![Climate view](docs/screenshots/climate.png)
+
+*Room temperatures over 24 hours, thermostats underneath.*
+
+![Energy view](docs/screenshots/energy.png)
+
+*Power over the day, kWh per day, and where they went.*
+
+![System view](docs/screenshots/system.png)
+
+*Batteries, host metrics and what is waiting to be updated.*
+
+![Lights view with 24-hour colour strips](docs/screenshots/lights.png)
+
+*Every lamp, and a 24-hour colour strip for each one (the strips come from a small generator outside this repository).*
+
+![Radio view](docs/screenshots/radio.png)
+
+*Bluetooth scanners, signal strength and its history.*
 
 <p align="center">
 <img src="docs/screenshots/phone.png" width="270" alt="On a phone">
