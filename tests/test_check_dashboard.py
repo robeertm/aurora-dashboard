@@ -84,6 +84,29 @@ class Seeded(unittest.TestCase):
         edit(self.tree, "dist/aurora-effects.js", lambda t: t.replace("FOCUS + DISABLED_CONTROLS +", "FOCUS +", 1))
         self.fails("do not get the pointer back")
 
+    def test_dead_idle_animation_in_a_template(self):
+        # the helper switches aurora-float off everywhere; a template that still emits it only costs
+        edit(self.tree, "dashboard/aurora.yaml",
+             lambda t: t.replace("      icon:\n      - color: '#a6e3a1'\n",
+                                 "      icon:\n      - color: '#a6e3a1'\n      - animation: aurora-float 8s ease-in-out infinite\n", 1))
+        self.fails("switched off by the helper")
+
+    def test_sweep_that_writes_before_it_has_read_everything(self):
+        edit(self.tree, "dist/aurora-effects.js", lambda t: t.replace("readPhase(list);", "", 1))
+        self.fails("must read first")
+
+    def test_axis_reads_layout(self):
+        edit(self.tree, "dist/aurora-effects.js", lambda t: t.replace("roAxis.observe(box)", "void box", 1))
+        self.fails("ResizeObserver")
+
+    def test_idle_icons_keep_their_layer(self):
+        edit(self.tree, "dist/aurora-effects.js", lambda t: t.replace("will-change: auto !important;", "", 1))
+        self.fails("will-change")
+
+    def test_sweep_does_not_pace_itself(self):
+        edit(self.tree, "dist/aurora-effects.js", lambda t: t.replace("3 * sweepMs", "0 * sweepMs", 1))
+        self.fails("pace itself")
+
     def test_package_missing_helper(self):
         edit(self.tree, "packages/aurora_helpers.yaml", lambda t: t.replace("person_pulse:", "person_pulse_x:", 1))
         self.fails("person_pulse")

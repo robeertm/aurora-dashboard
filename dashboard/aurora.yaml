@@ -66,7 +66,6 @@ button_card_templates:
       - background: rgba(137,180,250,0.08)
       - align-self: center
       icon:
-      - animation: "[[[\n  const d = ((entity ? entity.entity_id.length : 3) % 5) * 0.6;\n  return 'aurora-float 6.5s ease-in-out ' + d + 's infinite';\n]]]\n"
       name:
       - grid-area: n
       - justify-self: start
@@ -133,7 +132,6 @@ button_card_templates:
       - align-self: center
       icon:
       - color: '[[[ return variables.accent; ]]]'
-      - animation: "[[[\n  const d = ((entity ? entity.entity_id.length : 3) % 6) * 0.55;\n  return 'aurora-float 7.5s ease-in-out ' + d + 's infinite';\n]]]\n"
       state:
       - grid-area: s
       - justify-self: start
@@ -390,7 +388,6 @@ button_card_templates:
       - padding: 8px 12px
       icon:
       - color: '#cba6f7'
-      - animation: "[[[\n  const d = ((entity?.entity_id || '').length % 9) * 0.8;\n  return 'aurora-shimmer 6s ease-in-out ' + d + 's infinite';\n]]]\n"
       name:
       - justify-self: start
       - text-align: left
@@ -481,7 +478,6 @@ button_card_templates:
       - padding: 8px 12px
       icon:
       - color: '#a6e3a1'
-      - animation: aurora-float 8s ease-in-out infinite
       name:
       - justify-self: start
       - align-self: end
@@ -523,7 +519,7 @@ button_card_templates:
       - padding: 8px 12px
       icon:
       - color: "[[[\n  const v = parseFloat(entity?.state);\n  if (isNaN(v)) return '#585b70';\n  return v <= 20 ? '#f38ba8' : v <= 40 ? '#f9e2af' : '#a6e3a1';\n]]]\n"
-      - animation: "[[[\n  const v = parseFloat(entity?.state);\n  if (v <= 20) return 'aurora-pulse 1.2s ease-in-out infinite';\n  if (v <= 40) return 'aurora-blink 3.4s ease-in-out infinite';\n  const d = ((entity?.entity_id || '').length % 5) * 0.6;\n  return 'aurora-float 8s ease-in-out ' + d + 's infinite';\n]]]\n"
+      - animation: "[[[\n  const v = parseFloat(entity?.state);\n  if (v <= 20) return 'aurora-pulse 1.2s ease-in-out infinite';\n  if (v <= 40) return 'aurora-blink 3.4s ease-in-out infinite';\n  return 'none';\n]]]\n"
       state:
       - justify-self: start
       - align-self: end
@@ -573,7 +569,6 @@ button_card_templates:
       - align-self: center
       icon:
       - color: '[[[ return variables.accent; ]]]'
-      - animation: aurora-bob 7s ease-in-out infinite
       name:
       - grid-area: n
       - justify-self: start
@@ -634,7 +629,6 @@ button_card_templates:
       - justify-self: start
       icon:
       - color: '[[[ return variables.accent; ]]]'
-      - animation: aurora-float 6s ease-in-out infinite
       name:
       - grid-area: n
       - justify-self: start
@@ -731,8 +725,6 @@ button_card_templates:
       accent: '#89dceb'
       accent_bg: rgba(137,220,235,0.10)
     styles:
-      icon:
-      - animation: "[[[\n  return entity?.state === 'on'\n    ? 'aurora-swing 1.1s ease-in-out infinite'\n    : 'aurora-float 7s ease-in-out infinite';\n]]]\n"
       state:
       - font-size: 13px
   aurora_signal:

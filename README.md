@@ -525,6 +525,34 @@ of idle time on a real installation (1450 entities), not guessed.
   exclusively, drifts an oversized layer instead of a `background-position`,
   and never has more than one scene in the DOM. Animate a paint property there
   instead and every glass card on top of it has to re-blur on every frame.
+- **A helper that walks the page must read first and write afterwards.** The
+  effects helper sweeps the page for new cards. It used to alternate per card:
+  ask for a computed style, write a stylesheet, ask for the next one — and every
+  write made the page's styles stale, so every following read forced a fresh
+  style recalculation (one per card). In a room view on a Raspberry Pi, in real
+  WebKit, a single sweep took **5–10 s**; asking a trend tile for its width in
+  the middle of a sweep forced a layout of the whole page on top. Since 2.41.0 a
+  sweep reads everything first and writes afterwards, the axis width comes from a
+  `ResizeObserver` (which also follows a rotated phone), and during the build the
+  helper waits at least three times as long as its last sweep took, so it never
+  takes more than a quarter of the main thread. Summed over the twelve views of
+  the demo instance, sweep time fell from **23.2 s to 14.1 s** (living room
+  6.7 → 3.4 s, system 1.6 → 0.24 s, lights 3.3 → 1.3 s); what is left is the
+  browser styling a page that was only just built.
+- **Idle decoration that is switched off must not keep its layer.** The helper
+  turns the float/swing/bob/shimmer animations of idle icons off everywhere, but
+  the rule that gives an animated icon its own compositor layer matched them
+  anyway (`style*="aurora-"`): 50 promoted elements on the Overview, 36 in a room
+  view. Now the same rule that removes the animation also removes the layer
+  (34 and 29), and the shipped templates no longer emit those animations at all
+  — each one was a JavaScript template evaluated per icon and render.
+- **Measure it yourself.** `tools/perf/measure.py` loads every view in WebKit
+  against the throwaway demo instance (`tools/demo/demo.sh up`) and prints build
+  time, rendered cards, main-thread blocking, sweep time and promoted layers. Run
+  it twice, once with `--helper <older file>`, to compare two versions in the same
+  browser on the same machine; wall-clock numbers move with the load of the
+  machine, the layer count and the order of reads and writes do not (they are
+  what `tests/test_perf_budget.py` pins).
 - Animations on cards scrolled out of view are paused automatically
   (IntersectionObserver in the effects helper).
 - Counter chips and button animations run entirely in the browser.

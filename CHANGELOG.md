@@ -5,6 +5,56 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.41.0
+
+Performance: the page builds faster, measured in real WebKit.
+
+- **Helper sweep reads before it writes.** A sweep used to ask for a computed
+  style, write a stylesheet, ask for the next one, ... so every read after the
+  first write forced a new style recalculation, one per card. It now reads every
+  value once and writes afterwards. Summed over the twelve views of the demo
+  instance (Raspberry Pi, WebKit, two runs each) the time spent in sweeps fell
+  from 23.2 s to 14.1 s; living room 6.7 -> 3.4 s, lights 3.3 -> 1.3 s,
+  automations 1.5 -> 0.4 s, system 1.6 -> 0.24 s, network 1.0 -> 0.4 s.
+- **Trend axis without a layout read.** The number of ticks depends on the tile
+  width. The helper asked for it with `getBoundingClientRect()` inside the sweep,
+  which forces a layout of the whole page (up to 5 s in a room view). A
+  `ResizeObserver` reports it after the browser has laid the page out anyway, and
+  the axis now follows a resize (rotating a phone) too.
+- **Paced build-phase sweeps.** While a view is being built the helper sweeps
+  after every DOM change, at most every 120 ms. It now waits at least three times
+  as long as its last sweep took, so on a slow device it takes at most a quarter
+  of the main thread; on a fast one nothing changes.
+- **No compositor layer for switched-off icons.** The helper has always turned
+  the float, swing, bob and shimmer animations of idle icons off, but the rule
+  that promotes an animated icon to its own layer still matched them. The same
+  rule now removes the layer: promoted elements 50 -> 34 on the Overview, 36 -> 29
+  in a room view. Animations that carry meaning (breathe, pulse, blink, spin,
+  halo, wobble) keep theirs. This works with every dashboard YAML, also older ones.
+- **Templates:** `aurora_chip`, `aurora_metric`, `aurora_scene`, `aurora_window`,
+  `aurora_room`, `aurora_group_header`, `aurora_action` no longer emit the
+  switched-off animations (five of them were a JavaScript template per icon and
+  render); `aurora_battery` keeps its pulse and blink and returns `none` above
+  40 %. Nothing visible changes.
+- **Measured and left alone:** the apexcharts glow (`dropShadow`) and the chart
+  animation on the Overview did not move build time in WebKit (three runs each,
+  within the noise), and the JavaScript templates of the tiles cost about 0.3 s
+  of the whole build, so none of that was touched.
+- **Tool:** `tools/perf/measure.py` (WebKit, against the demo instance) reports
+  build time, cards, main-thread blocking, sweep time and promoted layers per
+  view; `--helper` compares two helper files in the same browser.
+- **Checker rule 11 and tests:** a template that emits one of the switched-off
+  animations is a finding; the helper checks cover read-before-write, the observer
+  axis, the layer rule and the pacing. `tests/test_perf_budget.py` pins the
+  causes in WebKit and Chromium (reads after the first write of a sweep: 0; axis
+  width from the observer, also after a resize; a switched-off icon keeps no
+  layer, a pulsing one does) and has an optional end-to-end budget on the demo
+  instance (`AURORA_PERF_LIVE=1`). The old helper fails the first two.
+- If you keep your own dashboard YAML: update the helper file (`?v=2.41.0`) —
+  that alone brings the sweep and layer gains. Removing the `animation:` entries
+  that name `aurora-float`, `aurora-swing`, `aurora-bob` or `aurora-shimmer` from
+  your own templates saves the JavaScript template per icon.
+
 ## 2.40.2
 
 Fix: controls inside a silent card did not react.

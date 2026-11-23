@@ -24,6 +24,11 @@ Each rule below exists because a user hit the bug it prevents (issue #1):
                    ``role="button"``) must hand the pointer back in its
                    ``extra_styles``: ``ha-card.disabled { pointer-events: auto }``.
                    (An embedded page showed all its buttons and none reacted.)
+* ``dead-anim``    the helper switches ``aurora-float`` / ``-swing`` / ``-bob`` /
+                   ``-shimmer`` off everywhere (idle decoration says nothing about
+                   the house), so a template that still emits one only costs: a JS
+                   template per icon and render, and an inline style the helper
+                   then has to override.  Do not put them in the dashboard.
 * ``helper``       the scene must read the helper the buttons write
                    (``input_select.sky_mode``); the slow cloud animation must
                    keep a sub-pixel transform; Firefox must get the glass
@@ -54,6 +59,9 @@ CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 # Markup that a user can press: if it sits in a `disabled` card it inherits pointer-events: none.
 CONTROLS = re.compile(r'<iframe\b|<a\s[^>]*href|<button\b|<input\b|<select\b|<textarea\b|\bonclick=|role=\\?"button|data-aurora-(?:nav|detail)')
 POINTER_BACK = re.compile(r"ha-card\.disabled[^{]*\{[^}]*pointer-events:\s*auto")
+
+# idle decoration that dist/aurora-effects.js removes again (see the "Idle decoration is off" rule there)
+DEAD_ANIM = re.compile(r"aurora-(?:float|swing|bob|shimmer)\b")
 
 PROPS = r"(?:state|attributes|entity_id|last_changed|last_updated|context)"
 # `entity.state` that is not optional-chained and not directly behind a guard.
@@ -140,6 +148,13 @@ def main() -> int:
         if not m or m.group(0).count("rotate(") < 2:
             findings.append("aurora.yaml: @keyframes %s has no sub-pixel rotate() in from/to" % name)
     checked.append("slow sky animations keep the sub-pixel rotate")
+
+    # 11. no idle animation the helper throws away again (measured: a JS template per icon and
+    #     render, ~50 inline styles in a room view; they kept the icons on a compositor layer)
+    dead = [(lineno(text, m.start()), m.group(0)) for m in DEAD_ANIM.finditer(text)]
+    for ln, name in dead:
+        findings.append("aurora.yaml:%d: `%s` is switched off by the helper everywhere -- drop the animation" % (ln, name))
+    checked.append("no idle animation the helper switches off again (%d found)" % len(dead))
 
     # 8. every overview tile does something (issue #1: three of eight did nothing)
     n_chip = 0
@@ -273,6 +288,17 @@ def main() -> int:
     if not re.search(r"ha-card\.disabled:has\(iframe", js) or "DISABLED_CONTROLS +" not in js:
         findings.append("aurora-effects.js: silent cards with their own controls do not get the pointer back")
     checked.append("helper hands the pointer back to silent cards with their own controls")
+
+    # sweep: reads before writes, no layout read inside a sweep, idle icons get no layer
+    if "const readPhase" not in js or not re.search(r"readPhase\(\w+\);\s*for \(const \w+ of \w+\) handle\(", js):
+        findings.append("aurora-effects.js: a sweep must read first (readPhase) and write afterwards (handle)")
+    if not re.search(r"const addAxis = .*?roAxis\.observe\(box\)", js, re.S):
+        findings.append("aurora-effects.js: addAxis must take the tile width from a ResizeObserver, not from a layout read")
+    if not re.search(r'aurora-shimmer"\]\s*\{[^}]*will-change:\s*auto\s*!important', js):
+        findings.append("aurora-effects.js: icons whose idle animation is switched off must not keep will-change")
+    if not re.search(r"3 \* sweepMs", js):
+        findings.append("aurora-effects.js: the build-phase sweep must pace itself by the duration of the last sweep")
+    checked.append("sweep reads before it writes, pacing by sweep duration, no layout read for the axis")
 
     if "--list" in sys.argv:
         for c in checked:

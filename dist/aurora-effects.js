@@ -1,5 +1,7 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.41.0 — the page builds faster: a sweep reads before it writes, the axis width
+ *           comes from a ResizeObserver, switched-off idle icons keep no layer.
  * v2.40.2 — a card with `tap_action: none` that carries its own controls (an
  *            embedded page in an iframe, a link, a button, a field, a chip with
  *            `onclick`) is clickable again. button-card puts `disabled` on such a
@@ -176,7 +178,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.40.2";
+  const AE_VERSION = "2.41.0";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
@@ -328,6 +330,11 @@
     [style*="aurora-float"], [style*="aurora-swing"],
     [style*="aurora-bob"], [style*="aurora-shimmer"] {
       animation: none !important;
+      /* An icon that does not move gets no compositor layer either. The rule
+         above for the attribute selector style*="aurora-" would otherwise
+         promote every one of them (older dashboards still carry these inline
+         animations). */
+      will-change: auto !important;
     }
     /* The scene used to be frozen outright on a phone. That killed exactly the
        thing people notice -- drifting clouds, the turning sun -- to save
@@ -601,34 +608,49 @@
     }
     return "−" + (back >= 10 ? Math.round(back) : back.toFixed(back % 1 ? 1 : 0)) + " h";
   };
+  // The number of ticks depends on the tile width. Asking for the width
+  // (getBoundingClientRect) from inside a sweep forces a layout of the whole
+  // page: measured on a room view, 3-10 s per sweep on a Raspberry Pi in WebKit,
+  // because the sweep had just changed the DOM. A ResizeObserver reports the
+  // width after the browser has laid the page out anyway, and it also follows a
+  // later resize (rotating a phone).
+  const ticksFor = (w) => (w < 210 ? 1 : w < 330 ? 2 : 4);
+  const drawAxis = (row, ticks) => {
+    if (row.dataset.ticks === String(ticks)) return;
+    row.dataset.ticks = String(ticks);
+    const h = Number(row.dataset.hours) || 24;
+    while (row.firstChild) row.removeChild(row.firstChild);
+    for (let i = 0; i <= ticks; i++) {
+      const s = document.createElement("span");
+      s.textContent = xLabel(h, i / ticks);
+      row.appendChild(s);
+    }
+  };
+  const roAxis = ("ResizeObserver" in window)
+    ? new ResizeObserver((entries) => {
+        for (const e of entries) {
+          const row = e.target.querySelector(".aurora-xaxis");
+          if (row) drawAxis(row, ticksFor(e.contentRect.width || 400));
+        }
+      })
+    : null;
   const addAxis = (el, sr) => {
     try {
       const box = sr.querySelector(".graph");
       if (!box || box.querySelector(".aurora-xaxis")) return;
       const cfg = el.config || el._config || {};
-      const h = Number(cfg.hours_to_show) || 24;
       const row = document.createElement("div");
       row.className = "aurora-xaxis";
+      row.dataset.hours = String(Number(cfg.hours_to_show) || 24);
+      box.appendChild(row);
       // Narrow tiles (the sensor explorer packs two per row) cannot hold five
       // ticks — they wrap and turn into two lines of noise. Pick by width.
-      const w = box.getBoundingClientRect().width || 400;
-      const ticks = w < 210 ? 1 : w < 330 ? 2 : 4;
-      for (let i = 0; i <= ticks; i++) {
-        const s = document.createElement("span");
-        s.textContent = xLabel(h, i / ticks);
-        row.appendChild(s);
-      }
-      box.appendChild(row);
+      if (roAxis) roAxis.observe(box);
+      else drawAxis(row, ticksFor(box.getBoundingClientRect().width || 400));
     } catch (e) {
       /* eye candy only */
     }
   };
-
-  // One extra path per trend, holding the scan dot. It is a copy of the line's
-  // own `d`, so the dot follows every bend. Recomputed only when the curve
-  // actually changed, and skipped entirely while the card is off screen —
-  // getTotalLength() forces layout and there are hundreds of these.
-  const SVGNS = "http://www.w3.org/2000/svg";
   const addScan = (el, sr) => {
     try {
       const karte = sr.querySelector("ha-card");
@@ -954,7 +976,9 @@
       if (root && root.children.length) {
         if (!baseCols.has(root)) {
           baseCols.set(root, {
-            cols: getComputedStyle(root).gridTemplateColumns.split(" ").length,
+            cols: preRead.has(root)
+              ? preRead.get(root)
+              : getComputedStyle(root).gridTemplateColumns.split(" ").length,
             min: deepHas(root, 4) ? 300 : 132,
           });
           if (ro) ro.observe(root);
@@ -980,7 +1004,7 @@
     }
     // Theme var may arrive late — keep re-checking until adopted.
     const card = sr.querySelector("ha-card");
-    if (card && !glassDone.has(sr) && auroraActive(el)) {
+    if (card && !glassDone.has(sr) && (preRead.has(el) ? preRead.get(el) : auroraActive(el))) {
       glassDone.add(sr);
       adopt(sr, SHEETS.base, insideStack(el) ? SHEETS.glassInner : SHEETS.glass);
     }
@@ -1000,20 +1024,53 @@
     }
   };
 
-  const walk = (node) => {
+  // A sweep has two phases: first it only READS (computed styles), then it only
+  // WRITES (stylesheets, inline styles). It used to alternate per card: every
+  // write invalidated the styles, so the next getComputedStyle forced a new style
+  // recalculation -- one per card, a hundred on a page with a hundred cards
+  // (WebKit recomputes the card's surroundings each time). Now everything is read
+  // once, before the first write.
+  const preRead = new Map();
+
+  const collect = (node, out) => {
     if (node.shadowRoot) {
-      handle(node);
-      for (const c of node.shadowRoot.children) walk(c);
+      out.push(node);
+      for (const c of node.shadowRoot.children) collect(c, out);
     }
-    for (const c of node.children) walk(c);
+    for (const c of node.children) collect(c, out);
   };
 
+  const readPhase = (list) => {
+    preRead.clear();
+    for (const el of list) {
+      const sr = el.shadowRoot;
+      if (el.tagName === "HUI-GRID-CARD") {
+        const root = sr.querySelector("#root");
+        if (root && root.children.length && !baseCols.has(root)) {
+          preRead.set(root, getComputedStyle(root).gridTemplateColumns.split(" ").length);
+        }
+      }
+      const card = sr.querySelector("ha-card");
+      if (card && !glassDone.has(sr)) preRead.set(el, auroraActive(el));
+    }
+  };
+
+  // Duration of the last sweep: the build-phase observer paces itself by it
+  // (see baldSweepen below).
+  let sweepMs = 0;
+
   const sweep = () => {
+    const t0 = performance.now();
     try {
-      walk(document.body);
+      const list = [];
+      collect(document.body, list);
+      readPhase(list);
+      for (const el of list) handle(el);
     } catch (e) {
       /* never break the frontend over eye candy */
     }
+    preRead.clear();
+    sweepMs = performance.now() - t0;
   };
 
   // Waehrend das Dashboard aufgebaut wird, reicht der 4-Sekunden-Takt nicht:
@@ -1029,11 +1086,16 @@
   let letzterLauf = 0;
   const baldSweepen = () => {
     if (bremse) return;
-    const wartet = Math.max(0, 120 - (performance.now() - letzterLauf));
+    // At least 120 ms apart, and at least three times as long as the last sweep
+    // took: during the build the helper then takes at most a quarter of the main
+    // thread. On a fast device (a sweep takes a few ms) it stays at 120 ms; on a
+    // slow one (a Raspberry Pi, an older phone, ~500 ms per sweep) the page is no
+    // longer searched at every tick while the build itself still has work.
+    const wartet = Math.max(0, Math.max(120, 3 * sweepMs) - (performance.now() - letzterLauf));
     bremse = setTimeout(() => {
       bremse = 0;
-      letzterLauf = performance.now();
       sweep();
+      letzterLauf = performance.now();   // the gap counts from the END of the sweep
     }, wartet);
   };
 
@@ -1558,17 +1620,17 @@
   // `lichtspur.json` ist der Rueckfall: aelter, ohne Werte, aber mit dem
   // Fenster — dann steht die Uhrzeit da und sonst nichts.
   const spurStand = { wert: null, geholt: 0, laeuft: false };
-  const spurVersuch = (liste) => {
-    if (!liste.length) return Promise.resolve();
-    const datei = liste[0];
+  const spurVersuch = (list) => {
+    if (!list.length) return Promise.resolve();
+    const datei = list[0];
     return fetch(SPUR_ORT + datei, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
-        if (!j || !j.jetzt) return spurVersuch(liste.slice(1));
+        if (!j || !j.jetzt) return spurVersuch(list.slice(1));
         spurStand.wert = { t: j.jetzt * 1000, f: (j.fenster_s || 86400) * 1000,
                            l: j.lampen || null };
       })
-      .catch(() => spurVersuch(liste.slice(1)));
+      .catch(() => spurVersuch(list.slice(1)));
   };
   const spurFenster = () => {
     if (!spurStand.laeuft &&
