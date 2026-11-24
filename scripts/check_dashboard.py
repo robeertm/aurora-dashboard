@@ -250,7 +250,9 @@ def main() -> int:
             used -= {"input_select.select_option", "input_select.select_next"}  # service names
             for miss in sorted(used - have):
                 findings.append("packages/aurora_helpers.yaml: dashboard uses %s but the package does not define it" % miss)
-            for extra in sorted(have - used):
+            # read by dist/aurora-effects.js, not by the dashboard YAML
+            used_by_helper = set(re.findall(r'"(input_boolean\.[a-z0-9_]+)"', open(HELPER, encoding="utf-8").read()))
+            for extra in sorted(have - used - used_by_helper):
                 findings.append("packages/aurora_helpers.yaml: defines %s which the dashboard never uses" % extra)
             opts = (pkg.get("input_select") or {})
             if (opts.get("sky_mode") or {}).get("options") != ["Auto", "Day", "Dusk", "Night"]:

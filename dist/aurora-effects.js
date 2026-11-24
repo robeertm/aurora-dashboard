@@ -1,5 +1,12 @@
 /*
  * Aurora Effects — tiny, dependency-free style helper for the Aurora dashboard.
+ * v2.42.0 — a quiet "new version" hint. The helper compares its own version with the
+ *            latest GitHub release (at most once every 12 h, conditional request with
+ *            the ETag, so an unchanged answer costs no rate limit) and, only when a
+ *            newer one exists, shows one small pill in the corner: tap = release
+ *            notes, x = hide this version. Never a popup, never blocks. Off switch:
+ *            `input_boolean.aurora_update_check` set to off, or the theme variable
+ *            `aurora-update-check: 0`. Nothing is installed or changed by it.
  * v2.41.0 — the page builds faster: a sweep reads before it writes, the axis width
  *           comes from a ResizeObserver, switched-off idle icons keep no layer.
  * v2.40.2 — a card with `tap_action: none` that carries its own controls (an
@@ -178,7 +185,7 @@
 (() => {
   // Eine Stelle fuer die Versionsnummer. Vorher stand sie im Kopf UND in der
   // Konsolenzeile, und die beiden waren um fuenf Fassungen auseinander.
-  const AE_VERSION = "2.41.0";
+  const AE_VERSION = "2.42.0";
 
   // Phones get the same look minus the two things a mobile GPU cannot afford:
   // a backdrop blur per card (each one is its own compositing layer plus a
@@ -1202,7 +1209,8 @@
           mnix: "Gerade läuft nichts", mlaeuft: "läuft",
           mpause: "pausiert", mbereit: "bereit", mspielt: "spielt gerade",
           mnixw: "Kein Wiedergabegerät spielt, pausiert oder wartet gerade.",
-          min: "Min.", std: "Std.", tage: "T." },
+          min: "Min.", std: "Std.", tage: "T.",
+          upd: "Neue Aurora-Fassung", updzu: "Diesen Hinweis ausblenden" },
     en: { jetzt: "now", tun: "What you can do", zu: "Close", geraet: "Open device", hin: "Take me there",
           werte: "Details", verlauf: "Recent history",
           spur24: "Colour and brightness of the last 24 hours",
@@ -1218,7 +1226,8 @@
           mnix: "Nothing is playing", mlaeuft: "playing",
           mpause: "paused", mbereit: "idle", mspielt: "playing right now",
           mnixw: "No player is playing, paused or waiting right now.",
-          min: "min", std: "h", tage: "d" },
+          min: "min", std: "h", tage: "d",
+          upd: "New Aurora version", updzu: "Hide this notice" },
   };
   // 🔴 Erst beim Oeffnen nachsehen, nicht beim Laden: Home Assistant setzt
   //    <html lang> erst, wenn die Oberflaeche hochgekommen ist - dieses Modul
@@ -2191,6 +2200,100 @@
       console.warn("[aurora] Kachelblatt liess sich nicht oeffnen:", e);
     }
   });
+
+  // ── Quiet update hint ──────────────────────────────────────────────────
+  // The helper arrives by HACS, the dashboard YAML and the theme by hand: this
+  // tells you that a newer release exists, nothing more. One request at most
+  // every 12 h (If-None-Match, a 304 is free), one small pill, no popup. Off:
+  // input_boolean.aurora_update_check = off, or theme variable
+  // `aurora-update-check: 0`. `window.AURORA_UPDATE_URL` / `_DELAY_MS` exist for tests.
+  const UPD_KEY = "aurora-update-cache";
+  const UPD_SKIP = "aurora-update-skip";
+  const UPD_EVERY = 12 * 3600 * 1000;
+  const UPD_URL = () => window.AURORA_UPDATE_URL ||
+    "https://api.github.com/repos/robeertm/aurora-dashboard/releases/latest";
+  const vergleich = (a, b) => {
+    const x = String(a).replace(/^v/, "").split(".").map(Number);
+    const y = String(b).replace(/^v/, "").split(".").map(Number);
+    for (let i = 0; i < 3; i++) {
+      const d = (x[i] || 0) - (y[i] || 0);
+      if (d) return d;
+    }
+    return 0;
+  };
+  const updAn = () => {
+    try {
+      const S = haStates();
+      const b = S && S["input_boolean.aurora_update_check"];
+      if (b && b.state === "off") return false;
+      const v = getComputedStyle(document.documentElement).getPropertyValue("--aurora-update-check");
+      if (String(v).trim() === "0") return false;
+      return true;
+    } catch (e) { return true; }
+  };
+  const updLesen = () => {
+    try { return JSON.parse(localStorage.getItem(UPD_KEY) || "null") || {}; } catch (e) { return {}; }
+  };
+  const updSchreiben = (o) => {
+    try { localStorage.setItem(UPD_KEY, JSON.stringify(o)); } catch (e) { /* dann eben ohne Cache */ }
+  };
+  const updPille = () => document.getElementById("aurora-update-pill");
+  const updZeigen = (c) => {
+    const ist = updPille();
+    const neu = c && c.tag && vergleich(c.tag, AE_VERSION) > 0;
+    let skip = "";
+    try { skip = localStorage.getItem(UPD_SKIP) || ""; } catch (e) { /* ignore */ }
+    if (!neu || skip === c.tag || !updAn()) { if (ist) ist.remove(); return; }
+    if (ist) return;
+    const W = worte();
+    const el = document.createElement("div");
+    el.id = "aurora-update-pill";
+    el.setAttribute("role", "status");
+    el.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:5;display:flex;align-items:center;" +
+      "gap:2px;max-width:calc(100vw - 24px);font:500 12px/1 system-ui,sans-serif;color:#cdd6f4;" +
+      "background:rgba(49,50,68,.92);border:1px solid rgba(203,166,247,.45);border-radius:999px;" +
+      "box-shadow:0 2px 10px rgba(0,0,0,.35)";
+    const a = document.createElement("a");
+    a.textContent = W.upd + " " + c.tag.replace(/^v/, "");
+    a.href = /^https:\/\//.test(c.url || "") ? c.url : "https://github.com/robeertm/aurora-dashboard/releases";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.style.cssText = "color:inherit;text-decoration:none;padding:8px 6px 8px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+    const x = document.createElement("button");
+    x.type = "button";
+    x.textContent = "×";
+    x.setAttribute("aria-label", W.updzu);
+    x.title = W.updzu;
+    x.style.cssText = "all:unset;cursor:pointer;padding:8px 12px 8px 6px;font-size:15px;color:#a6adc8";
+    x.addEventListener("click", () => {
+      try { localStorage.setItem(UPD_SKIP, c.tag); } catch (e) { /* ignore */ }
+      el.remove();
+    });
+    el.append(a, x);
+    document.body.appendChild(el);
+  };
+  const updPruefen = () => {
+    try {
+      if (!updAn()) { updZeigen(null); return; }
+      const c = updLesen();
+      updZeigen(c);
+      if (c.at && Date.now() - c.at < UPD_EVERY) return;
+      const h = { Accept: "application/vnd.github+json" };
+      if (c.etag) h["If-None-Match"] = c.etag;
+      fetch(UPD_URL(), { headers: h, cache: "no-cache" }).then((r) => {
+        if (r.status === 304) { c.at = Date.now(); updSchreiben(c); return null; }
+        if (!r.ok) { c.at = Date.now() - UPD_EVERY + 3600 * 1000; updSchreiben(c); return null; }
+        const etag = r.headers.get("ETag") || "";
+        return r.json().then((j) => {
+          const n = { at: Date.now(), etag, tag: String((j && j.tag_name) || ""), url: String((j && j.html_url) || "") };
+          updSchreiben(n);
+          updZeigen(n);
+        });
+      }).catch(() => { /* offline: beim naechsten Mal */ });
+    } catch (e) { /* ein Hinweis darf nie etwas stoeren */ }
+  };
+  setTimeout(() => { updPruefen(); setInterval(updPruefen, 60000); },
+    window.AURORA_UPDATE_DELAY_MS != null ? window.AURORA_UPDATE_DELAY_MS : 20000);
 
   sweep();
   aufbauBeobachten();

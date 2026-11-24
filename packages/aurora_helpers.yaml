@@ -27,6 +27,14 @@ input_select:
     options: [Always, On change, Off]
     initial: Always
 
+# Update hint switch (since 2.42.0). On = the helper may look once every 12 h
+# for a newer release and shows one small pill; off = it never asks.
+input_boolean:
+  aurora_update_check:
+    name: Aurora update hint
+    icon: mdi:update
+    initial: true
+
 # Room setpoint sliders in the Smart Home view (optional). One helper per room;
 # delete the rooms you do not have, add more with the same pattern.
 input_number:

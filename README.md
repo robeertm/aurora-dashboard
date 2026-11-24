@@ -186,6 +186,28 @@ curl -fsSL https://raw.githubusercontent.com/robeertm/aurora-dashboard/main/inst
 It places the theme, the effects helper, and `aurora-dashboard.yaml` and prints
 the two remaining UI steps.
 
+## Updating
+
+The helper tells you when a newer release exists: one small pill in the lower
+left corner ("New Aurora version x.y.z"), tap for the release notes, x to hide
+that version. It asks GitHub at most once every 12 hours and never pops up or
+installs anything. Switch it off with the helper `input_boolean.aurora_update_check`
+(in the package file) set to off, or the theme variable `aurora-update-check: 0`.
+
+- **Helper via HACS (one click):** open HACS, *Aurora Dashboard Effects* →
+  *Update*. HACS keeps the `?v=` resource number current; reload the browser.
+- **Dashboard YAML and theme (by hand, with a backup first):**
+  1. Back up: in the dashboard open *Raw configuration editor* and copy the text
+     to a file; copy `config/themes/aurora.yaml` and your
+     `config/packages/aurora_helpers.yaml` aside.
+  2. Read the CHANGELOG between your version and the new one: it says which
+     template changes your own YAML needs (see *If you keep your own dashboard
+     YAML*).
+  3. Replace `themes/aurora.yaml`, call `frontend.reload_themes`, merge new
+     helpers from `packages/aurora_helpers.yaml` (restart if new ones appear),
+     paste the new `dashboard/aurora.yaml` or apply just the listed changes.
+  4. Reload the browser; the console shows `AURORA-EFFECTS vx.y.z ready`.
+
 ## Manual install
 
 1. **Theme** — copy `themes/aurora.yaml` into your `config/themes/` folder
@@ -193,7 +215,7 @@ the two remaining UI steps.
    `frontend.reload_themes` action.
 2. **Effects helper** — copy `dist/aurora-effects.js` to
    `config/www/aurora-effects/aurora-effects.js` and register it as a dashboard
-   resource: `/local/aurora-effects/aurora-effects.js?v=2.40.1` (type *module*).
+   resource: `/local/aurora-effects/aurora-effects.js?v=2.42.0` (type *module*).
    **When you update the file, change the number after `?v=`** (any new value
    works): the browser keeps a resource without a version, and Firefox did so
    even after a hard reload.

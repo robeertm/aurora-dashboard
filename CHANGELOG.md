@@ -5,6 +5,24 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## 2.42.0
+
+Updater: a quiet, switchable "new version" hint.
+
+- **New-version pill.** The helper compares its own version with the latest
+  GitHub release at most once every 12 h (conditional request with the ETag, so
+  an unchanged answer costs no rate limit; a failed request is retried after an
+  hour). Only when a newer release exists it shows one small pill in the lower
+  left corner: tap opens the release notes, the x hides that version. Never a
+  popup, nothing blocks, nothing is installed or changed by the hint.
+- **Off switch.** `input_boolean.aurora_update_check` (new in
+  `packages/aurora_helpers.yaml`, optional) set to off, or the theme variable
+  `aurora-update-check: 0`. Switched off, the helper makes no request at all.
+- Both words (German, English) follow `<html lang>` like every other label.
+- README: HACS as the one-click update path, and a YAML update guide with a
+  backup first. New browser test with a fake release source (old -> new, same
+  version, off switch, hide, 304).
+
 ## 2.41.0
 
 Performance: the page builds faster, measured in real WebKit.
