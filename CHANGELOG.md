@@ -5,6 +5,19 @@
 > made it impossible to tell from a release which helper you were getting.
 > The previous release was 0.30.0; the next one is 2.26.0.
 
+## Unreleased
+
+Docs/example only (the helper is unchanged).
+
+- The example dashboard now configures the hero weather card with the
+  clock-weather-card 3.x option names (`sections.header.animated_icons`,
+  `sections.forecast_list.count`). The v2 keys it used before (`forecast_rows`,
+  `time_format`, `animated_icon`) are ignored by v3, so the row count did not
+  take effect. 3.x also adds an hourly strip, which makes the card taller than
+  2.x; if the tile block next to it should end on the same edge, tune
+  `forecast_list.count` and `row_height` (a CSS length such as `27px`).
+- README: the card table names the 3.x requirement.
+
 ## 2.42.0
 
 Updater: a quiet, switchable "new version" hint.

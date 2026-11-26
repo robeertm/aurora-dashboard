@@ -1054,9 +1054,11 @@ views:
           type: custom:clock-weather-card
           entity: weather.forecast_home
           sun_entity: sun.sun
-          time_format: "24"
-          forecast_rows: 4
-          animated_icon: true
+          sections:
+            header:
+              animated_icons: true
+            forecast_list:
+              count: 4
       - type: conditional
         conditions:
         - condition: screen
@@ -1065,9 +1067,11 @@ views:
           type: custom:clock-weather-card
           entity: weather.forecast_home
           sun_entity: sun.sun
-          time_format: "24"
-          forecast_rows: 4
-          animated_icon: false
+          sections:
+            header:
+              animated_icons: false
+            forecast_list:
+              count: 4
       - type: vertical-stack
         cards:
         - type: horizontal-stack

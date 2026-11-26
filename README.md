@@ -157,7 +157,7 @@ frontend cards (via HACS or manually):
 | [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) | auto-discovery (lights, batteries, explorer …) |
 | [stack-in-card](https://github.com/custom-cards/stack-in-card) | seamless plot tiles |
 | [mushroom](https://github.com/piitaya/lovelace-mushroom) | climate + media cards |
-| [clock-weather-card](https://github.com/pkissling/clock-weather-card) | hero clock/weather |
+| [clock-weather-card](https://github.com/pkissling/clock-weather-card) (3.x) | hero clock/weather — v3 keeps its options under `sections:`; v2 keys such as `forecast_rows` or `time_format` are silently ignored |
 
 **No card-mod required.** The glass blur and the scan-pulse animation come from
 the bundled `dist/aurora-effects.js` (a small dependency-free helper).
