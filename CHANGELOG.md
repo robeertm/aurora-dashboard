@@ -17,6 +17,7 @@ Docs/example only (the helper is unchanged).
   2.x; if the tile block next to it should end on the same edge, tune
   `forecast_list.count` and `row_height` (a CSS length such as `27px`).
 - README: the card table names the 3.x requirement.
+- README: new section "Privacy and network connections" describes the one outbound request (the update hint: GitHub release API, ETag, once every 12 h per browser), what is never sent, and how to switch it off.
 
 ## 2.42.0
 

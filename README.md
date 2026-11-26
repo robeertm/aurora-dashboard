@@ -579,6 +579,18 @@ of idle time on a real installation (1450 entities), not guessed.
   `device_entities`, `states.x` scans) into a *template sensor* with a time
   trigger, never onto a card. Cards re-render on every state change.
 
+## Privacy and network connections
+
+Aurora is a theme, a dashboard definition and one JavaScript helper that run inside your own Home Assistant. It sends nothing to the developer, has no telemetry or analytics, and loads no script, font or image from a third-party host. The helper's other requests (`fetch`) go only to your own Home Assistant.
+
+**The one outbound connection is the update hint** (see *Updating*). The helper in your **browser** (not your Home Assistant server) asks the public GitHub release API (`api.github.com`, the latest release of this repository) whether a newer version exists:
+
+- **When:** 20 seconds after a page loads, and then at most once every 12 hours per browser. The answer and its ETag are kept in the browser's local storage; later requests are conditional (`If-None-Match`), so an unchanged answer is a bare "not modified". After a failed request it retries after about an hour.
+- **What is sent:** a plain GET request with the standard headers your browser adds to any cross-site request (your IP address, the browser's user agent, the address of the page it comes from as the `Origin`, the cached ETag). No cookies are sent.
+- **What is never sent:** no Home Assistant states, entities, names, tokens or configuration, and not even the installed Aurora version; the comparison with the newer version happens locally in your browser.
+- **What it does with the answer:** if a newer release exists it shows one small pill that links to the release notes. It never installs or changes anything.
+- **Switching it off:** set the helper `input_boolean.aurora_update_check` (in `packages/aurora_helpers.yaml`) to off, or set the theme variable `aurora-update-check: 0`. With either set, the helper does not make the request at all.
+
 ## License
 
 Source-available, © Robert Manuwald: free to download and **use** on your own
